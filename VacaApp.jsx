@@ -2803,7 +2803,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
 }
 
 // --- APP ----------------------------------------------------------------------
-export default function App() {
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
