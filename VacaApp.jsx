@@ -3105,6 +3105,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                   <span style={{ fontSize:12, fontWeight:700, color:r.c,
                     fontFamily:"'DM Mono',monospace" }}>{r.neg?"-":""}{fmt(r.v)}</span>
                   </div>
-  );
+  )
 }
 export default VacaApp;
