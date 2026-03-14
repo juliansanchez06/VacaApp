@@ -3101,12 +3101,13 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
               ].map((r,i)=>(
                 <div key={i} style={{ display:"flex", justifyContent:"space-between",
                   padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:11, color:C.t3 }}>{r.l}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:r.c,
-                   </span>
-                  </div>
-                ))}
-              </div>
+                 <span style={{ fontSize: 11, color: C.t3 }}>{r.l}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: r.c, fontFamily: "'DM Mono', monospace" }}>
+                    {r.neg ? "-" : ""}{fmt(r.v)}
+                  </span>
+                </div>
+              ))}
             </div>
-          );
-        }
+          </div>
+        );
+      }
