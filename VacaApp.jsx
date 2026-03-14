@@ -3103,7 +3103,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                   padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
                  <span style={{ fontSize: 11, color: C.t3 }}>{r.l}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: r.c, fontFamily: "'DM Mono', monospace" }}>
-                  </div>
               ))}
             </div>
           </div>
