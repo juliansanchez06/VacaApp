@@ -3106,8 +3106,4 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                     fontFamily:"'DM Mono',monospace" }}>{r.neg?"-":""}{fmt(r.v)}</span>
               </div>
     );
-  }
-
-export default VacaApp;
-
-export default VacaApp;
+  export default VacaApp;
