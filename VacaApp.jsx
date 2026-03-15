@@ -3087,7 +3087,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 </ResponsiveContainer>
               </div>
             )}
-           {/* Breakdown ingresos / egresos */}
+          {/* Breakdown ingresos / egresos */}
             <div style={{ background:C.card, borderRadius:20, padding:"20px", border:`1.5px solid ${C.border}`, marginTop:20 }}>
               <div style={{ fontSize:11, fontWeight:700, color:C.t3, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>Estructura año 1</div>
               {[
@@ -3101,12 +3101,11 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                   <span style={{ fontSize:12, fontWeight:700, color:r.c, fontFamily:"'DM Mono', monospace" }}>
                     {r.neg ? "-" : ""}{fmt(r.v)}
                   </span>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-    </div> //
-  );
-};
+        );
+      }
 
 export default VacaApp;
-
