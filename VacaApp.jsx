@@ -3088,7 +3088,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
               </div>
             )}
            {/* Breakdown ingresos / egresos */}
-            <div style={{ background:C.card, borderRadius:20, padding:"20px", border:`1.5px solid ${C.border}` }}>
+            <div style={{ background:C.card, borderRadius:20, padding:"20px", border:`1.5px solid ${C.border}`, marginTop:20 }}>
               <div style={{ fontSize:11, fontWeight:700, color:C.t3, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>Estructura año 1</div>
               {[
                 { l:"Ingresos cría",   v: anio0?.ingreso_bruto||0, c:C.green  },
@@ -3105,10 +3105,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
               ))}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
+        );
+      }
 
 export default VacaApp;
