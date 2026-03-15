@@ -3107,6 +3107,12 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid " + C.border }}>
                   <span style={{ fontSize: 11, color: C.t3 }}>{r.l}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: r.c, fontFamily: "monospace" }}>
-                    {r.neg ? "-" : ""}{fmt(r.v)}
-                
-                ))}          
+                    {r.neg ? "-" : ""}{fmt(r.v)}               
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
