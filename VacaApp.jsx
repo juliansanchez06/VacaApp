@@ -2972,7 +2972,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
 
   return 
     <div style={{ background:C.bg, minHeight:"100vh", color:C.t1,
-      fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+      fontFamily:"'Plus Jakarta Sans',sans-serif" }>
 
       {/* HEADER */}
       <div style={{ padding: isDesktop ? "10px 32px 0" : "8px 12px 0",
