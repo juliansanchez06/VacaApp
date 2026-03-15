@@ -3098,5 +3098,4 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 { l:"Gastos campo",    v: gastos_tot,   c:C.red, neg:true },
                  { l:"Ingresos pastaje",v: pastaje_ing,  c:C.teal   },
                </div>
-            </div>
          );
