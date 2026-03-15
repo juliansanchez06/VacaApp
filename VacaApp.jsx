@@ -3097,6 +3097,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 { l:"Ingresos recría", v: (rc.stock_cab||0)*(rc.stock_peso_actual||260)*(rc.stock_precio_venta||5500), c:C.amber },
                 { l:"Gastos campo",    v: gastos_tot,   c:C.red, neg:true },
                  { l:"Ingresos pastaje",v: pastaje_ing,  c:C.teal   },
-               </div> |                 ^
+               </div>
             </div>
          );
