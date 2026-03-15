@@ -3087,11 +3087,9 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 </ResponsiveContainer>
               </div>
             )}
-            {/* Breakdown ingresos / egresos */}
-            <div style={{ background:C.card, borderRadius:20, padding:"20px",
-              border:`1.5px solid ${C.border}` }}>
-              <div style={{ fontSize:11, fontWeight:700, color:C.t3, textTransform:"uppercase",
-                letterSpacing:1, marginBottom:14 }}>Estructura año 1</div>
+           {/* Breakdown ingresos / egresos */}
+            <div style={{ background:C.card, borderRadius:20, padding:"20px", border:`1.5px solid ${C.border}` }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.t3, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>Estructura año 1</div>
               {[
                 { l:"Ingresos cría",   v: anio0?.ingreso_bruto||0, c:C.green  },
                 { l:"Ingresos recría", v: (rc.stock_cab||0)*(rc.stock_peso_actual||260)*(rc.stock_precio_venta||5500), c:C.amber },
@@ -3100,7 +3098,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
               ].map((r, i) => (
                 <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${C.border}` }}>
                   <span style={{ fontSize:11, color:C.t3 }}>{r.l}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:r.c, fontFamily:"'DM Mono',monospace" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:r.c, fontFamily:"'DM Mono', monospace" }}>
                     {r.neg ? "-" : ""}{fmt(r.v)}
                   </span>
                 </div>
