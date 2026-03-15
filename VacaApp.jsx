@@ -2803,6 +2803,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
 }
 
 // --- APP ----------------------------------------------------------------------
+export default function VacaApp() {
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -2970,12 +2971,12 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
   const pastaje_ing   = pastaje_calc?.total || 0;
   const gastos_tot    = gastos_calc?.total || 0;
 
-  return 
+  return (
     <div style={{ background:C.bg, minHeight:"100vh", color:C.t1,
-      fontFamily:"'Plus Jakarta Sans',sans-serif" }>
+      fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
 
       {/* HEADER */}
-      <div style={ padding: isDesktop ? "10px 32px 0" : "8px 12px 0",
+      <div style={{ padding: isDesktop ? "10px 32px 0" : "8px 12px 0",
         background:C.bg, position:"sticky", top:0, zIndex:20,
         borderBottom:`1px solid ${C.border}` }}>
         <div style={{ maxWidth: isDesktop ? 1400 : 430, margin:"0 auto" }}>
@@ -3110,4 +3111,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
         )}
       </div>
     </div>
-  ;
+  );
+
+}
