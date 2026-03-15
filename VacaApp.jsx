@@ -3088,17 +3088,19 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
               </div>
             )}
            {/* Breakdown ingresos / egresos */}
-            <div style={{ background:C.card, borderRadius:20, padding:"20px", border:`1.5px solid ${C.border}` }}>
-              <div style={{ fontSize:11, fontWeight:700, color:C.t3, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>Estructura año 1</div>
+  <div style={{ background: C.card, borderRadius: 20, padding: "20px", border: "1.5px solid " + C.border, marginTop: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>
+                Estructura año 1
+              </div>
               {[
-                { l:"Ingresos cría",   v: anio0?.ingreso_bruto||0, c:C.green  },
-                { l:"Ingresos recría", v: (rc.stock_cab||0)*(rc.stock_peso_actual||260)*(rc.stock_precio_venta||5500), c:C.amber },
-                { l:"Gastos campo",    v: gastos_tot,   c:C.red, neg:true },
-                { l:"Ingresos pastaje",v: pastaje_ing,  c:C.teal   },
+                { l: "Ingresos cría",   v: (anio0?.ingreso_bruto || 0), c: C.green },
+                { l: "Ingresos recría", v: ((rc.stock_cab || 0) * (rc.stock_peso_actual || 260) * (rc.stock_precio_venta || 5500)), c: C.amber },
+                { l: "Gastos campo",    v: (gastos_tot || 0), c: C.red, neg: true },
+                { l: "Ingresos pastaje",v: (pastaje_ing || 0), c: C.teal }
               ].map((r, i) => (
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:11, color:C.t3 }}>{r.l}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:r.c, fontFamily:"'DM Mono', monospace" }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid " + C.border }}>
+                  <span style={{ fontSize: 11, color: C.t3 }}>{r.l}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: r.c, fontFamily: "monospace" }}>
                     {r.neg ? "-" : ""}{fmt(r.v)}
                   </span>
                 </div>
