@@ -3108,5 +3108,5 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                   <span style={{ fontSize: 11, color: C.t3 }}>{r.l}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: r.c, fontFamily: "monospace" }}>
                     {r.neg ? "-" : ""}{fmt(r.v)}
-                  </span>
+                
                 ))}          
