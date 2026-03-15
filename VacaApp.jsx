@@ -2970,7 +2970,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
   const pastaje_ing   = pastaje_calc?.total || 0;
   const gastos_tot    = gastos_calc?.total || 0;
 
-  return (
+  return 
     <div style={{ background:C.bg, minHeight:"100vh", color:C.t1,
       fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
 
