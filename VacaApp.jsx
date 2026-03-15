@@ -3087,7 +3087,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 </ResponsiveContainer>
               </div>
             )}
-
             {/* Breakdown ingresos / egresos */}
             <div style={{ background:C.card, borderRadius:20, padding:"20px",
               border:`1.5px solid ${C.border}` }}>
