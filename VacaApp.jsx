@@ -3104,9 +3104,8 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 </div>
               ))}
             </div>
-          </div>
+          </div> //
           )
         }
 export default VacaApp;
 
-export default VacaApp;
