@@ -2975,7 +2975,7 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
       fontFamily:"'Plus Jakarta Sans',sans-serif" }>
 
       {/* HEADER */}
-      <div style={{ padding: isDesktop ? "10px 32px 0" : "8px 12px 0",
+      <div style={ padding: isDesktop ? "10px 32px 0" : "8px 12px 0",
         background:C.bg, position:"sticky", top:0, zIndex:20,
         borderBottom:`1px solid ${C.border}` }}>
         <div style={{ maxWidth: isDesktop ? 1400 : 430, margin:"0 auto" }}>
