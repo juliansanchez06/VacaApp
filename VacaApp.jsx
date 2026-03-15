@@ -3112,7 +3112,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                 ))}
            </div>
         )
-    );
-
+    )}
         
 export default VacaApp;
