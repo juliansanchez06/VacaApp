@@ -3099,3 +3099,4 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
                  { l:"Ingresos pastaje",v: pastaje_ing,  c:C.teal   },
             </div>
           );            
+export default VacaApp;
