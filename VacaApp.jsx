@@ -2803,7 +2803,6 @@ function Resultado({ R, s, rc, fl, gastos_calc, recria_margen, feedlot_margen, f
 }
 
 // --- APP ----------------------------------------------------------------------
-export default function App() {
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -3099,19 +3098,11 @@ export default function App() {
                 { l:"Ingresos recría", v: (rc.stock_cab||0)*(rc.stock_peso_actual||260)*(rc.stock_precio_venta||5500), c:C.amber },
                 { l:"Ingresos pastaje",v: pastaje_ing,  c:C.teal   },
                 { l:"Gastos campo",    v: gastos_tot,   c:C.red, neg:true },
-              ].map((r,i)=>(
-                <div key={i} style={{ display:"flex", justifyContent:"space-between",
-                  padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:11, color:C.t3 }}>{r.l}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:r.c,
-                    fontFamily:"'DM Mono',monospace" }}>{r.neg?"-":""}{fmt(r.v)}</span>
-                </div>
-              ))}
-            </div>
+              </div>
           </div>
-        )}
-      </div>
-    </div>
+        );
+      }
+    )
   );
 }
 export default VacaApp;
