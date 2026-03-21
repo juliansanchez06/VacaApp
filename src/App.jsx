@@ -94,27 +94,58 @@ const GLOBAL_STYLE = `
 
 // ─── Long-press hook ──────────────────────────────────────────────────────────
 function useLongPress(callback, delay = 120) {
-  const intervalRef = useRef(null);
-  const timeoutRef = useRef(null);
+  const intervalRef  = useRef(null);
+  const timeoutRef   = useRef(null);
+  const callbackRef  = useRef(callback);
+  const isActiveRef  = useRef(false);
 
-  const start = useCallback(() => {
-    callback();
+  // Mantener siempre la referencia al callback actualizado
+  useEffect(() => { callbackRef.current = callback; }, [callback]);
+
+  // Cleanup garantizado al desmontar el componente
+  useEffect(() => () => { stop(); }, []);
+
+  function stop() {
+    isActiveRef.current = false;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }
+
+  function start(e) {
+    // Prevenir doble disparo por superposición de eventos touch/mouse
+    if (e && e.type === 'mousedown' && e.sourceCapabilities?.firesTouchEvents) return;
+
+    // Siempre limpiar cualquier intervalo/timeout previo antes de iniciar
+    stop();
+
+    isActiveRef.current = true;
+    callbackRef.current(); // disparo inmediato al presionar
+
     timeoutRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(callback, delay);
+      if (!isActiveRef.current) return;
+      intervalRef.current = setInterval(() => {
+        if (!isActiveRef.current) {
+          stop();
+          return;
+        }
+        callbackRef.current();
+      }, delay);
     }, 400);
-  }, [callback, delay]);
-
-  const stop = useCallback(() => {
-    clearTimeout(timeoutRef.current);
-    clearInterval(intervalRef.current);
-  }, []);
+  }
 
   return {
-    onMouseDown: start,
-    onMouseUp: stop,
+    onMouseDown:  start,
+    onMouseUp:    stop,
     onMouseLeave: stop,
-    onTouchStart: start,
-    onTouchEnd: stop,
+    onTouchStart: (e) => { e.preventDefault(); start(e); },
+    onTouchEnd:   stop,
+    onTouchCancel: stop,
   };
 }
 
@@ -383,30 +414,34 @@ function ToggleSwitch({ on, onToggle, label }) {
 // ─── Gastos Comerciales ───────────────────────────────────────────────────────
 function GastosComerciales({ gastos, setGastos }) {
   const set = (k) => (v) => setGastos((p) => ({ ...p, [k]: v }));
-  const fleteCompra = gastos.kmCompra * gastos.precioKmCompra;
-  const fleteVenta  = gastos.kmVenta  * gastos.precioKmVenta;
 
+  // Totales visibles (0 cuando el toggle está off)
+  const fleteCompra = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
+  const fleteVenta  = gastos.fleteVentaOn  ? gastos.kmVenta  * gastos.precioKmVenta  : 0;
+
+  // Toggles independientes del valor numérico
   const toggleFlete = (tipo) => () =>
     setGastos((p) => ({
       ...p,
-      [tipo === "compra" ? "kmCompra" : "kmVenta"]:
-        p[tipo === "compra" ? "kmCompra" : "kmVenta"] > 0 ? 0 : 100,
+      [tipo === "compra" ? "fleteCompraOn" : "fleteVentaOn"]:
+        !p[tipo === "compra" ? "fleteCompraOn" : "fleteVentaOn"],
     }));
 
   const toggleComision = (tipo) => () =>
     setGastos((p) => ({
       ...p,
-      [tipo === "compra" ? "comisionCompra" : "comisionVenta"]:
-        p[tipo === "compra" ? "comisionCompra" : "comisionVenta"] > 0 ? 0 : 3,
+      [tipo === "compra" ? "comisionCompraOn" : "comisionVentaOn"]:
+        !p[tipo === "compra" ? "comisionCompraOn" : "comisionVentaOn"],
     }));
 
   const FleteBlock = ({ tipo }) => {
+    const onKey  = tipo === "compra" ? "fleteCompraOn"  : "fleteVentaOn";
     const kmKey  = tipo === "compra" ? "kmCompra"       : "kmVenta";
     const pkmKey = tipo === "compra" ? "precioKmCompra" : "precioKmVenta";
     const label  = tipo === "compra" ? "Flete Compra"   : "Flete Venta";
     const icon   = tipo === "compra" ? "🚛"             : "🚚";
-    const on     = gastos[kmKey] > 0;
-    const flete  = gastos[kmKey] * gastos[pkmKey];
+    const on     = gastos[onKey];
+    const flete  = on ? gastos[kmKey] * gastos[pkmKey] : 0;
     return (
       <div className={`rounded-xl border p-3 space-y-2 transition-all ${on ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100"}`}>
         <div className="flex items-center justify-between">
@@ -419,7 +454,6 @@ function GastosComerciales({ gastos, setGastos }) {
         {on && (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
-              {/* MEJORA 4: km max 1500, precio $2500-$6000 */}
               <Field label={`KM ${tipo}`} value={gastos[kmKey]} onChange={set(kmKey)} unit="km" step={10} sliderMax={1500} />
               <Field label="Precio / km" value={gastos[pkmKey]} onChange={set(pkmKey)} unit="$/km" step={50} />
             </div>
@@ -467,10 +501,10 @@ function GastosComerciales({ gastos, setGastos }) {
       </div>
       <div className="flex flex-wrap gap-2 pt-1">
         {[
-          { label: `Flete compra ${fmtMoney(fleteCompra)}`,  on: gastos.kmCompra > 0 },
-          { label: `Com. compra ${gastos.comisionCompra}%`,  on: gastos.comisionCompra > 0 },
-          { label: `Flete venta ${fmtMoney(fleteVenta)}`,    on: gastos.kmVenta > 0 },
-          { label: `Com. venta ${gastos.comisionVenta}%`,    on: gastos.comisionVenta > 0 },
+          { label: `Flete compra ${fmtMoney(fleteCompra)}`,  on: gastos.fleteCompraOn },
+          { label: `Com. compra ${gastos.comisionCompra}%`,  on: gastos.comisionCompraOn },
+          { label: `Flete venta ${fmtMoney(fleteVenta)}`,    on: gastos.fleteVentaOn },
+          { label: `Com. venta ${gastos.comisionVenta}%`,    on: gastos.comisionVentaOn },
         ].map(({ label, on }) => (
           <span key={label} className={`text-xs px-2.5 py-1 rounded-full font-semibold border transition-all
             ${on ? "bg-red-50 border-red-200 text-red-600" : "bg-slate-100 border-slate-200 text-slate-400 line-through"}`}>
@@ -494,14 +528,18 @@ function PoderDeCompra({ gastos }) {
 
   const calc = useMemo(() => {
     const ingresoBrutoVenta = venta.cantidad * venta.pesoPromedio * venta.precioKg;
-    const gastoComisionVenta = ingresoBrutoVenta * (gastos.comisionVenta / 100);
-    const ingresoNetoVenta = ingresoBrutoVenta - (gastos.kmVenta * gastos.precioKmVenta) - gastoComisionVenta;
+    const fleteVentaCalc = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
+    const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
+    const comisionVentaPct = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
+    const comisionCompraPct = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
+    const gastoComisionVenta = ingresoBrutoVenta * comisionVentaPct;
+    const ingresoNetoVenta = ingresoBrutoVenta - fleteVentaCalc - gastoComisionVenta;
     const precioAnimalBruto = compra.pesoAnimal * compra.precioKg;
-    const costoUnitarioBruto = precioAnimalBruto * (1 + gastos.comisionCompra / 100);
+    const costoUnitarioBruto = precioAnimalBruto * (1 + comisionCompraPct);
     const cabezasComprables = costoUnitarioBruto > 0
-      ? Math.floor((ingresoNetoVenta - (gastos.kmCompra * gastos.precioKmCompra)) / costoUnitarioBruto)
+      ? Math.floor((ingresoNetoVenta - fleteCompraCalc) / costoUnitarioBruto)
       : 0;
-    const costoRealTotal = cabezasComprables * costoUnitarioBruto + (gastos.kmCompra * gastos.precioKmCompra);
+    const costoRealTotal = cabezasComprables * costoUnitarioBruto + fleteCompraCalc;
     const sobrante = ingresoNetoVenta - costoRealTotal;
     const relacionVentaCompra = venta.cantidad > 0 ? cabezasComprables / venta.cantidad : 0;
     return { ingresoBrutoVenta, ingresoNetoVenta, costoUnitarioBruto, cabezasComprables, sobrante, relacionVentaCompra };
@@ -532,7 +570,7 @@ function PoderDeCompra({ gastos }) {
               <span>Ingreso bruto</span><span className="font-mono font-semibold">{fmtMoney(calc.ingresoBrutoVenta)}</span>
             </div>
             <div className="flex justify-between text-xs text-red-400">
-              <span>− Flete + comisión venta ({gastos.comisionVenta}%)</span>
+              <span>− Flete + comisión venta{gastos.comisionVentaOn ? ` (${gastos.comisionVenta}%)` : ""}</span>
               <span className="font-mono">−{fmtMoney(calc.ingresoBrutoVenta - calc.ingresoNetoVenta)}</span>
             </div>
             <div className="flex justify-between text-sm font-bold border-t border-sky-200 pt-1 text-sky-800">
@@ -551,8 +589,8 @@ function PoderDeCompra({ gastos }) {
               <span>Precio animal</span><span className="font-mono font-semibold">{fmtMoney(compra.pesoAnimal * compra.precioKg)}</span>
             </div>
             <div className="flex justify-between text-xs text-red-400">
-              <span>+ Comisión compra ({gastos.comisionCompra}%)</span>
-              <span className="font-mono">+{fmtMoney(compra.pesoAnimal * compra.precioKg * gastos.comisionCompra / 100)}</span>
+              <span>+ Comisión compra{gastos.comisionCompraOn ? ` (${gastos.comisionCompra}%)` : ""}</span>
+              <span className="font-mono">+{fmtMoney(compra.pesoAnimal * compra.precioKg * comisionCompraPct)}</span>
             </div>
             <div className="flex justify-between text-sm font-bold border-t border-sky-200 pt-1 text-sky-800">
               <span>= Costo real / cabeza</span><span className="font-mono">{fmtMoney(calc.costoUnitarioBruto)}</span>
@@ -574,7 +612,7 @@ function PoderDeCompra({ gastos }) {
           </div>
           <div className="rounded-xl bg-sky-50 border border-sky-200 px-4 py-3 text-center">
             <p className="text-xs text-sky-600 uppercase tracking-wider font-semibold">Flete compra</p>
-            <p className="font-mono font-bold text-xl text-sky-700">{fmtMoney(gastos.kmCompra * gastos.precioKmCompra)}</p>
+            <p className="font-mono font-bold text-xl text-sky-700">{fmtMoney(fleteCompraCalc)}</p>
             <p className="text-xs text-sky-400">incluido en cálculo</p>
           </div>
         </div>
@@ -625,6 +663,12 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
     precioDescarteSalidaKg: 1600,
     // MEJORA 5: Costo de Toros en kg (se aplica a terneras y vacas preñadas)
     kgToros: 3,
+    // Suplementación Terneras
+    mesesSuplTerneras: [],
+    costoSuplTernerasMes: 12000,
+    // Suplementación Vacas Preñadas
+    mesesSuplVacas: [],
+    costoSuplVacasMes: 15000,
   });
   const set = (k) => (v) => setInputs((p) => ({ ...p, [k]: v }));
 
@@ -643,19 +687,29 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
     const costoTorosAnual = inputs.kgToros * precioNovilloInmag * inputs.cantidad;
     const costoTorosTotal = costoTorosAnual * inputs.anosVidaUtil;
 
-    const costoTotalProyecto = inversionInicial + costoRecriaPreServicio + costoPastoreoVida + costoIatfTotal + costoTorosTotal;
+    // Suplementación Terneras (se aplica durante el período de recría pre-servicio)
+    const mesesSuplTernerasValidos = inputs.mesesSuplTerneras.filter((m) => m <= inputs.mesesRecriaPreServicio);
+    const costoSuplTerneras = mesesSuplTernerasValidos.length * inputs.costoSuplTernerasMes * inputs.cantidad;
+
+    // Suplementación Vacas Preñadas (se aplica por año de vida útil, ciclo anual de 12 meses)
+    const costoSuplVacasAnual = inputs.mesesSuplVacas.length * inputs.costoSuplVacasMes * inputs.cantidad;
+    const costoSuplVacasTotal = costoSuplVacasAnual * inputs.anosVidaUtil;
+
+    const costoTotalProyecto = inversionInicial + costoRecriaPreServicio + costoPastoreoVida + costoIatfTotal + costoTorosTotal + costoSuplTerneras + costoSuplVacasTotal;
     const costoRetencionAnual = costoTotalProyecto / inputs.anosVidaUtil;
     const costoTotalPorVientre = costoTotalProyecto / inputs.cantidad;
 
     const ternerosAnuales = inputs.cantidad * (inputs.pctDestete / 100);
     const ingresoBrutoAnual = ternerosAnuales * inputs.pesoTerneroDestetado * inputs.precioTerneroKg;
-    const gastoComisionVentaAnual = ingresoBrutoAnual * (gastos.comisionVenta / 100);
-    const ingresoNetoAnual = ingresoBrutoAnual - (gastos.kmVenta * gastos.precioKmVenta) - gastoComisionVentaAnual;
+    const comisionVentaPctV = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
+    const fleteVentaV = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
+    const gastoComisionVentaAnual = ingresoBrutoAnual * comisionVentaPctV;
+    const ingresoNetoAnual = ingresoBrutoAnual - fleteVentaV - gastoComisionVentaAnual;
     const ingresoNetoVidaUtil = ingresoNetoAnual * inputs.anosVidaUtil;
 
     const ingresoBrutoDescarte = inputs.cantidad * inputs.pesoVacaDescarte * inputs.precioDescarteSalidaKg;
-    const gastoComisionDescarte = ingresoBrutoDescarte * (gastos.comisionVenta / 100);
-    const recuperoDescarte = ingresoBrutoDescarte - (gastos.kmVenta * gastos.precioKmVenta) - gastoComisionDescarte;
+    const gastoComisionDescarte = ingresoBrutoDescarte * comisionVentaPctV;
+    const recuperoDescarte = ingresoBrutoDescarte - fleteVentaV - gastoComisionDescarte;
 
     const ingresoTotalProyecto = ingresoNetoVidaUtil + recuperoDescarte;
     const margenNeto = ingresoTotalProyecto - costoTotalProyecto;
@@ -670,7 +724,8 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
 
     return {
       inversionInicial, costoRecriaPreServicio, costoPastoreoVida,
-      costoIatfTotal, costoTorosAnual, costoTorosTotal, costoTotalProyecto,
+      costoIatfTotal, costoTorosAnual, costoTorosTotal,
+      costoSuplTerneras, costoSuplVacasAnual, costoSuplVacasTotal, costoTotalProyecto,
       costoRetencionAnual, costoTotalPorVientre,
       ternerosAnuales, ingresoBrutoAnual, ingresoNetoAnual, ingresoNetoVidaUtil,
       recuperoDescarte, ingresoTotalProyecto, margenNeto, margenPorVientrePorAno,
@@ -741,6 +796,52 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
 
       <Divider />
 
+      {/* Suplementación — Terneras */}
+      {tipoCompra === "terneras" && (
+        <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-black shrink-0">🌾</span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-teal-700">Suplementación — Terneras</p>
+              <p className="text-xs text-teal-500">Marcá los meses en que suplementás durante la recría pre-servicio ({inputs.mesesRecriaPreServicio} meses)</p>
+            </div>
+          </div>
+          <TimelineSuplementacion
+            mesesActivos={inputs.mesesSuplTerneras}
+            onChange={(next) => set("mesesSuplTerneras")(next)}
+            costoMensual={inputs.costoSuplTernerasMes}
+            cantidad={inputs.cantidad}
+          />
+          <Field label="Costo suplemento / mes / cab" value={inputs.costoSuplTernerasMes}
+            onChange={set("costoSuplTernerasMes")} unit="$/mes" step={500}
+            hint={`Total recría: ${fmtMoney(calc.costoSuplTerneras)}`} />
+        </div>
+      )}
+
+      {/* Suplementación — Vacas Preñadas */}
+      {tipoCompra === "vacas" && (
+        <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-black shrink-0">🌾</span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-teal-700">Suplementación — Vacas Preñadas</p>
+              <p className="text-xs text-teal-500">Ciclo anual — marcá los meses de bache forrajero (se repite cada año)</p>
+            </div>
+          </div>
+          <TimelineSuplementacion
+            mesesActivos={inputs.mesesSuplVacas}
+            onChange={(next) => set("mesesSuplVacas")(next)}
+            costoMensual={inputs.costoSuplVacasMes}
+            cantidad={inputs.cantidad}
+          />
+          <Field label="Costo suplemento / mes / cab" value={inputs.costoSuplVacasMes}
+            onChange={set("costoSuplVacasMes")} unit="$/mes" step={500}
+            hint={`Anual: ${fmtMoney(calc.costoSuplVacasAnual)} · Total ${inputs.anosVidaUtil} años: ${fmtMoney(calc.costoSuplVacasTotal)}`} />
+        </div>
+      )}
+
+      <Divider />
+
       {/* Destete y venta de terneros */}
       <div>
         <SectionTitle icon="🐣" color="text-amber-600">Producción Anual — Destete</SectionTitle>
@@ -800,6 +901,16 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
           <p className="text-xs text-purple-400">{inputs.kgToros} kg × ${fmt(precioNovilloInmag)}/kg × {inputs.anosVidaUtil} años × {inputs.cantidad} cab</p>
         </div>
         <span className="font-mono font-bold text-purple-800 text-xl">{fmtMoney(calc.costoTorosTotal)}</span>
+
+        {/* KPI Suplemento */}
+        {tipoCompra === "terneras" && calc.costoSuplTerneras > 0 && (
+          <KpiCard label="Suplemento Terneras" value={fmtMoney(calc.costoSuplTerneras)}
+            sub={`${inputs.mesesSuplTerneras.length} meses × $${fmt(inputs.costoSuplTernerasMes)}/mes × ${inputs.cantidad} cab`} />
+        )}
+        {tipoCompra === "vacas" && calc.costoSuplVacasTotal > 0 && (
+          <KpiCard label="Suplemento Vacas" value={fmtMoney(calc.costoSuplVacasTotal)}
+            sub={`${inputs.mesesSuplVacas.length} m × $${fmt(inputs.costoSuplVacasMes)}/mes × ${inputs.cantidad} cab × ${inputs.anosVidaUtil} años`} />
+        )}
       </div>
 
       {/* Costo total */}
@@ -827,9 +938,15 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
         {[
           { label: `Ingreso terneros (${inputs.anosVidaUtil} años)`, value: calc.ingresoNetoVidaUtil, plus: true },
           { label: "Recupero venta descarte", value: calc.recuperoDescarte, plus: true },
+          ...(tipoCompra === "terneras" && calc.costoSuplTerneras > 0
+            ? [{ label: "Suplemento terneras (recría)", value: -calc.costoSuplTerneras, plus: false }]
+            : []),
+          ...(tipoCompra === "vacas" && calc.costoSuplVacasTotal > 0
+            ? [{ label: `Suplemento vacas (${inputs.anosVidaUtil} años)`, value: -calc.costoSuplVacasTotal, plus: false }]
+            : []),
           { label: "Costo total del proyecto", value: -calc.costoTotalProyecto, plus: false },
-        ].map((row, i) => (
-          <div key={i} className={`flex justify-between text-sm ${i === 2 ? "border-t border-slate-200 pt-2" : ""}`}>
+        ].map((row, i, arr) => (
+          <div key={i} className={`flex justify-between text-sm ${i === arr.length - 1 ? "border-t border-slate-200 pt-2" : ""}`}>
             <span className={i === 2 ? "text-slate-600 font-semibold" : "text-slate-500"}>
               {row.plus ? "+" : "−"} {row.label}
             </span>
@@ -888,6 +1005,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
             { label: "Precio ternero", value: `$${fmt(inputs.precioTerneroKg)}/kg` },
             { label: "Inversión inicial", value: fmtMoney(calc.inversionInicial) },
             { label: "Ingreso total", value: fmtMoney(calc.ingresoTotalProyecto) },
+            { label: "Suplemento", value: tipoCompra === "terneras" ? fmtMoney(calc.costoSuplTerneras) : fmtMoney(calc.costoSuplVacasTotal) },
             { label: "Costo total", value: fmtMoney(calc.costoTotalProyecto) },
             { label: "Margen neto", value: fmtMoney(calc.margenNeto) },
             { label: "Margen/vientre/año", value: fmtMoney(calc.margenPorVientrePorAno) },
@@ -989,9 +1107,11 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 
   const calc = useMemo(() => {
     const inversionBruta = base.cantidad * base.pesoIngreso * base.precioCompraKg;
-    const gastoComisionCompra = inversionBruta * (gastos.comisionCompra / 100);
-    const inversionBase = inversionBruta + (gastos.kmCompra * gastos.precioKmCompra) + gastoComisionCompra;
-    const gastosCompra = (gastos.kmCompra * gastos.precioKmCompra) + gastoComisionCompra;
+    const comisionCompraPctC = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
+    const fleteCompraC = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
+    const gastoComisionCompra = inversionBruta * comisionCompraPctC;
+    const inversionBase = inversionBruta + fleteCompraC + gastoComisionCompra;
+    const gastosCompra = fleteCompraC + gastoComisionCompra;
 
     const diasPasto = opA.mesesRecria * 30;
     // MEJORA 2: decimal fix en GPV
@@ -1004,8 +1124,10 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
     const costoSuplementacionA = mesesSuplValidos.length * opA.costoSuplementoMensual * base.cantidad;
     const costoOperativoA = costoPastoreoA + costoSuplementacionA;
     const ingresoBrutoA = base.cantidad * pesoSalidaA * opA.precioVentaKg;
-    const gastoComisionVentaA = ingresoBrutoA * (gastos.comisionVenta / 100);
-    const gastosVentaA = (gastos.kmVenta * gastos.precioKmVenta) + gastoComisionVentaA;
+    const comisionVentaPctC = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
+    const fleteVentaC = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
+    const gastoComisionVentaA = ingresoBrutoA * comisionVentaPctC;
+    const gastosVentaA = fleteVentaC + gastoComisionVentaA;
     const ingresoNetoA = ingresoBrutoA - gastosVentaA;
     const margenA = ingresoNetoA - inversionBase - costoOperativoA;
     const margenPorCabA = margenA / base.cantidad;
@@ -1020,8 +1142,8 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
     const costoHoteleriaPorAnimal = opB.costoHoteleriadiaria * opB.diasEncierre;
     const costoOperativoB = costoTotalDiario * opB.diasEncierre * base.cantidad;
     const ingresoBrutoB = base.cantidad * pesoSalidaB * opB.precioVentaKg;
-    const gastoComisionVentaB = ingresoBrutoB * (gastos.comisionVenta / 100);
-    const gastosVentaB = (gastos.kmVenta * gastos.precioKmVenta) + gastoComisionVentaB;
+    const gastoComisionVentaB = ingresoBrutoB * comisionVentaPctC;
+    const gastosVentaB = fleteVentaC + gastoComisionVentaB;
     const ingresoNetoB = ingresoBrutoB - gastosVentaB;
     const inversionB = ingresoNetoA;
     const margenB = ingresoNetoB - inversionB - costoOperativoB;
@@ -1519,22 +1641,22 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
           {chips.map((c) => (
             <span key={c.label} className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c.color}`}>{c.label}</span>
           ))}
-          {gastos.kmCompra > 0 && (
+          {gastos.fleteCompraOn && (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-red-50 text-red-600 border-red-200">
               Flete C {fmtMoney(gastos.kmCompra * gastos.precioKmCompra)}
             </span>
           )}
-          {gastos.comisionCompra > 0 && (
+          {gastos.comisionCompraOn && (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-red-50 text-red-600 border-red-200">
               Com. C {gastos.comisionCompra}%
             </span>
           )}
-          {gastos.kmVenta > 0 && (
+          {gastos.fleteVentaOn && (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-red-50 text-red-600 border-red-200">
               Flete V {fmtMoney(gastos.kmVenta * gastos.precioKmVenta)}
             </span>
           )}
-          {gastos.comisionVenta > 0 && (
+          {gastos.comisionVentaOn && (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-red-50 text-red-600 border-red-200">
               Com. V {gastos.comisionVenta}%
             </span>
@@ -1751,11 +1873,15 @@ export default function EstrategiaComercial() {
   });
 
   const [gastos, setGastos] = useState({
-    kmCompra: 0,
-    precioKmCompra: 3500, // MEJORA 4: default dentro del rango $2500-$6000
-    comisionCompra: 3,
-    kmVenta: 0,
+    fleteCompraOn: false,
+    kmCompra: 370,
+    precioKmCompra: 3500,
+    fleteVentaOn: false,
+    kmVenta: 370,
     precioKmVenta: 3500,
+    comisionCompraOn: true,
+    comisionCompra: 3,
+    comisionVentaOn: true,
     comisionVenta: 3,
   });
 
