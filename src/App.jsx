@@ -147,6 +147,8 @@ function getSliderConfig(unit, step, value) {
 function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, sliderMax, noSlider }) {
   const s = step ?? 1;
   const numVal = Number(value) || 0;
+  // Local string state so user can clear the field while typing
+  const [inputStr, setInputStr] = React.useState(null); // null = use prop value
 
   const handleChange = (raw) => {
     if (!onChange) return;
@@ -156,6 +158,23 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
       v = Math.round(v * 10) / 10;
     }
     onChange(v);
+  };
+
+  const handleInputChange = (e) => {
+    const raw = e.target.value;
+    setInputStr(raw); // allow empty/partial string while typing
+    if (raw === '' || raw === '-') return; // don't commit yet
+    if (!onChange) return;
+    let v = Math.max(0, Number(raw));
+    if (s < 1) v = Math.round(v * 10) / 10;
+    onChange(v);
+  };
+
+  const handleInputBlur = () => {
+    if (inputStr === '' || inputStr === null) {
+      onChange && onChange(0);
+    }
+    setInputStr(null); // back to controlled by prop
   };
 
   // MEJORA 3: Long-press handlers
@@ -214,8 +233,11 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
           aria-label="Reducir">−</button>
 
         <div className="relative flex-1">
-          <input type="number" min={0} step={s} value={value}
-            onChange={(e) => handleChange(e.target.value)}
+          <input type="number" min={0} step={s}
+            value={inputStr !== null ? inputStr : value}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
             className={`w-full h-full ${accent.bg} ${accent.text} px-2 py-3 text-sm font-mono font-semibold text-center
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
               focus:outline-none focus:ring-2 ${accent.ring} transition-all`} />
@@ -559,6 +581,26 @@ function PoderDeCompra({ gastos }) {
           </div>
         </div>
       </div>
+
+      {/* Guardar simulación */}
+      <div className="flex justify-end pt-2">
+        <BotonGuardarSim color="sky" onGuardar={() => onGuardar({
+          tab: "poder",
+          nombre: `Triangulación: ${fmt(venta.cantidad)} nov ${fmt(venta.pesoPromedio)}kg → ${fmt(calc.cabezasComprables)} terneros`,
+          kpiLabel: "Cabezas",
+          kpiValue: fmt(calc.cabezasComprables),
+          detalle: [
+            { label: "Vendidos", value: `${fmt(venta.cantidad)} cab × ${fmt(venta.pesoPromedio)}kg` },
+            { label: "Precio venta", value: `$${fmt(venta.precioKg)}/kg` },
+            { label: "Ingreso neto", value: fmtMoney(calc.ingresoNetoVenta) },
+            { label: "Terneros comprables", value: fmt(calc.cabezasComprables) },
+            { label: "Precio compra", value: `$${fmt(compra.precioKg)}/kg` },
+            { label: "Sobrante", value: fmtMoney(calc.sobrante) },
+            { label: "Relación", value: `${fmt(calc.relacionVentaCompra, 2)}:1` },
+            { label: "Costo / cab", value: fmtMoney(calc.costoUnitarioBruto) },
+          ],
+        })} />
+      </div>
     </div>
   );
 }
@@ -566,7 +608,7 @@ function PoderDeCompra({ gastos }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — PROYECTO VIENTRES
 // ═══════════════════════════════════════════════════════════════════════════
-function ProyectoVientres({ global, gastos, onDescarte }) {
+function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
   const { inmagVientres, precioNovilloInmag, inflacionMensual } = global;
 
   const [tipoCompra, setTipoCompra] = useState("terneras");
@@ -835,6 +877,26 @@ function ProyectoVientres({ global, gastos, onDescarte }) {
           </button>
         </div>
       </div>
+
+      {/* Guardar simulación */}
+      <div className="flex justify-end pt-2">
+        <BotonGuardarSim color="violet" onGuardar={() => onGuardar({
+          tab: "vientres",
+          nombre: `Vientres: ${fmt(inputs.cantidad)} vientres × ${fmt(inputs.anosVidaUtil)} años`,
+          kpiLabel: "ROI",
+          kpiValue: `${fmt(calc.roiPct, 1)}%`,
+          detalle: [
+            { label: "Vientres", value: `${fmt(inputs.cantidad)} cab` },
+            { label: "Precio ternero", value: `$${fmt(inputs.precioTerneroKg)}/kg` },
+            { label: "Inversión inicial", value: fmtMoney(calc.inversionInicial) },
+            { label: "Ingreso total", value: fmtMoney(calc.ingresoTotalProyecto) },
+            { label: "Costo total", value: fmtMoney(calc.costoTotalProyecto) },
+            { label: "Margen neto", value: fmtMoney(calc.margenNeto) },
+            { label: "Margen/vientre/año", value: fmtMoney(calc.margenPorVientrePorAno) },
+            { label: "ROI", value: `${fmt(calc.roiPct, 1)}%` },
+          ],
+        })} />
+      </div>
     </div>
   );
 }
@@ -888,7 +950,7 @@ function TimelineSuplementacion({ mesesActivos, onChange, costoMensual, cantidad
   );
 }
 
-function ComparadorInvernada({ global, gastos, setGastos, descarteData }) {
+function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar }) {
   const { inmagInvernada, precioNovilloInmag, inflacionMensual } = global;
 
   const [base, setBase] = useState({
@@ -1337,6 +1399,28 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData }) {
           )}
         </div>
       </div>
+      {/* Guardar simulación */}
+      <div className="flex justify-end pt-2">
+        <BotonGuardarSim color="emerald" onGuardar={() => {
+          const winner = calc.a.margenProduccion >= calc.b.margenProduccion ? "Invernada" : "Feedlot";
+          onGuardar({
+            tab: "invernada",
+            nombre: `Comparador: ${fmt(base.cantidad)} cab ${fmt(base.pesoIngreso)}kg → ${winner} gana`,
+            kpiLabel: "Ganador",
+            kpiValue: winner,
+            detalle: [
+              { label: "Animales", value: `${fmt(base.cantidad)} cab` },
+              { label: "Peso ingreso", value: `${fmt(base.pesoIngreso)} kg` },
+              { label: "Precio compra", value: `$${fmt(base.precioCompraKg)}/kg` },
+              { label: "Margen Invernada", value: fmtMoney(calc.a.margenProduccion) },
+              { label: "Margen Feedlot", value: fmtMoney(calc.b.margenProduccion) },
+              { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margenProduccion - calc.b.margenProduccion)) },
+              { label: "Días pasto", value: `${fmt(opA.mesesRecria * 30)} días` },
+              { label: "Días feedlot", value: `${fmt(opB.diasEncierre)} días` },
+            ],
+          });
+        }} />
+      </div>
     </div>
   );
 }
@@ -1347,6 +1431,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData }) {
 function GInput({ label, value, onChange, unit, borderColor = "border-emerald-300", textColor = "text-emerald-800", step = 1 }) {
   const labelColor = textColor.replace("-800", "-700");
   const numVal = Number(value) || 0;
+  const [inputStr, setInputStr] = React.useState(null);
 
   // MEJORA 3: Long-press for GInput too
   const incFn = useCallback(() => onChange(Math.round((numVal + step) * 10) / 10), [numVal, step, onChange]);
@@ -1354,19 +1439,36 @@ function GInput({ label, value, onChange, unit, borderColor = "border-emerald-30
   const incPress = useLongPress(incFn);
   const decPress = useLongPress(decFn);
 
+  const handleGInputChange = (e) => {
+    const raw = e.target.value;
+    setInputStr(raw);
+    if (raw === '' || raw === '-') return;
+    let v = Math.max(0, Number(raw));
+    if (step < 1) v = Math.round(v * 10) / 10;
+    onChange(v);
+  };
+
+  const handleGInputBlur = () => {
+    if (inputStr === '' || inputStr === null) onChange(0);
+    setInputStr(null);
+  };
+
   return (
     <div className="flex flex-col gap-1">
       <label className={`text-xs font-semibold tracking-wider uppercase ${labelColor}`}>{label}</label>
       <div className={`flex items-stretch rounded-xl border-2 ${borderColor} overflow-hidden`}>
         <button {...decPress}
           className={`w-10 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-lg flex items-center justify-center transition-all touch-manipulation select-none`}>−</button>
-        <input type="number" min={0} step={step} value={value}
-          onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
+        <input type="number" min={0} step={step}
+          value={inputStr !== null ? inputStr : value}
+          onChange={handleGInputChange}
+          onBlur={handleGInputBlur}
+          onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
           className={`flex-1 bg-transparent text-center text-sm font-mono font-bold ${textColor} py-2.5
             [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none focus:outline-none`} />
-        <span className={`flex items-center px-2 text-xs font-mono ${labelColor} opacity-70`}>{unit}</span>
+        <span className={`flex items-center px-2 text-xs font-mono ${labelColor} opacity-70 border-l ${borderColor}`}>{unit}</span>
         <button {...incPress}
-          className={`w-10 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-lg flex items-center justify-center transition-all touch-manipulation select-none`}>+</button>
+          className={`w-10 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-lg flex items-center justify-center transition-all touch-manipulation select-none border-l ${borderColor}`}>+</button>
       </div>
     </div>
   );
@@ -1504,6 +1606,123 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORIAL DE SIMULACIONES
+// ═══════════════════════════════════════════════════════════════════════════
+const TAB_COLORS = {
+  poder:     { bg: "bg-sky-50",    border: "border-sky-200",    badge: "bg-sky-500",    text: "text-sky-700",    icon: "⇄" },
+  vientres:  { bg: "bg-violet-50", border: "border-violet-200", badge: "bg-violet-500", text: "text-violet-700", icon: "🐄" },
+  invernada: { bg: "bg-emerald-50",border: "border-emerald-200",badge: "bg-emerald-600",text: "text-emerald-700",icon: "⚖️" },
+};
+
+function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
+  const [expandida, setExpandida] = useState(null);
+
+  if (simulaciones.length === 0) {
+    return (
+      <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center mt-6">
+        <p className="text-3xl mb-2">📋</p>
+        <p className="font-black text-slate-400 text-sm uppercase tracking-widest">Sin simulaciones guardadas</p>
+        <p className="text-xs text-slate-300 mt-1">Usá el botón "Guardar simulación" en cada módulo para registrar tus escenarios.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm mt-6 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+        <div className="flex items-center gap-3">
+          <span className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-white text-xs font-black shrink-0">📋</span>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-700">Simulaciones Guardadas</p>
+            <p className="text-xs text-slate-400">{simulaciones.length} registro{simulaciones.length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+        <button onClick={onBorrarTodas}
+          className="text-xs font-bold text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-lg transition-all">
+          🗑 Borrar todas
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="divide-y divide-slate-100">
+        {simulaciones.map((sim, idx) => {
+          const c = TAB_COLORS[sim.tab] || TAB_COLORS.poder;
+          const isOpen = expandida === sim.id;
+          return (
+            <div key={sim.id} className={`${c.bg} transition-all`}>
+              {/* Row header */}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className={`shrink-0 w-6 h-6 rounded-md ${c.badge} text-white text-xs font-black flex items-center justify-center`}>
+                  {c.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-black text-sm ${c.text} truncate`}>{sim.nombre}</p>
+                  <p className="text-xs text-slate-400">{sim.fecha}</p>
+                </div>
+                {/* KPI pill */}
+                <span className={`shrink-0 text-xs font-black px-2.5 py-1 rounded-full ${c.badge} text-white`}>
+                  {sim.kpiLabel}: {sim.kpiValue}
+                </span>
+                {/* Expand */}
+                <button onClick={() => setExpandida(isOpen ? null : sim.id)}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-black px-1 transition-all select-none">
+                  {isOpen ? "⌃" : "⌄"}
+                </button>
+                {/* Delete */}
+                <button onClick={() => onBorrar(sim.id)}
+                  className="text-slate-300 hover:text-red-500 text-lg font-black px-1 transition-all select-none">
+                  ×
+                </button>
+              </div>
+
+              {/* Expanded detail */}
+              {isOpen && (
+                <div className="px-4 pb-4">
+                  <div className="bg-white/70 rounded-xl border border-white p-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {sim.detalle.map((d, i) => (
+                      <div key={i} className="flex flex-col">
+                        <span className="text-xs text-slate-400 uppercase tracking-wide">{d.label}</span>
+                        <span className={`text-sm font-bold font-mono ${c.text}`}>{d.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {sim.nota && (
+                    <p className="text-xs text-slate-400 italic mt-2 px-1">📝 {sim.nota}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BotonGuardarSim({ onGuardar, color = "sky" }) {
+  const [guardado, setGuardado] = useState(false);
+  const handle = () => {
+    onGuardar();
+    setGuardado(true);
+    setTimeout(() => setGuardado(false), 2000);
+  };
+  const colores = {
+    sky:     "bg-sky-500 hover:bg-sky-600 active:bg-sky-700",
+    violet:  "bg-violet-500 hover:bg-violet-600 active:bg-violet-700",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800",
+  };
+  return (
+    <button onClick={handle}
+      className={`flex items-center gap-2 px-5 py-3 rounded-xl text-white font-black text-sm transition-all shadow-md select-none
+        ${guardado ? "bg-emerald-500" : colores[color]}`}>
+      {guardado ? "✓ Guardado!" : "💾 Guardar simulación"}
+    </button>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1516,6 +1735,13 @@ const TABS = [
 export default function EstrategiaComercial() {
   const [activeTab, setActiveTab] = useState("vientres");
   const [descarteData, setDescarteData] = useState(null);
+  const [simulaciones, setSimulaciones] = useState([]);
+
+  const agregarSimulacion = (sim) => {
+    setSimulaciones((prev) => [{ ...sim, id: Date.now(), fecha: new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) }, ...prev]);
+  };
+  const borrarSimulacion = (id) => setSimulaciones((prev) => prev.filter((s) => s.id !== id));
+  const borrarTodas = () => setSimulaciones([]);
 
   const [global, setGlobal] = useState({
     inmagVientres: 10,
@@ -1581,12 +1807,15 @@ export default function EstrategiaComercial() {
 
           <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-6 md:p-8 shadow-sm">
             {activeTab === "poder"
-              ? <PoderDeCompra gastos={gastos} />
+              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} />
               : activeTab === "vientres"
-              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} />
-              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} />
+              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} />
+              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} />
             }
           </div>
+
+          {/* Historial de simulaciones */}
+          <SimulacionesPanel simulaciones={simulaciones} onBorrar={borrarSimulacion} onBorrarTodas={borrarTodas} />
 
           <p className="text-center text-xs text-slate-300 mt-6">
             Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión.
