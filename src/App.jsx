@@ -1548,16 +1548,14 @@ export default function EstrategiaComercial() {
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-10">
 
           {/* MEJORA 6: Header con Logo */}
-          <div className="mb-6">
-            <div className="flex items-center gap-4 mb-3">
-              {/* Logo embedding */}
-              <img
-                src={`data:image/png;base64,${LOGO_B64}`}
-                alt="VacaApp"
-                className="h-12 md:h-16 object-contain drop-shadow-sm"
-                style={{ maxWidth: "220px" }}
-              />
-            </div>
+          <div className="mb-6 flex flex-col items-center text-center">
+            {/* Logo embedding */}
+            <img
+              src={`data:image/png;base64,${LOGO_B64}`}
+              alt="VacaApp"
+              className="h-12 md:h-16 object-contain drop-shadow-sm mb-3"
+              style={{ maxWidth: "260px" }}
+            />
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 leading-none">Estrategia Comercial</h1>
             <p className="text-slate-400 text-sm mt-2">Simulá escenarios de compra y encontrá la opción más rentable antes de invertir.</p>
           </div>
