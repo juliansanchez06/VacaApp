@@ -148,7 +148,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
   const s = step ?? 1;
   const numVal = Number(value) || 0;
   // Local string state so user can clear the field while typing
-  const [inputStr, setInputStr] = React.useState(null); // null = use prop value
+  const [inputStr, setInputStr] = useState(null); // null = use prop value
 
   const handleChange = (raw) => {
     if (!onChange) return;
@@ -1431,7 +1431,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 function GInput({ label, value, onChange, unit, borderColor = "border-emerald-300", textColor = "text-emerald-800", step = 1 }) {
   const labelColor = textColor.replace("-800", "-700");
   const numVal = Number(value) || 0;
-  const [inputStr, setInputStr] = React.useState(null);
+  const [inputStr, setInputStr] = useState(null);
 
   // MEJORA 3: Long-press for GInput too
   const incFn = useCallback(() => onChange(Math.round((numVal + step) * 10) / 10), [numVal, step, onChange]);
