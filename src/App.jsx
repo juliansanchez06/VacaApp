@@ -173,7 +173,7 @@ function getSliderConfig(unit, step, value) {
 }
 
 // ─── Field component (with long-press + decimal fix) ─────────────────────────
-function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, sliderMax, noSlider, minVal }) {
+function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, sliderMax, noSlider, minVal, compact }) {
   const s = step ?? 1;
   const minV = minVal ?? 0;
   const numVal = Number(value) || 0;
@@ -260,31 +260,31 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
       </div>
 
       <div className={`flex items-stretch rounded-xl border ${accent.border} overflow-hidden shadow-sm`}>
-        {/* MEJORA 3: Decrement con long-press */}
+        {/* Decrement con long-press */}
         <button {...decPress}
-          className={`${accent.btn} flex items-center justify-center w-12 min-h-[44px] shrink-0 text-xl font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-12 min-h-[44px] text-xl"} shrink-0 font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
           aria-label="Reducir">−</button>
 
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <input type="number" min={minV} step={s}
             value={inputStr !== null ? inputStr : value}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
-            className={`w-full h-full ${accent.bg} ${accent.text} px-2 py-3 text-sm font-mono font-semibold text-center
+            className={`w-full h-full ${accent.bg} ${accent.text} ${compact ? "px-1 py-2.5 text-sm" : "px-2 py-3 text-sm"} font-mono font-semibold text-center
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
               focus:outline-none focus:ring-2 ${accent.ring} transition-all`} />
         </div>
 
         {unit && (
-          <span className={`${accent.bg} ${accent.text} opacity-60 flex items-center px-2 text-xs font-mono border-l ${accent.border} shrink-0 whitespace-nowrap`}>
+          <span className={`${accent.bg} ${accent.text} opacity-60 flex items-center ${compact ? "px-1 text-xs" : "px-2 text-xs"} font-mono border-l ${accent.border} shrink-0 whitespace-nowrap`}>
             {unit}
           </span>
         )}
 
-        {/* MEJORA 3: Increment con long-press */}
+        {/* Increment con long-press */}
         <button {...incPress}
-          className={`${accent.btn} flex items-center justify-center w-12 min-h-[44px] shrink-0 text-xl font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-12 min-h-[44px] text-xl"} shrink-0 font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
           aria-label="Aumentar">+</button>
       </div>
 
@@ -566,10 +566,10 @@ function PoderDeCompra({ gastos }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-sky-200 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📤 Origen — Animales que Vendo</p>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" />
-            <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" />
-            <Field label="Precio venta" value={venta.precioKg} onChange={setV("precioKg")} unit="$/kg" step={50} />
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" compact />
+            <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" compact />
+            <Field label="Precio venta" value={venta.precioKg} onChange={setV("precioKg")} unit="$/kg" step={50} compact />
           </div>
           <div className="rounded-lg bg-sky-50 border border-sky-100 p-3 space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
@@ -586,9 +586,9 @@ function PoderDeCompra({ gastos }) {
         </div>
         <div className="bg-white rounded-xl border border-sky-200 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📥 Destino — Animales que Compro</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" />
-            <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" compact />
+            <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} compact />
           </div>
           <div className="rounded-lg bg-sky-50 border border-sky-100 p-3 space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
