@@ -173,15 +173,16 @@ function getSliderConfig(unit, step, value) {
 }
 
 // ─── Field component (with long-press + decimal fix) ─────────────────────────
-function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, sliderMax, noSlider }) {
+function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, sliderMax, noSlider, minVal }) {
   const s = step ?? 1;
+  const minV = minVal ?? 0;
   const numVal = Number(value) || 0;
   // Local string state so user can clear the field while typing
   const [inputStr, setInputStr] = useState(null); // null = use prop value
 
   const handleChange = (raw) => {
     if (!onChange) return;
-    let v = Math.max(0, Number(raw));
+    let v = Math.max(minV, Number(raw));
     // MEJORA 2: fix decimal floating point para pasos de 0.1
     if (s < 1) {
       v = Math.round(v * 10) / 10;
@@ -194,14 +195,14 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
     setInputStr(raw); // allow empty/partial string while typing
     if (raw === '' || raw === '-') return; // don't commit yet
     if (!onChange) return;
-    let v = Math.max(0, Number(raw));
+    let v = Math.max(minV, Number(raw));
     if (s < 1) v = Math.round(v * 10) / 10;
     onChange(v);
   };
 
   const handleInputBlur = () => {
     if (inputStr === '' || inputStr === null) {
-      onChange && onChange(0);
+      onChange && onChange(minV);
     }
     setInputStr(null); // back to controlled by prop
   };
@@ -217,16 +218,16 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
   const decFn = useCallback(() => {
     if (s < 1) {
-      onChange(Math.max(0, Math.round((numVal - s) * 10) / 10));
+      onChange(Math.max(minV, Math.round((numVal - s) * 10) / 10));
     } else {
-      onChange(Math.max(0, numVal - s));
+      onChange(Math.max(minV, numVal - s));
     }
-  }, [numVal, s, onChange]);
+  }, [numVal, s, minV, onChange]);
 
   const incPress = useLongPress(incFn);
   const decPress = useLongPress(decFn);
 
-  const reset = () => handleChange(0);
+  const reset = () => handleChange(minV);
 
   const sliderCfg = getSliderConfig(unit, s, numVal);
   const sliderMax_ = sliderMax ?? sliderCfg.max;
@@ -251,8 +252,8 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <label className="text-xs font-semibold tracking-wider uppercase text-slate-500">{label}</label>
-        <button onClick={reset} title="Reset a 0"
-          className="text-xs font-black text-slate-300 hover:text-red-400 active:text-red-500 transition-colors px-1 leading-none tabular-nums select-none">×0</button>
+        <button onClick={reset} title="Poner en cero"
+          className="text-xs font-black bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-500 hover:text-orange-700 border border-orange-300 transition-all px-1.5 py-0.5 rounded leading-none tabular-nums select-none">×0</button>
       </div>
 
       <div className={`flex items-stretch rounded-xl border ${accent.border} overflow-hidden shadow-sm`}>
@@ -262,7 +263,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
           aria-label="Reducir">−</button>
 
         <div className="relative flex-1">
-          <input type="number" min={0} step={s}
+          <input type="number" min={minV} step={s}
             value={inputStr !== null ? inputStr : value}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
@@ -481,7 +482,7 @@ function GastosComerciales({ gastos, setGastos }) {
           </div>
           <ToggleSwitch on={on} onToggle={toggleComision(tipo)} label={on ? "Activo" : "Off"} />
         </div>
-        {on && <Field label="Porcentaje" value={gastos[key]} onChange={set(key)} unit="%" step={0.5} />}
+        {on && <Field label="Porcentaje" value={gastos[key]} onChange={set(key)} unit="%" step={0.5} sliderMax={5} />}
       </div>
     );
   };
@@ -547,6 +548,8 @@ function PoderDeCompra({ gastos }) {
 
   const ratio = calc.relacionVentaCompra;
   const ratioColor = ratio >= 1.3 ? "text-emerald-600" : ratio >= 1 ? "text-amber-600" : "text-red-500";
+  const comisionCompraPct = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
+  const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
 
   return (
     <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-6 space-y-5">
@@ -625,15 +628,24 @@ function PoderDeCompra({ gastos }) {
           nombre: `Triangulación: ${fmt(venta.cantidad)} nov ${fmt(venta.pesoPromedio)}kg → ${fmt(calc.cabezasComprables)} terneros`,
           kpiLabel: "Cabezas",
           kpiValue: fmt(calc.cabezasComprables),
-          detalle: [
-            { label: "Vendidos", value: `${fmt(venta.cantidad)} cab × ${fmt(venta.pesoPromedio)}kg` },
+          params: [
+            { label: "Cant. vendidos", value: `${fmt(venta.cantidad)} cab` },
+            { label: "Peso prom. venta", value: `${fmt(venta.pesoPromedio)} kg` },
             { label: "Precio venta", value: `$${fmt(venta.precioKg)}/kg` },
-            { label: "Ingreso neto", value: fmtMoney(calc.ingresoNetoVenta) },
-            { label: "Terneros comprables", value: fmt(calc.cabezasComprables) },
+            { label: "Peso animal compra", value: `${fmt(compra.pesoAnimal)} kg` },
             { label: "Precio compra", value: `$${fmt(compra.precioKg)}/kg` },
-            { label: "Sobrante", value: fmtMoney(calc.sobrante) },
+            { label: "Flete compra", value: gastos.fleteCompraOn ? `${fmt(gastos.kmCompra)} km × $${fmt(gastos.precioKmCompra)}/km` : "Desactivado" },
+            { label: "Flete venta", value: gastos.fleteVentaOn ? `${fmt(gastos.kmVenta)} km × $${fmt(gastos.precioKmVenta)}/km` : "Desactivado" },
+            { label: "Com. compra", value: gastos.comisionCompraOn ? `${gastos.comisionCompra}%` : "Desactivado" },
+            { label: "Com. venta", value: gastos.comisionVentaOn ? `${gastos.comisionVenta}%` : "Desactivado" },
+          ],
+          detalle: [
+            { label: "Ingreso bruto venta", value: fmtMoney(calc.ingresoBrutoVenta) },
+            { label: "Ingreso neto disponible", value: fmtMoney(calc.ingresoNetoVenta) },
+            { label: "Costo real / cabeza", value: fmtMoney(calc.costoUnitarioBruto) },
+            { label: "Terneros comprables", value: fmt(calc.cabezasComprables) },
             { label: "Relación", value: `${fmt(calc.relacionVentaCompra, 2)}:1` },
-            { label: "Costo / cab", value: fmtMoney(calc.costoUnitarioBruto) },
+            { label: "Sobrante", value: fmtMoney(calc.sobrante) },
           ],
         })} />
       </div>
@@ -757,13 +769,14 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Field label="Cantidad de cabezas" value={inputs.cantidad} onChange={set("cantidad")} unit="cab" />
           <Field label="Peso de compra" value={inputs.pesoCompra} onChange={set("pesoCompra")} unit="kg"
+            sliderMax={tipoCompra === "vacas" ? 600 : 400}
             hint={tipoCompra === "vacas" ? "Ref. para inflación" : ""} />
           {tipoCompra === "terneras"
-            ? <Field label="Precio por kg" value={inputs.precioKgCompra} onChange={set("precioKgCompra")} unit="$/kg" step={50} />
-            : <Field label="Precio al bulto" value={inputs.precioBulto} onChange={set("precioBulto")} unit="$/cab" step={5000} hint="Precio fijo sin importar el peso" />
+            ? <Field label="Precio por kg" value={inputs.precioKgCompra} onChange={set("precioKgCompra")} unit="$/kg" step={50} sliderMax={10000} />
+            : <Field label="Precio al bulto" value={inputs.precioBulto} onChange={set("precioBulto")} unit="$/cab" step={50000} sliderMax={4000000} hint="Precio fijo sin importar el peso" />
           }
           <Field label="Meses recría pre-servicio" value={inputs.mesesRecriaPreServicio} onChange={set("mesesRecriaPreServicio")} unit="meses"
-            hint="Tiempo que come sin producir terneros" />
+            minVal={1} hint="Tiempo que come sin producir terneros" />
           <Field label="Años de vida útil" value={inputs.anosVidaUtil} onChange={set("anosVidaUtil")} unit="años" />
           <Field label="Costo IATF" value={inputs.kgIatf} onChange={set("kgIatf")} unit="kg INMAG"
             hint={`≈ ${fmtMoney(inputs.kgIatf * precioNovilloInmag)}/servicio/cab`} highlight />
@@ -866,8 +879,8 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
       <div>
         <SectionTitle icon="🔄" color="text-orange-600">Recupero — Venta de Descarte (Fin Vida Útil)</SectionTitle>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="Peso vaca al descarte" value={inputs.pesoVacaDescarte} onChange={set("pesoVacaDescarte")} unit="kg" />
-          <Field label="Precio venta descarte" value={inputs.precioDescarteSalidaKg} onChange={set("precioDescarteSalidaKg")} unit="$/kg" step={50} />
+          <Field label="Peso vaca al descarte" value={inputs.pesoVacaDescarte} onChange={set("pesoVacaDescarte")} unit="kg" sliderMax={600} />
+          <Field label="Precio venta descarte" value={inputs.precioDescarteSalidaKg} onChange={set("precioDescarteSalidaKg")} unit="$/kg" step={50} sliderMax={6000} />
           <div className="flex flex-col gap-1">
             <p className="text-xs font-semibold tracking-wider uppercase text-slate-500">Recupero neto total</p>
             <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2.5 flex-1 flex items-center">
@@ -1000,13 +1013,37 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
           nombre: `Vientres: ${fmt(inputs.cantidad)} vientres × ${fmt(inputs.anosVidaUtil)} años`,
           kpiLabel: "ROI",
           kpiValue: `${fmt(calc.roiPct, 1)}%`,
-          detalle: [
-            { label: "Vientres", value: `${fmt(inputs.cantidad)} cab` },
+          params: [
+            { label: "Tipo de compra", value: tipoCompra === "terneras" ? "Terneras" : "Vacas Preñadas" },
+            { label: "Cantidad vientres", value: `${fmt(inputs.cantidad)} cab` },
+            { label: "Peso de compra", value: `${fmt(inputs.pesoCompra)} kg` },
+            { label: "Precio compra", value: tipoCompra === "terneras" ? `$${fmt(inputs.precioKgCompra)}/kg` : `$${fmt(inputs.precioBulto)}/cab (bulto)` },
+            { label: "Recría pre-servicio", value: `${fmt(inputs.mesesRecriaPreServicio)} meses` },
+            { label: "Años vida útil", value: `${fmt(inputs.anosVidaUtil)} años` },
+            { label: "IATF", value: `${fmt(inputs.kgIatf)} kg INMAG` },
+            { label: "Toros", value: `${fmt(inputs.kgToros)} kg INMAG/año` },
+            { label: "% Destete", value: `${fmt(inputs.pctDestete)}%` },
+            { label: "Peso ternero destetado", value: `${fmt(inputs.pesoTerneroDestetado)} kg` },
             { label: "Precio ternero", value: `$${fmt(inputs.precioTerneroKg)}/kg` },
+            { label: "Peso vaca descarte", value: `${fmt(inputs.pesoVacaDescarte)} kg` },
+            { label: "Precio descarte", value: `$${fmt(inputs.precioDescarteSalidaKg)}/kg` },
+            { label: "INMAG Vientres", value: `${fmt(inmagVientres)} kg/mes` },
+            { label: "Precio novillo INMAG", value: `$${fmt(precioNovilloInmag)}/kg` },
+            { label: "Flete venta", value: gastos.fleteVentaOn ? `${fmt(gastos.kmVenta)} km × $${fmt(gastos.precioKmVenta)}/km` : "Desactivado" },
+            { label: "Com. venta", value: gastos.comisionVentaOn ? `${gastos.comisionVenta}%` : "Desactivado" },
+          ],
+          detalle: [
             { label: "Inversión inicial", value: fmtMoney(calc.inversionInicial) },
-            { label: "Ingreso total", value: fmtMoney(calc.ingresoTotalProyecto) },
-            { label: "Suplemento", value: tipoCompra === "terneras" ? fmtMoney(calc.costoSuplTerneras) : fmtMoney(calc.costoSuplVacasTotal) },
-            { label: "Costo total", value: fmtMoney(calc.costoTotalProyecto) },
+            { label: "Costo pastoreo total", value: fmtMoney(calc.costoPastoreoVida) },
+            { label: "Costo IATF total", value: fmtMoney(calc.costoIatfTotal) },
+            { label: "Costo toros total", value: fmtMoney(calc.costoTorosTotal) },
+            { label: "Costo suplemento", value: tipoCompra === "terneras" ? fmtMoney(calc.costoSuplTerneras) : fmtMoney(calc.costoSuplVacasTotal) },
+            { label: "Costo total proyecto", value: fmtMoney(calc.costoTotalProyecto) },
+            { label: "Costo / vientre", value: fmtMoney(calc.costoTotalPorVientre) },
+            { label: "Terneros anuales", value: `${fmt(calc.ternerosAnuales, 1)} cab/año` },
+            { label: "Ingreso neto vida útil", value: fmtMoney(calc.ingresoNetoVidaUtil) },
+            { label: "Recupero descarte", value: fmtMoney(calc.recuperoDescarte) },
+            { label: "Ingreso total proyecto", value: fmtMoney(calc.ingresoTotalProyecto) },
             { label: "Margen neto", value: fmtMoney(calc.margenNeto) },
             { label: "Margen/vientre/año", value: fmtMoney(calc.margenPorVientrePorAno) },
             { label: "ROI", value: `${fmt(calc.roiPct, 1)}%` },
@@ -1178,8 +1215,8 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
       <SectionTitle icon="📋" color="text-slate-600">Datos de Compra — Base Común</SectionTitle>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Field label="Cantidad de terneros" value={base.cantidad} onChange={setB("cantidad")} unit="cab" />
-        <Field label="Peso de ingreso" value={base.pesoIngreso} onChange={setB("pesoIngreso")} unit="kg" />
-        <Field label="Precio de compra" value={base.precioCompraKg} onChange={setB("precioCompraKg")} unit="$/kg" step={50} />
+        <Field label="Peso de ingreso" value={base.pesoIngreso} onChange={setB("pesoIngreso")} unit="kg" sliderMax={400} />
+        <Field label="Precio de compra" value={base.precioCompraKg} onChange={setB("precioCompraKg")} unit="$/kg" step={50} sliderMax={10000} />
       </div>
 
       <GastosComerciales gastos={gastos} setGastos={setGastos} />
@@ -1218,7 +1255,17 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <input type="number" min={1} max={36} value={opA.mesesRecria}
-                  onChange={(e) => setA("mesesRecria")(Number(e.target.value))}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '' || v === '0') return; // don't commit empty/zero yet
+                    const n = Math.max(1, Math.min(36, Number(v)));
+                    setA("mesesRecria")(n);
+                  }}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (!v || v < 1) setA("mesesRecria")(1);
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="w-full rounded-lg border-2 border-green-400 bg-green-700 text-white font-mono font-black text-3xl px-4 py-2 text-center
                     [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-white/50" />
               </div>
@@ -1276,7 +1323,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <span className="text-xs font-black uppercase tracking-widest text-green-700">Costo Operativo Total A</span>
             <span className="font-mono font-bold text-green-800 text-xl">{fmtMoney(calc.a.costoOperativo)}</span>
           </div>
-          <Field label="Precio de venta estimado" value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} />
+          <Field label="Precio de venta estimado" value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Ingreso Neto Invernada</p>
@@ -1325,8 +1372,8 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <p className="text-xs font-black uppercase tracking-widest text-blue-700">Ganancia de Peso Vivo</p>
             <div className="grid grid-cols-2 gap-3">
               {/* MEJORA 2: GPV feedlot con paso 0.1 */}
-              <Field label="GPV diaria en corral" value={opB.gpvDiaria} onChange={setOGpv} unit="kg/día" step={0.1} />
-              <Field label="Días de encierre" value={opB.diasEncierre} onChange={setO("diasEncierre")} unit="días" />
+              <Field label="GPV diaria en corral" value={opB.gpvDiaria} onChange={setOGpv} unit="kg/día" step={0.1} sliderMax={3} />
+              <Field label="Días de encierre" value={opB.diasEncierre} onChange={setO("diasEncierre")} unit="días" sliderMax={150} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-white rounded-lg border border-blue-200 px-3 py-2">
@@ -1380,7 +1427,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             </div>
           </div>
 
-          <Field label="Precio de venta gordo" value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} />
+          <Field label="Precio de venta gordo" value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-indigo-700">📐 Desglose Financiero del Encierre</p>
@@ -1504,39 +1551,92 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
       </div>
 
       {/* Winner banner */}
-      <div className={`rounded-xl border px-5 py-4 flex items-center gap-4 ${calc.a.margen === calc.b.margen ? "border-slate-300 bg-slate-50" : calc.ganadorA ? "border-emerald-300 bg-emerald-50" : "border-blue-300 bg-blue-50"}`}>
-        <span className="text-3xl">{calc.a.margen === calc.b.margen ? "⚖️" : "🏆"}</span>
-        <div>
-          <p className="font-bold text-slate-800">
-            {calc.a.margen === calc.b.margen
-              ? "Ambas opciones arrojan el mismo resultado"
-              : `${calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot"} es la opción más rentable`}
-          </p>
-          {calc.a.margen !== calc.b.margen && (
-            <p className="text-sm text-slate-500 mt-0.5">
-              Diferencia de <span className="font-mono font-bold text-emerald-700">{fmtMoney(Math.abs(calc.a.margen - calc.b.margen))}</span> en el margen total &nbsp;·&nbsp; <span className="font-mono font-bold text-emerald-700">{fmtMoney(Math.abs(calc.a.margenPorCab - calc.b.margenPorCab))}</span> por cabeza
-            </p>
-          )}
-        </div>
-      </div>
+      {(() => {
+        const empate = calc.a.margen === calc.b.margen;
+        const diff = Math.abs(calc.a.margen - calc.b.margen);
+        const diffCab = Math.abs(calc.a.margenPorCab - calc.b.margenPorCab);
+        const ganadorNombre = calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot";
+        const perdedorNombre = calc.ganadorA ? "Feedlot" : "Invernada";
+
+        // Build a brief "why" explanation
+        let why = "";
+        if (!empate) {
+          const ganCosto = calc.ganadorA ? calc.a.costoOperativo : calc.b.costoOperativo;
+          const perCosto = calc.ganadorA ? calc.b.costoOperativo : calc.a.costoOperativo;
+          const ganIngreso = calc.ganadorA ? calc.a.ingresoNeto : calc.b.ingresoNeto;
+          const perIngreso = calc.ganadorA ? calc.b.ingresoNeto : calc.a.ingresoNeto;
+          const razones = [];
+          if (ganIngreso > perIngreso) razones.push(`mayor ingreso neto (${fmtMoney(ganIngreso)} vs ${fmtMoney(perIngreso)})`);
+          if (ganCosto < perCosto) razones.push(`menor costo operativo (${fmtMoney(ganCosto)} vs ${fmtMoney(perCosto)})`);
+          if (razones.length === 0) razones.push(`mejor combinación de precio de venta y costos`);
+          why = razones.join(" y ");
+        }
+
+        return (
+          <div className={`rounded-xl border px-5 py-4 flex items-start gap-4 ${empate ? "border-slate-300 bg-slate-50" : calc.ganadorA ? "border-emerald-300 bg-emerald-50" : "border-blue-300 bg-blue-50"}`}>
+            <span className="text-3xl shrink-0 mt-0.5">{empate ? "⚖️" : "🏆"}</span>
+            <div>
+              <p className="font-bold text-slate-800">
+                {empate
+                  ? "Ambas opciones arrojan el mismo resultado"
+                  : `${ganadorNombre} es la opción más rentable`}
+              </p>
+              {!empate && (
+                <>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Diferencia de <span className="font-mono font-bold text-emerald-700">{fmtMoney(diff)}</span> en el margen total &nbsp;·&nbsp; <span className="font-mono font-bold text-emerald-700">{fmtMoney(diffCab)}</span> por cabeza
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1.5 border-t border-slate-200/60 pt-1.5">
+                    <span className="font-semibold">¿Por qué?</span> {ganadorNombre} genera {why}. El {perdedorNombre} queda {calc.ganadorA ? calc.b.margen < 0 ? "en pérdida" : "por debajo" : calc.a.margen < 0 ? "en pérdida" : "por debajo"} con un margen de <span className="font-mono font-semibold">{fmtMoney(calc.ganadorA ? calc.b.margen : calc.a.margen)}</span>.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {/* Guardar simulación */}
       <div className="flex justify-end pt-2">
         <BotonGuardarSim color="emerald" onGuardar={() => {
-          const winner = calc.a.margenProduccion >= calc.b.margenProduccion ? "Invernada" : "Feedlot";
+          const winner = calc.ganadorA ? "Invernada" : "Feedlot";
           onGuardar({
             tab: "invernada",
             nombre: `Comparador: ${fmt(base.cantidad)} cab ${fmt(base.pesoIngreso)}kg → ${winner} gana`,
             kpiLabel: "Ganador",
             kpiValue: winner,
-            detalle: [
-              { label: "Animales", value: `${fmt(base.cantidad)} cab` },
+            params: [
+              { label: "Cantidad", value: `${fmt(base.cantidad)} cab` },
               { label: "Peso ingreso", value: `${fmt(base.pesoIngreso)} kg` },
               { label: "Precio compra", value: `$${fmt(base.precioCompraKg)}/kg` },
-              { label: "Margen Invernada", value: fmtMoney(calc.a.margenProduccion) },
-              { label: "Margen Feedlot", value: fmtMoney(calc.b.margenProduccion) },
-              { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margenProduccion - calc.b.margenProduccion)) },
-              { label: "Días pasto", value: `${fmt(opA.mesesRecria * 30)} días` },
-              { label: "Días feedlot", value: `${fmt(opB.diasEncierre)} días` },
+              { label: "GPV pasto (A)", value: `${fmt(opA.gpvDiaria, 1)} kg/día` },
+              { label: "Meses recría (A)", value: `${fmt(opA.mesesRecria)} meses` },
+              { label: "Precio venta (A)", value: `$${fmt(opA.precioVentaKg)}/kg` },
+              { label: "Supl. pasto (A)", value: `${opA.mesesSuplementActivos.length} meses × $${fmt(opA.costoSuplementoMensual)}/mes` },
+              { label: "GPV feedlot (B)", value: `${fmt(opB.gpvDiaria, 1)} kg/día` },
+              { label: "Días encierre (B)", value: `${fmt(opB.diasEncierre)} días` },
+              { label: "Costo ración (B)", value: `$${fmt(opB.costoRacionDiaria)}/día` },
+              { label: "Hotelería (B)", value: `$${fmt(opB.costoHoteleriadiaria)}/día` },
+              { label: "Precio venta (B)", value: `$${fmt(opB.precioVentaKg)}/kg` },
+              { label: "INMAG Invernada", value: `${fmt(inmagInvernada)} kg/mes` },
+              { label: "Precio novillo INMAG", value: `$${fmt(precioNovilloInmag)}/kg` },
+              { label: "Flete compra", value: gastos.fleteCompraOn ? `${fmt(gastos.kmCompra)} km × $${fmt(gastos.precioKmCompra)}/km` : "Desactivado" },
+              { label: "Flete venta", value: gastos.fleteVentaOn ? `${fmt(gastos.kmVenta)} km × $${fmt(gastos.precioKmVenta)}/km` : "Desactivado" },
+              { label: "Com. compra", value: gastos.comisionCompraOn ? `${gastos.comisionCompra}%` : "Desactivado" },
+              { label: "Com. venta", value: gastos.comisionVentaOn ? `${gastos.comisionVenta}%` : "Desactivado" },
+            ],
+            detalle: [
+              { label: "Inversión real total", value: fmtMoney(calc.inversionBase) },
+              { label: "Peso salida (A)", value: `${fmt(calc.a.pesoSalida)} kg` },
+              { label: "Costo operativo (A)", value: fmtMoney(calc.a.costoOperativo) },
+              { label: "Ingreso neto (A)", value: fmtMoney(calc.a.ingresoNeto) },
+              { label: "Margen (A)", value: fmtMoney(calc.a.margen) },
+              { label: "Margen/cab (A)", value: fmtMoney(calc.a.margenPorCab) },
+              { label: "Peso salida (B)", value: `${fmt(calc.b.pesoSalida)} kg` },
+              { label: "Costo operativo (B)", value: fmtMoney(calc.b.costoOperativo) },
+              { label: "Ingreso neto (B)", value: fmtMoney(calc.b.ingresoNeto) },
+              { label: "Margen (B)", value: fmtMoney(calc.b.margen) },
+              { label: "Margen/cab (B)", value: fmtMoney(calc.b.margenPorCab) },
+              { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margen - calc.b.margen)) },
             ],
           });
         }} />
@@ -1740,6 +1840,10 @@ const TAB_COLORS = {
 
 function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
   const [expandida, setExpandida] = useState(null);
+  const [seccion, setSeccion] = useState({}); // { [id]: "resultados" | "params" }
+
+  const getSec = (id) => seccion[id] || "resultados";
+  const setSec = (id, v) => setSeccion((p) => ({ ...p, [id]: v }));
 
   if (simulaciones.length === 0) {
     return (
@@ -1770,47 +1874,82 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
 
       {/* List */}
       <div className="divide-y divide-slate-100">
-        {simulaciones.map((sim, idx) => {
+        {simulaciones.map((sim) => {
           const c = TAB_COLORS[sim.tab] || TAB_COLORS.poder;
           const isOpen = expandida === sim.id;
+          const activeTab = getSec(sim.id);
+          const hasParams = sim.params && sim.params.length > 0;
           return (
             <div key={sim.id} className={`${c.bg} transition-all`}>
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3">
-                <span className={`shrink-0 w-6 h-6 rounded-md ${c.badge} text-white text-xs font-black flex items-center justify-center`}>
-                  {c.icon}
-                </span>
+                {/* Category badge */}
+                <div className="flex flex-col items-center gap-0.5 shrink-0">
+                  <span className={`w-7 h-7 rounded-lg ${c.badge} text-white text-sm flex items-center justify-center`}>
+                    {c.icon}
+                  </span>
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-black text-sm ${c.text} truncate`}>{sim.nombre}</p>
-                  <p className="text-xs text-slate-400">{sim.fecha}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs font-black px-2 py-0.5 rounded-full border ${c.badge} text-white`}>
+                      {sim.categoriaLabel || sim.tab}
+                    </span>
+                    <p className={`font-black text-sm ${c.text} truncate`}>{sim.nombre}</p>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{sim.fecha}</p>
                 </div>
                 {/* KPI pill */}
                 <span className={`shrink-0 text-xs font-black px-2.5 py-1 rounded-full ${c.badge} text-white`}>
                   {sim.kpiLabel}: {sim.kpiValue}
                 </span>
                 {/* Expand */}
-                <button onClick={() => setExpandida(isOpen ? null : sim.id)}
-                  className="text-slate-400 hover:text-slate-600 text-lg font-black px-1 transition-all select-none">
-                  {isOpen ? "⌃" : "⌄"}
+                <button
+                  onClick={() => setExpandida(isOpen ? null : sim.id)}
+                  title={isOpen ? "Colapsar" : "Ver detalle completo"}
+                  className={`shrink-0 text-xs font-black px-2.5 py-1.5 rounded-lg border transition-all select-none
+                    ${isOpen
+                      ? `${c.badge} text-white border-transparent`
+                      : `bg-white ${c.text} border-current opacity-70 hover:opacity-100`}`}>
+                  {isOpen ? "⌃ Cerrar" : "⌄ Detalle"}
                 </button>
                 {/* Delete */}
                 <button onClick={() => onBorrar(sim.id)}
-                  className="text-slate-300 hover:text-red-500 text-lg font-black px-1 transition-all select-none">
+                  className="text-slate-300 hover:text-red-500 text-lg font-black px-1 transition-all select-none shrink-0">
                   ×
                 </button>
               </div>
 
               {/* Expanded detail */}
               {isOpen && (
-                <div className="px-4 pb-4">
-                  <div className="bg-white/70 rounded-xl border border-white p-3 grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {sim.detalle.map((d, i) => (
+                <div className="px-4 pb-4 space-y-3">
+                  {/* Section tabs */}
+                  {hasParams && (
+                    <div className="flex gap-1 border-b border-white/60 pb-2">
+                      {[
+                        { id: "resultados", label: "📊 Resultados" },
+                        { id: "params",     label: "⚙️ Parámetros técnicos" },
+                      ].map((t) => (
+                        <button key={t.id} onClick={() => setSec(sim.id, t.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all
+                            ${activeTab === t.id
+                              ? `${c.badge} text-white shadow-sm`
+                              : `bg-white/60 ${c.text} hover:bg-white`}`}>
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Content grid */}
+                  <div className="bg-white/70 rounded-xl border border-white p-3 grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                    {(activeTab === "params" && hasParams ? sim.params : sim.detalle).map((d, i) => (
                       <div key={i} className="flex flex-col">
-                        <span className="text-xs text-slate-400 uppercase tracking-wide">{d.label}</span>
-                        <span className={`text-sm font-bold font-mono ${c.text}`}>{d.value}</span>
+                        <span className="text-xs text-slate-400 uppercase tracking-wide leading-tight">{d.label}</span>
+                        <span className={`text-sm font-bold font-mono ${c.text} leading-snug`}>{d.value}</span>
                       </div>
                     ))}
                   </div>
+
                   {sim.nota && (
                     <p className="text-xs text-slate-400 italic mt-2 px-1">📝 {sim.nota}</p>
                   )}
@@ -1859,8 +1998,21 @@ export default function EstrategiaComercial() {
   const [descarteData, setDescarteData] = useState(null);
   const [simulaciones, setSimulaciones] = useState([]);
 
+  const CATEGORIAS = {
+    poder:     { label: "Poder de Compra",     emoji: "⇄" },
+    vientres:  { label: "Proyecto Vientres",   emoji: "🐄" },
+    invernada: { label: "Comparador Invernada", emoji: "⚖️" },
+  };
+
   const agregarSimulacion = (sim) => {
-    setSimulaciones((prev) => [{ ...sim, id: Date.now(), fecha: new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) }, ...prev]);
+    const cat = CATEGORIAS[sim.tab] || { label: sim.tab, emoji: "📋" };
+    setSimulaciones((prev) => [{
+      ...sim,
+      id: Date.now(),
+      fecha: new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }),
+      categoriaLabel: cat.label,
+      categoriaEmoji: cat.emoji,
+    }, ...prev]);
   };
   const borrarSimulacion = (id) => setSimulaciones((prev) => prev.filter((s) => s.id !== id));
   const borrarTodas = () => setSimulaciones([]);
