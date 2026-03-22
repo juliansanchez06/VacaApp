@@ -201,10 +201,13 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
   };
 
   const handleInputBlur = () => {
-    if (inputStr === '' || inputStr === null) {
+    const raw = inputStr;
+    setInputStr(null); // always reset display first
+    if (raw === '' || raw === null) {
+      // Commit minV. If parent state already equals minV, no re-render happens,
+      // but setInputStr(null) above already cleared the display to use the prop value.
       onChange && onChange(minV);
     }
-    setInputStr(null); // back to controlled by prop
   };
 
   // MEJORA 3: Long-press handlers
