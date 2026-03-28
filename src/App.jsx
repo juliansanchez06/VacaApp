@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 
 const db = null; // persistencia desactivada
 
@@ -90,6 +91,50 @@ const GLOBAL_STYLE = `
   @media (min-width: 1024px) {
     .desktop-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
   }
+
+  /* Toast animation */
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Smooth horizontal scroll for tables on mobile */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll::-webkit-scrollbar { height: 4px; }
+  .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 2px; }
+  .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+  /* ── Dashboard animations ───────────────────────────────────────────── */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .dash-card {
+    animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .dash-card:nth-child(1) { animation-delay: 0.05s; }
+  .dash-card:nth-child(2) { animation-delay: 0.15s; }
+  .dash-card:nth-child(3) { animation-delay: 0.25s; }
+  .dash-welcome { animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .dash-stats   { animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both; }
+  .simulator-enter { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* ── Dashboard card hover ───────────────────────────────────────────── */
+  .dash-card-inner {
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
+  }
+  .dash-card-inner:hover {
+    transform: translateY(-6px) scale(1.015);
+    box-shadow: 0 20px 48px -8px rgba(0,0,0,0.18);
+  }
+  .dash-card-inner:active {
+    transform: translateY(-2px) scale(1.005);
+  }
+
 `;
 
 // ─── Long-press hook ──────────────────────────────────────────────────────────
@@ -327,7 +372,7 @@ function SectionTitle({ children, icon, color = "text-emerald-600" }) {
 
 function KpiCard({ label, value, sub, color = "text-slate-800", bg = "bg-white", border = "border-slate-200", large }) {
   return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-1 ${bg} ${border}`}>
+    <div className={`rounded-xl border p-4 flex flex-col gap-1 shadow-sm ${bg} ${border}`}>
       <span className="text-xs font-semibold tracking-wider uppercase text-slate-400">{label}</span>
       <span className={`font-mono font-bold tabular-nums ${large ? "text-2xl" : "text-xl"} ${color}`}>{value}</span>
       {sub && <span className="text-xs text-slate-400">{sub}</span>}
@@ -491,7 +536,7 @@ function GastosComerciales({ gastos, setGastos }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-sm">
       <div className="flex items-center gap-2">
         <span className="text-base">🧾</span>
         <p className="text-xs font-black uppercase tracking-widest text-slate-500">Gastos Comerciales</p>
@@ -524,7 +569,7 @@ function GastosComerciales({ gastos, setGastos }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PODER DE COMPRA
 // ═══════════════════════════════════════════════════════════════════════════
-function PoderDeCompra({ gastos }) {
+function PoderDeCompra({ gastos, onGuardar, onToast }) {
   const [venta, setVenta] = useState({ cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
   const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: 1800 });
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
@@ -555,7 +600,7 @@ function PoderDeCompra({ gastos }) {
   const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
 
   return (
-    <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-6 space-y-5">
+    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 md:p-6 space-y-5 shadow-sm">
       <div className="flex items-center gap-3">
         <span className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-sm">⇄</span>
         <div>
@@ -625,8 +670,20 @@ function PoderDeCompra({ gastos }) {
       </div>
 
       {/* Guardar simulación */}
-      <div className="flex justify-end pt-2">
-        <BotonGuardarSim color="sky" onGuardar={() => onGuardar({
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <BotonExportarPDF color="slate"
+          titulo="Poder de Compra — Triangulación"
+          secciones={[
+            { label: "Vendidos", value: `${fmt(venta.cantidad)} cab × ${fmt(venta.pesoPromedio)} kg` },
+            { label: "Precio venta", value: `$${fmt(venta.precioKg)}/kg` },
+            { label: "Ingreso bruto", value: fmtMoney(calc.ingresoBrutoVenta) },
+            { label: "Ingreso neto", value: fmtMoney(calc.ingresoNetoVenta) },
+            { label: "Terneros comprables", value: fmt(calc.cabezasComprables) },
+            { label: "Relación", value: `${fmt(calc.relacionVentaCompra, 2)}:1` },
+            { label: "Sobrante", value: fmtMoney(calc.sobrante) },
+          ]}
+        />
+        <BotonGuardarSim color="sky" onToast={onToast} onGuardar={() => onGuardar({
           tab: "poder",
           nombre: `Triangulación: ${fmt(venta.cantidad)} nov ${fmt(venta.pesoPromedio)}kg → ${fmt(calc.cabezasComprables)} terneros`,
           kpiLabel: "Cabezas",
@@ -659,7 +716,7 @@ function PoderDeCompra({ gastos }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — PROYECTO VIENTRES
 // ═══════════════════════════════════════════════════════════════════════════
-function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
+function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
   const { inmagVientres, precioNovilloInmag, inflacionMensual } = global;
 
   const [tipoCompra, setTipoCompra] = useState("terneras");
@@ -995,7 +1052,30 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
           inflacionMensual={inflacionMensual} meses={inputs.anosVidaUtil * 12} label="Vientres (vida útil completa)" />
       )}
 
-      {/* Botón descarte */}
+      {/* ── Gráficos Vientres ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <GraficoCostos
+          titulo="Distribución de Costos"
+          data={[
+            { name: "Inversión inicial",   value: calc.inversionInicial },
+            { name: "Recría pre-servicio", value: calc.costoRecriaPreServicio },
+            { name: "Pastoreo vida útil",  value: calc.costoPastoreoVida },
+            { name: "IATF",                value: calc.costoIatfTotal },
+            { name: "Toros",               value: calc.costoTorosTotal },
+            { name: "Suplemento",          value: tipoCompra === "terneras" ? calc.costoSuplTerneras : calc.costoSuplVacasTotal },
+          ]}
+        />
+        <GraficoBarras
+          titulo="Inversión vs Ingreso"
+          data={[
+            { name: "Costo",   inversion: calc.costoTotalProyecto },
+            { name: "Ingreso", ingreso: calc.ingresoTotalProyecto },
+            { name: "Margen",  margen: Math.max(0, calc.margenNeto) },
+          ]}
+        />
+      </div>
+
+            {/* Botón descarte */}
       <div className="pt-1">
         <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
@@ -1010,8 +1090,20 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar }) {
       </div>
 
       {/* Guardar simulación */}
-      <div className="flex justify-end pt-2">
-        <BotonGuardarSim color="violet" onGuardar={() => onGuardar({
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <BotonExportarPDF color="violet"
+          titulo={`Proyecto Vientres — ${fmt(inputs.cantidad)} cab × ${fmt(inputs.anosVidaUtil)} años`}
+          secciones={[
+            { label: "Cantidad", value: `${fmt(inputs.cantidad)} cab` },
+            { label: "Inversión inicial", value: fmtMoney(calc.inversionInicial) },
+            { label: "Costo total", value: fmtMoney(calc.costoTotalProyecto) },
+            { label: "Ingreso total", value: fmtMoney(calc.ingresoTotalProyecto) },
+            { label: "Margen neto", value: fmtMoney(calc.margenNeto) },
+            { label: "Margen/vientre/año", value: fmtMoney(calc.margenPorVientrePorAno) },
+            { label: "ROI", value: `${fmt(calc.roiPct, 1)}%` },
+          ]}
+        />
+        <BotonGuardarSim color="violet" onToast={onToast} onGuardar={() => onGuardar({
           tab: "vientres",
           nombre: `Vientres: ${fmt(inputs.cantidad)} vientres × ${fmt(inputs.anosVidaUtil)} años`,
           kpiLabel: "ROI",
@@ -1106,7 +1198,7 @@ function TimelineSuplementacion({ mesesActivos, onChange, costoMensual, cantidad
   );
 }
 
-function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar }) {
+function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar, onToast }) {
   const { inmagInvernada, precioNovilloInmag, inflacionMensual } = global;
 
   const [base, setBase] = useState({
@@ -1505,7 +1597,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 
       {/* TABLA COMPARATIVA */}
       <SectionTitle icon="⚖️" color="text-slate-600">Comparación de Resultados</SectionTitle>
-      <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="table-scroll rounded-2xl border border-slate-200 shadow-sm">
         <div className="grid grid-cols-3 bg-slate-50 border-b border-slate-200">
           <div className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-400">Métrica</div>
           <div className={`px-4 py-3 border-l border-slate-200 ${calc.ganadorA ? "bg-green-50" : ""}`}>
@@ -1598,9 +1690,41 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
           </div>
         );
       })()}
+      {/* ── Gráficos Comparador ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <GraficoCostos
+          titulo="Distribución Costos Invernada"
+          data={[
+            { name: "Inversión base",    value: calc.inversionBase },
+            { name: "Pastoreo (A)",      value: calc.a.costoPastoreo },
+            { name: "Suplemento (A)",    value: calc.a.costoSuplementacion },
+            { name: "Gastos venta (A)",  value: calc.a.gastosVenta },
+          ]}
+        />
+        <GraficoBarras
+          titulo="Invernada vs Feedlot"
+          data={[
+            { name: "Invernada", ingreso: Math.max(0, calc.a.margen), inversion: Math.max(0, -calc.a.margen) },
+            { name: "Feedlot",   ingreso: Math.max(0, calc.b.margen), inversion: Math.max(0, -calc.b.margen) },
+          ]}
+        />
+      </div>
+
       {/* Guardar simulación */}
-      <div className="flex justify-end pt-2">
-        <BotonGuardarSim color="emerald" onGuardar={() => {
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <BotonExportarPDF color="emerald"
+          titulo={`Comparador Invernada — ${fmt(base.cantidad)} cab`}
+          secciones={[
+            { label: "Cantidad", value: `${fmt(base.cantidad)} cab` },
+            { label: "Peso ingreso", value: `${fmt(base.pesoIngreso)} kg` },
+            { label: "Precio compra", value: `$${fmt(base.precioCompraKg)}/kg` },
+            { label: "Margen Invernada (A)", value: fmtMoney(calc.a.margen) },
+            { label: "Margen Feedlot (B)", value: fmtMoney(calc.b.margen) },
+            { label: "Ganador", value: calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot" },
+            { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margen - calc.b.margen)) },
+          ]}
+        />
+        <BotonGuardarSim color="emerald" onToast={onToast} onGuardar={() => {
           const winner = calc.ganadorA ? "Invernada" : "Feedlot";
           onGuardar({
             tab: "invernada",
@@ -1726,7 +1850,7 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
   ];
 
   return (
-    <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 shadow-sm mb-6">
+    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 shadow-md mb-6">
       <button onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-5 py-4 text-left">
         <div className="flex items-center gap-3">
@@ -1859,7 +1983,7 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
   }
 
   return (
-    <div className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm mt-6 overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-lg mt-6 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
         <div className="flex items-center gap-3">
@@ -1966,11 +2090,158 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
   );
 }
 
-function BotonGuardarSim({ onGuardar, color = "sky" }) {
+// ═══════════════════════════════════════════════════════════════════════════
+// TOAST SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+const ToastContext = React.createContext ? null : null; // placeholder; we'll use a simple global
+
+function ToastContainer({ toasts }) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+      {toasts.map((t) => (
+        <div key={t.id}
+          style={{ animation: "toastIn 0.3s cubic-bezier(.34,1.56,.64,1) forwards" }}
+          className={`pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold min-w-[220px] max-w-xs
+            ${t.type === "error" ? "bg-red-500" : t.type === "warn" ? "bg-amber-500" : "bg-emerald-500"}`}>
+          <span className="text-lg shrink-0">
+            {t.type === "error" ? "❌" : t.type === "warn" ? "⚠️" : "✅"}
+          </span>
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  const push = useCallback((msg, type = "ok") => {
+    const id = Date.now() + Math.random();
+    setToasts((p) => [...p, { id, msg, type }]);
+    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3000);
+  }, []);
+  return { toasts, push };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF / PRINT EXPORT
+// ═══════════════════════════════════════════════════════════════════════════
+function exportarPDF(titulo, secciones) {
+  const fecha = new Date().toLocaleDateString("es-AR", { dateStyle: "long" });
+  const rows = secciones.map(({ label, value }) =>
+    `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9">${label}</td>
+         <td style="padding:6px 12px;font-weight:700;font-family:monospace;text-align:right;border-bottom:1px solid #f1f5f9">${value}</td></tr>`
+  ).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>${titulo} — VacaApp</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; color: #1e293b; max-width: 720px; margin: 0 auto; padding: 40px 32px; }
+  .logo { font-size: 22px; font-weight: 900; color: #10b981; letter-spacing: -0.5px; }
+  .titulo { font-size: 20px; font-weight: 800; margin: 20px 0 4px; }
+  .fecha { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+  .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; }
+  @media print { body { padding: 20px; } }
+</style></head>
+<body>
+  <div class="logo">🐄 VacaApp</div>
+  <div class="titulo">${titulo}</div>
+  <div class="fecha">Generado el ${fecha}</div>
+  <table>
+    <thead><tr><th>Parámetro</th><th style="text-align:right">Valor</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión. — VacaApp Estrategia Comercial</div>
+  <script>window.onload=()=>{ window.print(); }<\/script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (w) { setTimeout(() => URL.revokeObjectURL(url), 60000); }
+}
+
+function BotonExportarPDF({ titulo, secciones, color = "slate" }) {
+  const colores = {
+    slate:   "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200",
+    violet:  "bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200",
+    emerald: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200",
+  };
+  return (
+    <button onClick={() => exportarPDF(titulo, secciones)}
+      title="Exportar / Imprimir reporte"
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm select-none ${colores[color]}`}>
+      🖨️ Exportar PDF
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRÁFICOS — PIE + BAR
+// ═══════════════════════════════════════════════════════════════════════════
+const PIE_COLORS = ["#10b981","#6366f1","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316"];
+
+function GraficoCostos({ data, titulo }) {
+  const filtrado = data.filter((d) => d.value > 0);
+  if (filtrado.length === 0) return null;
+  const total = filtrado.reduce((s, d) => s + d.value, 0);
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">{titulo}</p>
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie data={filtrado} dataKey="value" nameKey="name" cx="50%" cy="50%"
+            innerRadius={52} outerRadius={82} paddingAngle={3} strokeWidth={0}>
+            {filtrado.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+          </Pie>
+          <RTooltip formatter={(v, n) => [`${((v/total)*100).toFixed(1)}% — ${fmtMoney(v)}`, n]}
+            contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+        {filtrado.map((d, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+            <span className="text-xs text-slate-500">{d.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GraficoBarras({ data, titulo, colorA = "#10b981", colorB = "#6366f1" }) {
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">{titulo}</p>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false}
+            tickFormatter={(v) => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v}`} />
+          <RTooltip formatter={(v) => fmtMoney(v)}
+            contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
+          <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+          {data[0]?.inversion !== undefined && <Bar dataKey="inversion" name="Inversión / Costo" fill={colorB} radius={[6,6,0,0]} />}
+          {data[0]?.ingreso !== undefined && <Bar dataKey="ingreso" name="Ingreso / Ganancia" fill={colorA} radius={[6,6,0,0]} />}
+          {data[0]?.margen !== undefined && <Bar dataKey="margen" name="Margen Neto" fill="#f59e0b" radius={[6,6,0,0]} />}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function BotonGuardarSim({ onGuardar, color = "sky", onToast }) {
   const [guardado, setGuardado] = useState(false);
   const handle = () => {
     onGuardar();
     setGuardado(true);
+    onToast && onToast("✅ Simulación guardada con éxito");
     setTimeout(() => setGuardado(false), 2000);
   };
   const colores = {
@@ -1987,6 +2258,210 @@ function BotonGuardarSim({ onGuardar, color = "sky" }) {
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DASHBOARD — Panel de Inicio
+// ═══════════════════════════════════════════════════════════════════════════
+function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
+  const primerNombre = userEmail ? userEmail.split("@")[0] : "usuario";
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
+
+  const cards = [
+    {
+      id: "poder",
+      icon: "⇄",
+      titulo: "Poder de Compra",
+      sub: "Triangulación Venta / Compra",
+      desc: "¿Si vendo X, cuántos Y puedo comprar? Calculá tu poder de reposición con gastos comerciales incluidos.",
+      color: "from-sky-500 to-cyan-600",
+      lightBg: "bg-sky-50",
+      border: "border-sky-200",
+      accent: "text-sky-700",
+      badge: "bg-sky-100 text-sky-700",
+    },
+    {
+      id: "vientres",
+      icon: "🐄",
+      titulo: "Proyecto Vientres",
+      sub: "Cría & Rentabilidad",
+      desc: "Proyectá el ROI de tu rodeo de cría. Calculá costos, ingresos y margen neto por vientre por año.",
+      color: "from-violet-500 to-purple-600",
+      lightBg: "bg-violet-50",
+      border: "border-violet-200",
+      accent: "text-violet-700",
+      badge: "bg-violet-100 text-violet-700",
+    },
+    {
+      id: "invernada",
+      icon: "⚖️",
+      titulo: "Comparador Invernada",
+      sub: "Campo vs Feedlot",
+      desc: "Comparás invernada a campo contra terminación en feedlot y encontrás la opción más rentable.",
+      color: "from-emerald-500 to-teal-600",
+      lightBg: "bg-emerald-50",
+      border: "border-emerald-200",
+      accent: "text-emerald-700",
+      badge: "bg-emerald-100 text-emerald-700",
+    },
+  ];
+
+  // Params globales para mostrar en el resumen
+  const statsGlobales = [
+    { label: "INMAG Vientres",   value: `${fmt(global.inmagVientres)} kg/mes`,  color: "text-violet-700", icon: "🐄" },
+    { label: "INMAG Invernada",  value: `${fmt(global.inmagInvernada)} kg/mes`, color: "text-emerald-700", icon: "🌿" },
+    { label: "Precio novillo",   value: `$${fmt(global.precioNovilloInmag)}/kg`, color: "text-slate-800", icon: "💲" },
+    { label: "Inflación mensual",value: `${global.inflacionMensual}%`,           color: "text-orange-600", icon: "📈" },
+    { label: "Com. compra",      value: gastos.comisionCompraOn ? `${gastos.comisionCompra}%` : "—",  color: "text-slate-600", icon: "📋" },
+    { label: "Com. venta",       value: gastos.comisionVentaOn  ? `${gastos.comisionVenta}%`  : "—",  color: "text-slate-600", icon: "📄" },
+    { label: "Flete compra",     value: gastos.fleteCompraOn ? fmtMoney(gastos.kmCompra * gastos.precioKmCompra) : "—", color: "text-red-500", icon: "🚛" },
+    { label: "Flete venta",      value: gastos.fleteVentaOn  ? fmtMoney(gastos.kmVenta  * gastos.precioKmVenta)  : "—", color: "text-red-500", icon: "🚚" },
+  ];
+
+  return (
+    <div className="min-h-screen app-bg">
+      <div className="w-full max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-6 md:py-10">
+
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <div className="dash-welcome flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
+          <div className="flex items-center gap-4">
+            <img
+              src={`data:image/png;base64,${LOGO_B64}`}
+              alt="VacaApp"
+              className="h-12 md:h-14 object-contain"
+              style={{ maxWidth: "180px" }}
+            />
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{saludo},</p>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate max-w-[220px] sm:max-w-none">
+                {primerNombre}
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">Panel de Control · VacaApp</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {simulaciones.length > 0 && (
+              <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full">
+                {simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""} guardada{simulaciones.length !== 1 ? "s" : ""}
+              </span>
+            )}
+            <span className="text-xs text-slate-400 hidden sm:inline">
+              {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Título sección ───────────────────────────────────────────── */}
+        <div className="mb-6">
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">¿Qué querés simular hoy?</h2>
+          <div className="h-px bg-gradient-to-r from-slate-200 to-transparent" />
+        </div>
+
+        {/* ── Cards de módulos ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+          {cards.map((card) => (
+            <div key={card.id} className="dash-card">
+              <button
+                onClick={() => onNavigate(card.id)}
+                className={`dash-card-inner w-full text-left rounded-2xl border ${card.border} overflow-hidden shadow-md focus:outline-none focus:ring-4 focus:ring-offset-2`}
+                style={{ focusRingColor: "rgba(16,185,129,0.3)" }}
+              >
+                {/* Gradient strip */}
+                <div className={`h-1.5 w-full bg-gradient-to-r ${card.color}`} />
+
+                <div className={`${card.lightBg} p-6`}>
+                  {/* Icon + badge */}
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="text-4xl">{card.icon}</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${card.badge}`}>
+                      {card.sub}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className={`text-lg font-black ${card.accent} mb-2 leading-tight`}>
+                    {card.titulo}
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-xs text-slate-500 leading-relaxed mb-5">
+                    {card.desc}
+                  </p>
+
+                  {/* CTA */}
+                  <div className={`flex items-center gap-1.5 text-xs font-black ${card.accent} uppercase tracking-widest`}>
+                    <span>Abrir simulador</span>
+                    <span className="text-base">→</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Parámetros globales actuales ─────────────────────────────── */}
+        <div className="dash-stats">
+          <div className="mb-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Parámetros del mercado actuales</h2>
+            <div className="h-px bg-gradient-to-r from-slate-200 to-transparent" />
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+              <span className="text-base">⚙️</span>
+              <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Configuración Global Activa</p>
+              <span className="ml-auto text-xs text-slate-400">Podés editarla dentro de cada simulador</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 divide-x divide-y divide-slate-100">
+              {statsGlobales.map((s, i) => (
+                <div key={i} className="px-4 py-4 flex flex-col gap-1 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{s.icon}</span>
+                    <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide leading-tight">{s.label}</span>
+                  </div>
+                  <span className={`font-mono font-black text-lg ${s.color}`}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick stats bar if simulations exist */}
+          {simulaciones.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">📋 Historial rápido</p>
+                <button onClick={() => onNavigate("poder")}
+                  className="text-xs text-emerald-600 font-bold hover:text-emerald-800 transition-colors">
+                  Ver en simulador →
+                </button>
+              </div>
+              <div className="space-y-2">
+                {simulaciones.slice(0, 3).map((sim) => {
+                  const colors = { poder: "bg-sky-500", vientres: "bg-violet-500", invernada: "bg-emerald-600" };
+                  return (
+                    <div key={sim.id} className="flex items-center gap-3 py-1">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${colors[sim.tab] || "bg-slate-400"}`} />
+                      <span className="text-xs text-slate-600 truncate flex-1">{sim.nombre}</span>
+                      <span className="text-xs font-mono font-bold text-slate-500 shrink-0">{sim.kpiLabel}: {sim.kpiValue}</span>
+                      <span className="text-xs text-slate-300 shrink-0 hidden sm:inline">{sim.fecha}</span>
+                    </div>
+                  );
+                })}
+                {simulaciones.length > 3 && (
+                  <p className="text-xs text-slate-400 pl-5">+{simulaciones.length - 3} más...</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <p className="text-center text-xs text-slate-300 mt-8 pb-4">
+          Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1996,10 +2471,12 @@ const TABS = [
   { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
 ];
 
-export default function EstrategiaComercial() {
-  const [activeTab, setActiveTab] = useState("vientres");
+export default function EstrategiaComercial({ userEmail }) {
+  const [vistaActual, setVistaActual]   = useState("inicio");
+  const [activeTab,   setActiveTab]     = useState("vientres");
   const [descarteData, setDescarteData] = useState(null);
   const [simulaciones, setSimulaciones] = useState([]);
+  const { toasts, push: pushToast } = useToast();
 
   const CATEGORIAS = {
     poder:     { label: "Poder de Compra",     emoji: "⇄" },
@@ -2017,8 +2494,8 @@ export default function EstrategiaComercial() {
       categoriaEmoji: cat.emoji,
     }, ...prev]);
   };
-  const borrarSimulacion = (id) => setSimulaciones((prev) => prev.filter((s) => s.id !== id));
-  const borrarTodas = () => setSimulaciones([]);
+  const borrarSimulacion = (id) => { setSimulaciones((prev) => prev.filter((s) => s.id !== id)); pushToast("Simulación eliminada", "warn"); };
+  const borrarTodas = () => { setSimulaciones([]); pushToast("Historial borrado", "warn"); };
 
   const [global, setGlobal] = useState({
     inmagVientres: 10,
@@ -2040,38 +2517,86 @@ export default function EstrategiaComercial() {
     comisionVenta: 3,
   });
 
+  // Navigate from dashboard card → simulator tab
+  const handleNavigate = (tabId) => {
+    setActiveTab(tabId);
+    setVistaActual("simuladores");
+  };
+
   const handleDescarte = (data) => {
     setDescarteData(data);
     setActiveTab("invernada");
   };
 
+  // ── Render dashboard ─────────────────────────────────────────────────────
+  if (vistaActual === "inicio") {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+        <ToastContainer toasts={toasts} />
+        <Dashboard
+          userEmail={userEmail}
+          global={global}
+          gastos={gastos}
+          simulaciones={simulaciones}
+          onNavigate={handleNavigate}
+        />
+      </>
+    );
+  }
+
+  // ── Render simulators ────────────────────────────────────────────────────
   return (
     <>
-      {/* MEJORA 7: Global styles injection */}
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+      <ToastContainer toasts={toasts} />
 
-      {/* MEJORA 6: Fondo pastel */}
-      <div className="app-bg text-slate-800 font-sans antialiased">
-        <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10 py-6 md:py-10">
+      <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
+        <div className="w-full max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-5 md:py-8">
 
-          {/* MEJORA 6: Header con Logo */}
-          <div className="mb-6 flex flex-col items-center text-center">
-            {/* Logo embedding */}
-            <img
-              src={`data:image/png;base64,${LOGO_B64}`}
-              alt="VacaApp"
-              className="h-12 md:h-16 object-contain drop-shadow-sm mb-3"
-              style={{ maxWidth: "260px" }}
-            />
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 leading-none">Estrategia Comercial</h1>
-            <p className="text-slate-400 text-sm mt-2">Simulá escenarios de compra y encontrá la opción más rentable antes de invertir.</p>
+          {/* ── Top bar: logo + back button ────────────────────────────── */}
+          <div className="simulator-enter flex items-center justify-between mb-6 gap-4">
+            {/* Back button */}
+            <button
+              onClick={() => setVistaActual("inicio")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 shadow-sm
+                text-sm font-bold text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:shadow-md
+                transition-all active:scale-95 select-none group"
+            >
+              <span className="text-base transition-transform group-hover:-translate-x-0.5">←</span>
+              <span>Inicio</span>
+            </button>
+
+            {/* Logo + title centered */}
+            <div className="flex items-center gap-3">
+              <img
+                src={`data:image/png;base64,${LOGO_B64}`}
+                alt="VacaApp"
+                className="h-9 md:h-11 object-contain"
+                style={{ maxWidth: "140px" }}
+              />
+              <div className="hidden sm:block">
+                <p className="text-sm font-black text-slate-900 leading-none">Estrategia Comercial</p>
+                <p className="text-xs text-slate-400">VacaApp</p>
+              </div>
+            </div>
+
+            {/* Simulaciones count badge */}
+            <div className="shrink-0">
+              {simulaciones.length > 0
+                ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full">
+                    {simulaciones.length} guardada{simulaciones.length !== 1 ? "s" : ""}
+                  </span>
+                : <span className="text-xs text-slate-300 hidden sm:inline">Sin simulaciones</span>
+              }
+            </div>
           </div>
 
           {/* Global panel */}
           <GlobalPanel global={global} setGlobal={setGlobal} gastos={gastos} setGastos={setGastos} />
 
           {/* Tabs */}
-          <div className="flex gap-0.5 sm:gap-1 border-b border-slate-200 overflow-x-auto">
+          <div className="flex gap-0.5 sm:gap-1 border-b border-slate-200 overflow-x-auto scrollbar-hide">
             {TABS.map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`group flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-3 text-xs sm:text-sm font-semibold rounded-t-lg border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0
@@ -2086,19 +2611,19 @@ export default function EstrategiaComercial() {
             ))}
           </div>
 
-          <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-6 md:p-8 shadow-sm">
+          <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-5 md:p-8 shadow-lg simulator-enter">
             {activeTab === "poder"
-              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} />
+              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
               : activeTab === "vientres"
-              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} />
-              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} />
+              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast} />
+              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast} />
             }
           </div>
 
           {/* Historial de simulaciones */}
           <SimulacionesPanel simulaciones={simulaciones} onBorrar={borrarSimulacion} onBorrarTodas={borrarTodas} />
 
-          <p className="text-center text-xs text-slate-300 mt-6">
+          <p className="text-center text-xs text-slate-400 mt-8 pb-4">
             Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión.
           </p>
         </div>
