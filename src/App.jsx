@@ -1,3 +1,15 @@
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { auth } from "./firebase";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { 
+  PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
+} from "recharts";
+import { 
+  TrendingUp, DollarSign, Percent, Calendar, ChevronRight, 
+  BarChart3, Info, LogOut, Home, Calculator, History, Settings,
+  ArrowLeft, ChevronDown, CheckCircle2, AlertCircle, Trash2, Download
+} from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 
