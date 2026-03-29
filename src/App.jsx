@@ -2355,18 +2355,18 @@ function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
       <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-black/10 translate-y-12 -translate-x-12 pointer-events-none" />
 
-      <div className="relative p-7 md:p-9">
+      <div className="relative p-5 md:p-7">
         {/* Animated Icon */}
-        <div className={`${t.iconWrap} w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mb-5 md:mb-6 transition-all duration-300 shadow-lg ${animClass}`}>
+        <div className={`${t.iconWrap} w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-3 md:mb-4 transition-all duration-300 shadow-lg ${animClass}`}>
           {icon}
         </div>
 
         <h3 className={`text-xl md:text-2xl font-black ${t.textTitle} mb-2 tracking-tight leading-tight`}>{title}</h3>
-        <p className={`${t.textDesc} font-medium leading-relaxed text-sm mb-6`}>{desc}</p>
+        <p className={`${t.textDesc} font-medium leading-relaxed text-sm mb-3`}>{desc}</p>
 
         {/* Stats pills */}
         {stats && (
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-1.5 mb-4">
             {stats.map((s, i) => (
               <span key={i} className={`text-xs font-bold ${t.textStat} bg-white/10 border border-white/20 px-2.5 py-1 rounded-full`}>
                 {s}
@@ -2397,13 +2397,13 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
   return (
     <div className="min-h-screen bg-white font-sans">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="p-6 md:p-12 max-w-6xl mx-auto">
-        <div className="text-center mb-10 md:mb-14 dash-welcome">
-          <div className="flex justify-center mb-6">
+      <div className="px-6 pt-4 pb-6 md:px-12 md:pt-6 md:pb-8 max-w-6xl mx-auto">
+        <div className="text-center mb-4 md:mb-6 dash-welcome">
+          <div className="flex justify-center mb-3">
             <img
               src={`data:image/png;base64,${LOGO_B64}`}
               alt="VacaApp"
-              className="h-24 md:h-32 object-contain"
+              className="h-16 md:h-20 object-contain"
               style={{ maxWidth: "320px" }}
             />
           </div>
@@ -2412,7 +2412,7 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
               {saludo}, <span className="text-emerald-600 font-black">{primerNombre}</span> 👋
             </p>
           )}
-          <p className="text-slate-400 font-bold uppercase text-xs tracking-[0.3em]">
+          <p className="text-slate-400 font-bold uppercase text-xs tracking-[0.3em] mt-1">
             Gestión Ganadera Profesional
           </p>
           {simulaciones.length > 0 && (
@@ -2423,12 +2423,12 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
         </div>
 
         {/* ── Subtitle ───────────────────────────────────────────────────── */}
-        <p className="text-center text-slate-400 font-semibold text-sm mb-8 md:mb-10 uppercase tracking-widest">
+        <p className="text-center text-slate-400 font-semibold text-xs mb-4 md:mb-5 uppercase tracking-widest">
           ¿Qué querés simular hoy?
         </p>
 
         {/* ── Cards ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-10 md:mb-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           <div className="dash-card">
             <MenuCard
               title="Poder de Compra"
@@ -2466,7 +2466,7 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
 
         {/* ── Parámetros globales ─────────────────────────────────────────── */}
 
-        <p className="text-center text-slate-400 mt-10 text-xs font-medium">
+        <p className="text-center text-slate-400 mt-5 text-xs font-medium">
           Los cálculos son estimativos · Consultá con tu asesor antes de invertir
         </p>
       </div>
