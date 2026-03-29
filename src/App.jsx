@@ -2409,18 +2409,21 @@ function GInput({ label, value, onChange, unit, borderColor = "border-emerald-30
       <label className={`text-xs font-semibold tracking-wider uppercase ${labelColor}`}>{label}</label>
       <div className={`flex items-stretch rounded-xl border-2 ${borderColor} overflow-hidden`} style={{minHeight:"48px"}}>
         <button {...decPress}
-          className={`min-w-[2.75rem] w-11 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-xl flex items-center justify-center transition-all touch-manipulation select-none`}>−</button>
-        <input type="number" min={0} step={step}
-          value={inputStr !== null ? inputStr : value}
-          onChange={handleGInputChange}
-          onBlur={handleGInputBlur}
-          onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
-          className={`flex-1 bg-transparent text-center text-sm font-mono font-bold ${textColor} py-2.5
-            [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none focus:outline-none`} />
-        <span className={`flex items-center px-2 text-xs font-mono ${labelColor} opacity-70 border-l ${borderColor}`}>{unit}</span>
+          className={`w-11 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-xl flex items-center justify-center transition-all touch-manipulation select-none`}
+          style={{minWidth:"2.75rem"}}>−</button>
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+          <input type="number" min={0} step={step}
+            value={inputStr !== null ? inputStr : value}
+            onChange={handleGInputChange}
+            onBlur={handleGInputBlur}
+            onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
+            className={`w-full bg-transparent text-center text-sm font-mono font-bold ${textColor} py-1
+              [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none focus:outline-none`} />
+          <span className={`text-xs font-mono ${labelColor} opacity-60 leading-none pb-1`}>{unit}</span>
+        </div>
         <button {...incPress}
-          className={`min-w-[2.75rem] w-11 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-xl flex items-center justify-center transition-all touch-manipulation select-none border-l ${borderColor}`}
-          style={{flexShrink: 0, flexGrow: 0}}>+</button>
+          className={`w-11 shrink-0 bg-white/60 hover:bg-white active:bg-white/40 ${textColor} font-black text-xl flex items-center justify-center transition-all touch-manipulation select-none border-l-2 ${borderColor}`}
+          style={{minWidth:"2.75rem"}}>+</button>
       </div>
     </div>
   );
