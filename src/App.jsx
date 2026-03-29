@@ -3312,28 +3312,25 @@ export default function App() {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        background: "#064e3b",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        gap: "16px",
-      }}>
-        <img
-          src={`data:image/png;base64,${LOGO_B64}`}
-          alt="VacaApp"
-          style={{ height: "56px", objectFit: "contain", opacity: 0.9 }}
-        />
+      <>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes appSpin { to { transform: rotate(360deg); } }
+          .app-spinner { animation: appSpin 0.8s linear infinite; }
+        ` }} />
         <div style={{
-          width: "32px", height: "32px",
-          border: "3px solid rgba(255,255,255,0.3)",
-          borderTopColor: "#fff",
-          borderRadius: "50%",
-          animation: "spinDot 0.8s linear infinite",
-        }} />
-      </div>
+          minHeight:"100vh", background:"#064e3b",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          flexDirection:"column", gap:"16px",
+        }}>
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="VacaApp"
+            style={{ height:"56px", objectFit:"contain", opacity:0.9 }} />
+          <div className="app-spinner" style={{
+            width:"32px", height:"32px",
+            border:"3px solid rgba(255,255,255,0.3)",
+            borderTopColor:"#fff", borderRadius:"50%",
+          }} />
+        </div>
+      </>
     );
   }
 
