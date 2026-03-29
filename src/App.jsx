@@ -3404,3 +3404,12 @@ export default function App() {
   if (!user) {
     return <LoginScreen />;
   }
+
+  // ── Autenticado → App principal ───────────────────────────────────────────
+  return (
+    <EstrategiaComercial
+      userEmail={user.email}
+      onLogout={handleLogout}
+    />
+  );
+}
