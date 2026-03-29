@@ -2657,3 +2657,226 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
           {simulaciones.length > 0 && (
             <span className="inline-block mt-4 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full">
               {simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""} guardada{simulaciones.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+
+        {/* ── Subtitle ───────────────────────────────────────────────────── */}
+        <p className="text-center text-slate-400 font-semibold text-xs mb-4 md:mb-5 uppercase tracking-widest">
+          ¿Qué querés simular hoy?
+        </p>
+
+        {/* ── Cards ──────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="dash-card">
+            <MenuCard
+              title="Poder de Compra"
+              desc="¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales incluidos."
+              icon={<DollarSign size={38} className="text-white" />}
+              iconAnim="float"
+              color="green"
+              stats={["Triangulación", "Gastos incluidos", "Relación V/C"]}
+              onClick={() => onNavigate("poder")}
+            />
+          </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Proyecto Vientres"
+              desc="ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad por vientre."
+              icon={<Calculator size={38} className="text-white" />}
+              iconAnim="bounce"
+              color="multi"
+              stats={["ROI proyectado", "Costo/vientre", "Análisis IATF"]}
+              onClick={() => onNavigate("vientres")}
+            />
+          </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Comp. Invernada"
+              desc="Invernada a campo vs feedlot — encontrá la opción más rentable con análisis detallado."
+              icon={<TrendingUp size={38} className="text-white" />}
+              iconAnim="bounce"
+              color="amber"
+              stats={["Campo vs Feedlot", "Precio indiferencia", "Margen/cab"]}
+              onClick={() => onNavigate("invernada")}
+            />
+          </div>
+        </div>
+
+        {/* ── Parámetros globales ─────────────────────────────────────────── */}
+
+        <p className="text-center text-slate-400 mt-5 text-xs font-medium">
+          Los cálculos son estimativos · Consultá con tu asesor antes de invertir
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN
+// ═══════════════════════════════════════════════════════════════════════════
+const TABS = [
+  { id: "poder",     label: "Poder de Compra",  icon: "⇄",  sub: "Triangulación" },
+  { id: "vientres",  label: "Proyecto Vientres", icon: "🐄", sub: "Cría & rentabilidad" },
+  { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
+];
+
+export default function EstrategiaComercial({ userEmail }) {
+  const [vistaActual, setVistaActual]   = useState("inicio");
+  const [activeTab,   setActiveTab]     = useState("vientres");
+  const [descarteData, setDescarteData] = useState(null);
+  const [simulaciones, setSimulaciones] = useState([]);
+  const { toasts, push: pushToast } = useToast();
+
+  const CATEGORIAS = {
+    poder:     { label: "Poder de Compra",     emoji: "⇄" },
+    vientres:  { label: "Proyecto Vientres",   emoji: "🐄" },
+    invernada: { label: "Comparador Invernada", emoji: "⚖️" },
+  };
+
+  const agregarSimulacion = (sim) => {
+    const cat = CATEGORIAS[sim.tab] || { label: sim.tab, emoji: "📋" };
+    setSimulaciones((prev) => [{
+      ...sim,
+      id: Date.now(),
+      fecha: new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }),
+      categoriaLabel: cat.label,
+      categoriaEmoji: cat.emoji,
+    }, ...prev]);
+  };
+  const borrarSimulacion = (id) => { setSimulaciones((prev) => prev.filter((s) => s.id !== id)); pushToast("Simulación eliminada", "warn"); };
+  const borrarTodas = () => { setSimulaciones([]); pushToast("Historial borrado", "warn"); };
+
+  const [global, setGlobal] = useState({
+    inmagVientres: 10,
+    inmagInvernada: 8,
+    precioNovilloInmag: 1800,
+    inflacionMensual: 4,
+  });
+
+  const [gastos, setGastos] = useState({
+    fleteCompraOn: false,
+    kmCompra: 370,
+    precioKmCompra: 3500,
+    fleteVentaOn: false,
+    kmVenta: 370,
+    precioKmVenta: 3500,
+    comisionCompraOn: true,
+    comisionCompra: 3,
+    comisionVentaOn: true,
+    comisionVenta: 3,
+  });
+
+  // Navigate from dashboard card → simulator tab
+  const handleNavigate = (tabId) => {
+    setActiveTab(tabId);
+    setVistaActual("simuladores");
+  };
+
+  const handleDescarte = (data) => {
+    setDescarteData(data);
+    setActiveTab("invernada");
+  };
+
+  // ── Render dashboard ─────────────────────────────────────────────────────
+  if (vistaActual === "inicio") {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+        <ToastContainer toasts={toasts} />
+        <Dashboard
+          userEmail={userEmail}
+          global={global}
+          gastos={gastos}
+          simulaciones={simulaciones}
+          onNavigate={handleNavigate}
+        />
+      </>
+    );
+  }
+
+  // ── Render simulators ────────────────────────────────────────────────────
+  const tabInfo = {
+    poder:     { label: "Poder de Compra",   icon: "⇄",  color: "from-sky-500 to-cyan-500",     badge: "bg-sky-500" },
+    vientres:  { label: "Proyecto Vientres", icon: "🐄", color: "from-violet-500 to-purple-600", badge: "bg-violet-500" },
+    invernada: { label: "Comp. Invernada",   icon: "⚖️", color: "from-emerald-500 to-teal-500",  badge: "bg-emerald-600" },
+  };
+  const current = tabInfo[activeTab] || tabInfo.poder;
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+      <ToastContainer toasts={toasts} />
+
+      <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
+
+        {/* ── Sticky top nav ───────────────────────────────────────────── */}
+        <nav className="sticky top-0 z-50 bg-white border-b-2 border-slate-100 shadow-md simulator-enter">
+          {/* Colored accent strip */}
+          <div className={`h-1 w-full bg-gradient-to-r ${current.color}`} />
+
+          <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+
+            {/* Back button — big and vivid */}
+            <button
+              onClick={() => setVistaActual("inicio")}
+              className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95 group"
+              style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}
+            >
+              <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+              <span>Volver al Menú</span>
+            </button>
+
+            {/* Logo + module badge — center */}
+            <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
+              <img
+                src={`data:image/png;base64,${LOGO_B64}`}
+                alt="VacaApp"
+                className="h-8 sm:h-9 object-contain shrink-0"
+                style={{ maxWidth: "100px" }}
+              />
+              <div className={`${current.badge} text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0`}>
+                <span>{current.icon}</span>
+                <span className="hidden sm:inline">{current.label}</span>
+              </div>
+            </div>
+
+            {/* Simulaciones badge — right */}
+            <div className="shrink-0">
+              {simulaciones.length > 0
+                ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full badge-pulse">
+                    {simulaciones.length} 💾
+                  </span>
+                : <span className="w-16 hidden sm:inline-block" />
+              }
+            </div>
+          </div>
+        </nav>
+
+        <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-4 md:py-6">
+
+          {/* Global panel */}
+          <GlobalPanel global={global} setGlobal={setGlobal} gastos={gastos} setGastos={setGastos} />
+
+          {/* Simulator content — no tabs */}
+          <div className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl simulator-enter">
+            {activeTab === "poder"
+              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
+              : activeTab === "vientres"
+              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast} />
+              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast} />
+            }
+          </div>
+
+          {/* Historial de simulaciones */}
+          <SimulacionesPanel simulaciones={simulaciones} onBorrar={borrarSimulacion} onBorrarTodas={borrarTodas} />
+
+          <p className="text-center text-xs text-slate-400 mt-8 pb-4">
+            Los cálculos son estimativos · Consultá con tu asesor antes de tomar decisiones de inversión.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
