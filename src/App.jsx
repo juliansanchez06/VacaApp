@@ -1101,8 +1101,8 @@ function GastosComerciales({ gastos, setGastos }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PODER DE COMPRA
 // ═══════════════════════════════════════════════════════════════════════════
-function PoderDeCompra({ gastos, onGuardar, onToast }) {
-  const [venta, setVenta] = useState({ cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
+function PoderDeCompra({ gastos, onGuardar, onToast, initialVenta }) {
+  const [venta, setVenta] = useState(initialVenta || { cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
   const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: 1800 });
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
   const setC = (k) => (v) => setCompra((p) => ({ ...p, [k]: v }));
@@ -1248,11 +1248,11 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — PROYECTO VIENTRES
 // ═══════════════════════════════════════════════════════════════════════════
-function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
+function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast, initialInputs }) {
   const { inmagVientres, precioNovilloInmag, inflacionMensual } = global;
 
   const [tipoCompra, setTipoCompra] = useState("terneras");
-  const [inputs, setInputs] = useState({
+  const [inputs, setInputs] = useState(initialInputs || {
     cantidad: 50,
     pesoCompra: 180,
     precioKgCompra: 1800,
@@ -1817,10 +1817,10 @@ function TimelineSuplementacion({ mesesActivos, onChange, costoMensual, cantidad
   );
 }
 
-function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar, onToast }) {
+function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar, onToast, initialBase }) {
   const { inmagInvernada, precioNovilloInmag, inflacionMensual } = global;
 
-  const [base, setBase] = useState({
+  const [base, setBase] = useState(initialBase || {
     cantidad: descarteData?.cantidad ?? 100,
     pesoIngreso: descarteData?.pesoIngreso ?? 200,
     precioCompraKg: 1800,
@@ -3430,6 +3430,39 @@ function MiCampo({ onVolver, onSincronizar }) {
                   <div><p className="text-xs text-emerald-600">Terneros/madre</p><p className="font-black text-emerald-900 text-xl">{(cria.vacas+cria.vaquillonas)>0?((cria.ternerosNoDestetados/(cria.vacas+cria.vaquillonas))*100).toFixed(0)+"%" : "—"}</p></div>
                   <div><p className="text-xs text-emerald-600">Toros/madres</p><p className="font-black text-emerald-900 text-xl">{cria.toros>0?Math.round((cria.vacas+cria.vaquillonas)/cria.toros)+":1":"—"}</p></div>
                 </div>
+                <button
+                  onClick={() => onSincronizar({
+                    target: "vientres",
+                    descripcion: `${cria.vacas+cria.vaquillonas} madres · ${Math.round(cria.ternerosNoDestetados/(cria.vacas+cria.vaquillonas)*100)}% destete · datos reales de cría`,
+                    inputs: {
+                      cantidad: cria.vacas + cria.vaquillonas,
+                      pesoCompra: 380,
+                      precioKgCompra: 1800,
+                      precioBulto: 350000,
+                      mesesRecriaPreServicio: 15,
+                      anosVidaUtil: 6,
+                      kgIatf: 8,
+                      pctDestete: Math.round(cria.ternerosNoDestetados / (cria.vacas + cria.vaquillonas) * 100),
+                      pesoTerneroDestetado: 160,
+                      precioTerneroKg: 2000,
+                      pesoVacaDescarte: 380,
+                      precioDescarteSalidaKg: 1600,
+                      kgToros: 3,
+                      mesesSuplTerneras: [],
+                      costoSuplTernerasMes: 12000,
+                      mesesSuplVacas: [],
+                      costoSuplVacasMes: 15000,
+                      anosSuplementacion: 6,
+                      kreepOn: false,
+                      kreepMeses: 3,
+                      kreepCostoMes: 8000,
+                      kreepKgExtra: 15,
+                    }
+                  })}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                  <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                  Simular ROI del rodeo en Proyecto Vientres
+                </button>
               </div>
             </div>
           </div>
@@ -3462,6 +3495,22 @@ function MiCampo({ onVolver, onSincronizar }) {
                     <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
                   ))}
                 </div>
+                {recria.ternerosCompraMachos + recria.ternerosCompraHembras > 0 && (
+                  <button
+                    onClick={() => onSincronizar({
+                      target: "poder",
+                      descripcion: `${recria.ternerosCompraMachos+recria.ternerosCompraHembras} terneros comprados · simulando poder de compra`,
+                      venta: {
+                        cantidad: recria.ternerosCompraMachos + recria.ternerosCompraHembras,
+                        pesoPromedio: 180,
+                        precioKg: 2200,
+                      }
+                    })}
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                    <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                    Simular compra en Poder de Compra
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -3483,7 +3532,37 @@ function MiCampo({ onVolver, onSincronizar }) {
                   <EditField label="Peso promedio (kg)" value={terminacion.pesoPromedioKg} onChange={v=>setTerminacion(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
                   <EditField label="Días para venta" value={terminacion.diasRestantes} onChange={v=>setTerminacion(p=>({...p,diasRestantes:v}))} suffix=" días" />
                 </div>
-                {terminacion.novillosFeedlot > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                  <button
+                    onClick={() => onSincronizar({
+                      target: "poder",
+                      descripcion: `${terminacion.novillosCampo+terminacion.novillosFeedlot} novillos ${terminacion.pesoPromedioKg} kg · ¿cuántos terneros puedo reponer?`,
+                      venta: {
+                        cantidad: terminacion.novillosCampo + terminacion.novillosFeedlot,
+                        pesoPromedio: terminacion.pesoPromedioKg,
+                        precioKg: 2200,
+                      }
+                    })}
+                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                    <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                    ¿Cuántos terneros repongo?
+                  </button>
+                  <button
+                    onClick={() => onSincronizar({
+                      target: "invernada",
+                      descripcion: `${terminacion.novillosCampo+terminacion.novillosFeedlot} novillos · ${terminacion.pesoPromedioKg} kg · campo vs feedlot`,
+                      base: {
+                        cantidad: terminacion.novillosCampo + terminacion.novillosFeedlot,
+                        pesoIngreso: terminacion.pesoPromedioKg,
+                        precioCompraKg: 1800,
+                      }
+                    })}
+                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                    <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                    Comparar campo vs feedlot
+                  </button>
+                </div>
+              {terminacion.novillosFeedlot > 0 && (
                   <div className="section-amber rounded-2xl border-2 p-4 space-y-4">
                     <p className="text-xs font-black uppercase tracking-widest text-amber-700">Costos feedlot</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -3867,11 +3946,26 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     }
   };
 
-  // Sync from Mi Campo to Simulador
+  // Sync from Mi Campo to specific simulator
   const handleSincronizar = (datos) => {
     setSyncData(datos);
-    setVistaActual("simulador-menu");
-    pushToast("Datos sincronizados al simulador ✓", "success");
+    // Route directly to the target simulator
+    if (datos.target === "poder") {
+      setActiveTab("poder");
+      setVistaActual("simuladores");
+      pushToast("Cargando Poder de Compra con tus novillos ✓", "success");
+    } else if (datos.target === "vientres") {
+      setActiveTab("vientres");
+      setVistaActual("simuladores");
+      pushToast("Cargando Proyecto Vientres con tu rodeo ✓", "success");
+    } else if (datos.target === "invernada") {
+      setActiveTab("invernada");
+      setVistaActual("simuladores");
+      pushToast("Cargando Comparador con tus novillos ✓", "success");
+    } else {
+      setVistaActual("simulador-menu");
+      pushToast("Datos sincronizados al simulador ✓", "success");
+    }
   };
 
   const handleDescarte = (data) => {
@@ -3991,12 +4085,27 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           <GlobalPanel global={global} setGlobal={setGlobal} gastos={gastos} setGastos={setGastos} />
 
           {/* Simulator content — no tabs */}
-          <div key={activeTab} className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl sim-zoom-enter">
+          {syncData && (
+            <div className="mb-4 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-3 flex items-center gap-3 simulator-enter">
+              <div className="w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center text-white shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Datos cargados desde Mi Campo</p>
+                <p className="text-xs text-emerald-600 mt-0.5">{syncData.descripcion}</p>
+              </div>
+              <button onClick={() => setSyncData(null)} className="text-xs text-emerald-500 hover:text-red-500 font-bold transition-colors">✕ Limpiar</button>
+            </div>
+          )}
+          <div key={activeTab + (syncData ? "-sync" : "")} className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl sim-zoom-enter">
             {activeTab === "poder"
-              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
+              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast}
+                  initialVenta={syncData?.target === "poder" ? syncData.venta : undefined} />
               : activeTab === "vientres"
-              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast} />
-              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast} />
+              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast}
+                  initialInputs={syncData?.target === "vientres" ? syncData.inputs : undefined} />
+              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast}
+                  initialBase={syncData?.target === "invernada" ? syncData.base : undefined} />
             }
           </div>
 
