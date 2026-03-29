@@ -1,6 +1,38 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap } from "lucide-react";
+
+// ── Firebase init ─────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAt_J0nsKI_9X69jgr_Q8R2z-KbO875nhg",
+  authDomain: "vacaapp-ff72a.firebaseapp.com",
+  projectId: "vacaapp-ff72a",
+  storageBucket: "vacaapp-ff72a.firebasestorage.app",
+  messagingSenderId: "1089865872169",
+  appId: "1:1089865872169:web:836d34d16ef365a7563d38",
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+
+// ── Emails autorizados ────────────────────────────────────────────────────────
+const EMAILS_AUTORIZADOS = [
+  "juliansanchez06@gmail.com",
+];
+
+// ── Magic link settings ───────────────────────────────────────────────────────
+const ACTION_CODE_SETTINGS = {
+  url: "https://vacaapp-umber.vercel.app/",
+  handleCodeInApp: true,
+};
 
 const db = null; // persistencia desactivada
 
@@ -30,6 +62,229 @@ const fmtPct = (n, dec = 1) =>
 const GLOBAL_STYLE = `
   /* ── Background ──────────────────────────────────────────────────── */
   .app-bg { background: #ffffff; min-height: 100vh; }
+
+  /* ── Login Screen ──────────────────────────────────────────────────── */
+  @keyframes loginCardIn {
+    from { opacity:0; transform: translateY(40px) scale(0.96); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  @keyframes bgFloat1 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%      { transform: translate(20px,-30px) scale(1.05); }
+  }
+  @keyframes bgFloat2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%      { transform: translate(-15px,20px) scale(1.08); }
+  }
+  @keyframes bgFloat3 {
+    0%,100% { transform: translate(0,0); }
+    50%      { transform: translate(10px,15px); }
+  }
+  @keyframes loginFadeUp {
+    from { opacity:0; transform: translateY(16px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes spinDot {
+    to { transform: rotate(360deg); }
+  }
+  .login-bg {
+    min-height: 100vh;
+    background: #064e3b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .login-blob {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.13;
+    pointer-events: none;
+  }
+  .login-blob-1 { width:520px; height:520px; background:#10b981; top:-180px; right:-140px; animation: bgFloat1 8s ease-in-out infinite; }
+  .login-blob-2 { width:340px; height:340px; background:#34d399; bottom:-100px; left:-80px;  animation: bgFloat2 10s ease-in-out infinite; }
+  .login-blob-3 { width:180px; height:180px; background:#6ee7b7; top:40%; left:8%;          animation: bgFloat3 6s ease-in-out infinite; }
+  .login-blob-4 { width:100px; height:100px; background:#a7f3d0; bottom:20%; right:10%;      animation: bgFloat1 7s ease-in-out 2s infinite; }
+  .login-card {
+    background: #ffffff;
+    border-radius: 28px;
+    padding: 2.75rem 2.25rem 2rem;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 2;
+    animation: loginCardIn 0.65s cubic-bezier(0.16,1,0.3,1) both;
+    box-shadow: 0 32px 80px -8px rgba(6,78,59,0.45);
+  }
+  .login-logo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    animation: loginFadeUp 0.5s 0.1s both;
+  }
+  .login-slogan {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin: 0.5rem 0 0;
+  }
+  .login-heading {
+    font-size: 22px;
+    font-weight: 900;
+    color: #111827;
+    margin: 0 0 0.3rem;
+    text-align: center;
+    letter-spacing: -0.5px;
+    animation: loginFadeUp 0.5s 0.18s both;
+  }
+  .login-sub {
+    font-size: 13px;
+    color: #6b7280;
+    text-align: center;
+    margin: 0 0 1.5rem;
+    line-height: 1.55;
+    animation: loginFadeUp 0.5s 0.24s both;
+  }
+  .login-input-wrap {
+    position: relative;
+    margin-bottom: 0.75rem;
+    animation: loginFadeUp 0.5s 0.3s both;
+  }
+  .login-input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .login-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 14px 14px 44px;
+    font-size: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 14px;
+    outline: none;
+    font-family: inherit;
+    color: #111827;
+    background: #f9fafb;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  .login-input:focus {
+    border-color: #10b981;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(16,185,129,0.14);
+  }
+  .login-input::placeholder { color: #9ca3af; }
+  .login-input.error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239,68,68,0.12);
+  }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s, opacity 0.2s;
+    animation: loginFadeUp 0.5s 0.36s both;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .login-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(6,78,59,0.4);
+  }
+  .login-btn:active:not(:disabled) { transform: scale(0.97); }
+  .login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+  .login-feats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 1.5rem;
+    animation: loginFadeUp 0.5s 0.44s both;
+  }
+  .login-feat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .login-feat-icon {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .login-feat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+  .login-toast {
+    margin-top: 0.75rem;
+    background: #ecfdf5;
+    border: 2px solid #6ee7b7;
+    border-radius: 14px;
+    padding: 13px 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    animation: loginFadeUp 0.4s both;
+  }
+  .login-toast-dot {
+    width: 10px; height: 10px;
+    background: #10b981;
+    border-radius: 50%;
+    margin-top: 3px;
+    flex-shrink: 0;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+  .login-error-msg {
+    margin-top: 0.6rem;
+    background: #fef2f2;
+    border: 1.5px solid #fca5a5;
+    border-radius: 12px;
+    padding: 10px 13px;
+    font-size: 13px;
+    color: #dc2626;
+    font-weight: 600;
+    animation: loginFadeUp 0.3s both;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .login-note {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    margin-top: 1.25rem;
+    line-height: 1.55;
+    animation: loginFadeUp 0.5s 0.5s both;
+  }
+  .login-spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spinDot 0.7s linear infinite;
+  }
 
   /* ── Google Fonts ──────────────────────────────────────────────────── */
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&display=swap');
@@ -2539,6 +2794,327 @@ function BotonGuardarSim({ onGuardar, color = "sky", onToast }) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOGIN SCREEN — Magic Link passwordless
+// ═══════════════════════════════════════════════════════════════════════════
+const ACTION_URL = window.location.origin;
+
+function LoginScreen({ onLogin }) {
+  const [email, setEmail]     = useState("");
+  const [status, setStatus]   = useState("idle"); // idle | sending | sent | error | completing
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // On mount: handle magic link callback
+  useEffect(() => {
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      setStatus("completing");
+      let saved = window.localStorage.getItem("vacaapp_email");
+      if (!saved) {
+        saved = window.prompt("Por seguridad, confirmá tu email:");
+      }
+      if (saved) {
+        signInWithEmailLink(auth, saved, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem("vacaapp_email");
+            window.history.replaceState({}, document.title, "/");
+          })
+          .catch(() => {
+            setStatus("error");
+            setErrorMsg("El link expiró o ya fue usado. Pedí uno nuevo.");
+          });
+      }
+    }
+  }, []);
+
+  const handleSend = async () => {
+    if (!email || !email.includes("@")) {
+      setErrorMsg("Ingresá un email válido.");
+      setStatus("error");
+      return;
+    }
+    setStatus("sending");
+    setErrorMsg("");
+    const actionCodeSettings = {
+      url: ACTION_URL,
+      handleCodeInApp: true,
+    };
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem("vacaapp_email", email);
+      setStatus("sent");
+    } catch (err) {
+      setStatus("error");
+      if (err.code === "auth/unauthorized-continue-uri") {
+        setErrorMsg("URL no autorizada en Firebase. Agregá " + ACTION_URL + " en dominios autorizados.");
+      } else if (err.code === "auth/too-many-requests") {
+        setErrorMsg("Demasiados intentos. Esperá unos minutos.");
+      } else {
+        setErrorMsg(err.message || "Error al enviar. Intentá de nuevo.");
+      }
+    }
+  };
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes loginFadeUp {
+          from { opacity:0; transform:translateY(28px) scale(0.97); }
+          to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+        @keyframes loginBgFloat {
+          0%,100% { transform: translateY(0) scale(1); }
+          50%      { transform: translateY(-20px) scale(1.05); }
+        }
+        @keyframes loginSpinner {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes loginPulse {
+          0%,100% { transform:scale(1); opacity:1; }
+          50%      { transform:scale(1.3); opacity:0.7; }
+        }
+        @keyframes loginSlideIn {
+          from { opacity:0; transform:translateY(10px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        .login-bg-circle {
+          position:absolute; border-radius:50%; pointer-events:none;
+        }
+        .login-card {
+          animation: loginFadeUp 0.65s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .login-btn {
+          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+        }
+        .login-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 30px rgba(6,78,59,0.4);
+        }
+        .login-btn:active:not(:disabled) { transform: scale(0.97); }
+        .login-input:focus {
+          border-color: #10b981 !important;
+          box-shadow: 0 0 0 4px rgba(16,185,129,0.18) !important;
+          outline: none;
+        }
+        .login-spinner {
+          width:18px; height:18px; border:2px solid rgba(255,255,255,0.3);
+          border-top-color:#fff; border-radius:50%;
+          animation: loginSpinner 0.7s linear infinite;
+          display:inline-block;
+        }
+        .login-toast { animation: loginSlideIn 0.4s ease both; }
+        .login-feat-icon { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        .login-feat:hover .login-feat-icon { transform: scale(1.15) rotate(-5deg); }
+      ` }} />
+
+      <div style={{
+        minHeight:"100vh", background:"#064e3b",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        padding:"1.5rem 1rem", position:"relative", overflow:"hidden", fontFamily:"sans-serif"
+      }}>
+        {/* Animated background circles */}
+        <div className="login-bg-circle" style={{
+          width:520, height:520, background:"#10b981", opacity:0.13,
+          top:-180, right:-140, animation:"loginBgFloat 7s ease-in-out infinite"
+        }}/>
+        <div className="login-bg-circle" style={{
+          width:320, height:320, background:"#34d399", opacity:0.1,
+          bottom:-100, left:-80, animation:"loginBgFloat 9s ease-in-out infinite reverse"
+        }}/>
+        <div className="login-bg-circle" style={{
+          width:160, height:160, background:"#6ee7b7", opacity:0.08,
+          top:"35%", left:"6%", animation:"loginBgFloat 5s ease-in-out infinite"
+        }}/>
+        <div className="login-bg-circle" style={{
+          width:80, height:80, background:"#a7f3d0", opacity:0.12,
+          top:"15%", right:"10%", animation:"loginBgFloat 6s ease-in-out infinite 1s"
+        }}/>
+
+        {/* Card */}
+        <div className="login-card" style={{
+          background:"#fff", borderRadius:28, padding:"2.25rem 1.75rem",
+          width:"100%", maxWidth:420, position:"relative", zIndex:2,
+          boxShadow:"0 32px 80px rgba(0,0,0,0.25)"
+        }}>
+          {/* Logo */}
+          <div style={{textAlign:"center", marginBottom:"0.5rem"}}>
+            <img
+              src={`data:image/png;base64,${LOGO_B64}`}
+              alt="VacaApp"
+              style={{height:64, objectFit:"contain", marginBottom:"0.75rem"}}
+            />
+            <p style={{
+              fontSize:10, fontWeight:700, letterSpacing:"0.22em",
+              color:"#6b7280", textTransform:"uppercase", margin:0
+            }}>
+              Gestión Ganadera Profesional
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div style={{
+            height:2, margin:"1.25rem 0",
+            background:"linear-gradient(90deg,transparent,#d1fae5,#10b981,#d1fae5,transparent)",
+            borderRadius:2
+          }}/>
+
+          {status === "completing" ? (
+            <div style={{textAlign:"center", padding:"2rem 0"}}>
+              <div className="login-spinner" style={{margin:"0 auto 1rem"}}/>
+              <p style={{color:"#374151", fontWeight:600, fontSize:15}}>Iniciando sesión...</p>
+            </div>
+          ) : status === "sent" ? (
+            <div className="login-toast" style={{
+              background:"#ecfdf5", border:"1.5px solid #6ee7b7",
+              borderRadius:16, padding:"1.25rem", textAlign:"center"
+            }}>
+              <div style={{
+                width:48, height:48, background:"#d1fae5", borderRadius:"50%",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                margin:"0 auto 1rem", fontSize:24
+              }}>✉️</div>
+              <p style={{fontWeight:800, color:"#065f46", fontSize:16, margin:"0 0 0.5rem"}}>
+                ¡Link enviado!
+              </p>
+              <p style={{color:"#047857", fontSize:13, margin:"0 0 1rem", lineHeight:1.5}}>
+                Revisá tu casilla <strong>{email}</strong> y hacé click en el link para entrar.
+              </p>
+              <p style={{color:"#6ee7b7", fontSize:11, margin:0}}>
+                El link expira en 15 minutos · Revisá spam si no llega
+              </p>
+              <button onClick={() => setStatus("idle")}
+                style={{
+                  marginTop:"1rem", background:"transparent", border:"1.5px solid #10b981",
+                  borderRadius:10, color:"#059669", fontWeight:700, fontSize:12,
+                  padding:"6px 16px", cursor:"pointer"
+                }}>
+                Usar otro email
+              </button>
+            </div>
+          ) : (
+            <>
+              <h2 style={{
+                fontSize:22, fontWeight:800, color:"#111827",
+                textAlign:"center", margin:"0 0 0.375rem", lineHeight:1.2
+              }}>
+                Bienvenido de vuelta
+              </h2>
+              <p style={{
+                fontSize:13, color:"#6b7280", textAlign:"center",
+                margin:"0 0 1.5rem", lineHeight:1.5
+              }}>
+                Ingresá tu email y te enviamos un link mágico.<br/>
+                Un click y entrás, sin contraseña.
+              </p>
+
+              {/* Email input */}
+              <div style={{position:"relative", marginBottom:"0.75rem"}}>
+                <svg style={{
+                  position:"absolute", left:13, top:"50%", transform:"translateY(-50%)",
+                  opacity:0.4, pointerEvents:"none"
+                }} width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="3"/>
+                  <path d="m2 7 10 6 10-6"/>
+                </svg>
+                <input
+                  className="login-input"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setErrorMsg(""); }}
+                  onKeyDown={e => e.key === "Enter" && handleSend()}
+                  disabled={status === "sending"}
+                  style={{
+                    width:"100%", boxSizing:"border-box",
+                    padding:"13px 14px 13px 42px",
+                    fontSize:15, border:"2px solid #e5e7eb",
+                    borderRadius:14, fontFamily:"inherit",
+                    color:"#111827", background:"#fff",
+                    transition:"border-color 0.2s, box-shadow 0.2s"
+                  }}
+                />
+              </div>
+
+              {/* Error */}
+              {status === "error" && errorMsg && (
+                <div className="login-toast" style={{
+                  background:"#fef2f2", border:"1.5px solid #fca5a5",
+                  borderRadius:10, padding:"10px 14px",
+                  color:"#dc2626", fontSize:12, fontWeight:600,
+                  marginBottom:"0.75rem"
+                }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+
+              {/* Send button */}
+              <button
+                className="login-btn"
+                onClick={handleSend}
+                disabled={status === "sending"}
+                style={{
+                  width:"100%", padding:"14px",
+                  background: status === "sending"
+                    ? "#6b7280"
+                    : "linear-gradient(135deg,#064e3b,#059669)",
+                  color:"#fff", border:"none", borderRadius:14,
+                  fontSize:15, fontWeight:700, cursor: status === "sending" ? "wait" : "pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  letterSpacing:"0.02em"
+                }}>
+                {status === "sending" ? (
+                  <><div className="login-spinner"/> Enviando...</>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+                    </svg>
+                    Enviar link de acceso
+                  </>
+                )}
+              </button>
+
+              {/* Features */}
+              <div style={{
+                display:"flex", justifyContent:"center", gap:24, marginTop:"1.5rem"
+              }}>
+                {[
+                  { icon:"🔒", label:"Sin contraseña" },
+                  { icon:"⚡", label:"Acceso rápido" },
+                  { icon:"👤", label:"Solo autorizados" },
+                ].map((f, i) => (
+                  <div key={i} className="login-feat" style={{
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:4
+                  }}>
+                    <div className="login-feat-icon" style={{
+                      width:36, height:36, borderRadius:10,
+                      background: i === 0 ? "#ecfdf5" : i === 1 ? "#fef3c7" : "#eff6ff",
+                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:16
+                    }}>{f.icon}</div>
+                    <span style={{
+                      fontSize:10, fontWeight:700, color:"#9ca3af",
+                      textTransform:"uppercase", letterSpacing:"0.05em", textAlign:"center"
+                    }}>{f.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p style={{
+                fontSize:11, color:"#9ca3af", textAlign:"center",
+                marginTop:"1.25rem", lineHeight:1.5
+              }}>
+                Si no recibís el link, revisá la carpeta de spam.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MENU CARD — tarjeta de acceso rápido
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2627,7 +3203,7 @@ function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // DASHBOARD — Panel de Inicio
 // ═══════════════════════════════════════════════════════════════════════════
-function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
+function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
@@ -2658,6 +3234,13 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
             <span className="inline-block mt-4 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full">
               {simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""} guardada{simulaciones.length !== 1 ? "s" : ""}
             </span>
+          )}
+          {onLogout && (
+            <div className="mt-3">
+              <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 transition-colors font-semibold px-3 py-1 rounded-lg hover:bg-red-50">
+                Cerrar sesión
+              </button>
+            </div>
           )}
         </div>
 
@@ -2714,6 +3297,170 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// LOGIN SCREEN
+// ═══════════════════════════════════════════════════════════════════════════
+function LoginScreen({ onLogin }) {
+  const [email, setEmail]     = useState("");
+  const [estado, setEstado]   = useState("idle"); // idle | sending | sent | error
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSend = async () => {
+    const emailLower = email.trim().toLowerCase();
+    if (!emailLower || !emailLower.includes("@")) {
+      setErrorMsg("Ingresá un email válido.");
+      setEstado("error");
+      return;
+    }
+    if (!EMAILS_AUTORIZADOS.includes(emailLower)) {
+      setErrorMsg("Este email no está autorizado para acceder a VacaApp.");
+      setEstado("error");
+      return;
+    }
+    setEstado("sending");
+    try {
+      await sendSignInLinkToEmail(auth, emailLower, ACTION_CODE_SETTINGS);
+      window.localStorage.setItem("emailParaLogin", emailLower);
+      setEstado("sent");
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Error al enviar el link. Revisá tu conexión e intentá de nuevo.");
+      setEstado("error");
+    }
+  };
+
+  const handleKey = (e) => { if (e.key === "Enter") handleSend(); };
+  const resetError = () => { if (estado === "error") { setEstado("idle"); setErrorMsg(""); } };
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+      <div className="login-bg">
+        <div className="login-blob login-blob-1" />
+        <div className="login-blob login-blob-2" />
+        <div className="login-blob login-blob-3" />
+        <div className="login-blob login-blob-4" />
+
+        <div className="login-card">
+          {/* Logo */}
+          <div className="login-logo-wrap">
+            <img
+              src={`data:image/png;base64,${LOGO_B64}`}
+              alt="VacaApp"
+              style={{ height: "64px", maxWidth: "220px", objectFit: "contain" }}
+            />
+            <p className="login-slogan">Gestión Ganadera Profesional</p>
+          </div>
+
+          <h2 className="login-heading">Bienvenido de vuelta</h2>
+          <p className="login-sub">
+            Ingresá tu email y te mandamos un link mágico.<br />
+            Un click y estás adentro, sin contraseña.
+          </p>
+
+          {/* Input email */}
+          <div className="login-input-wrap">
+            <div className="login-input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="3"/>
+                <path d="m2 7 10 6 10-6"/>
+              </svg>
+            </div>
+            <input
+              className={`login-input${estado === "error" ? " error" : ""}`}
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); resetError(); }}
+              onKeyDown={handleKey}
+              disabled={estado === "sending" || estado === "sent"}
+              autoComplete="email"
+            />
+          </div>
+
+          {/* Botón */}
+          {estado !== "sent" && (
+            <button
+              className="login-btn"
+              onClick={handleSend}
+              disabled={estado === "sending"}
+            >
+              {estado === "sending" ? (
+                <><div className="login-spinner" /> Enviando...</>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+                  </svg>
+                  Enviar link de acceso
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Toast éxito */}
+          {estado === "sent" && (
+            <div className="login-toast">
+              <div className="login-toast-dot" />
+              <div>
+                <p style={{ fontSize: "13px", fontWeight: "700", color: "#065f46", margin: "0 0 3px" }}>
+                  Link enviado a {email}
+                </p>
+                <p style={{ fontSize: "12px", color: "#047857", margin: 0 }}>
+                  Revisá tu casilla y hacé click en el link para entrar. Expira en 15 minutos.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {estado === "error" && errorMsg && (
+            <div className="login-error-msg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
+              </svg>
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Feature pills */}
+          <div className="login-feats">
+            <div className="login-feat">
+              <div className="login-feat-icon" style={{ background: "#ecfdf5" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <span className="login-feat-label">Sin<br/>contraseña</span>
+            </div>
+            <div className="login-feat">
+              <div className="login-feat-icon" style={{ background: "#eff6ff" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+              </div>
+              <span className="login-feat-label">Acceso<br/>exclusivo</span>
+            </div>
+            <div className="login-feat">
+              <div className="login-feat-icon" style={{ background: "#fef3c7" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </div>
+              <span className="login-feat-label">Acceso<br/>inmediato</span>
+            </div>
+          </div>
+
+          <p className="login-note">
+            Solo los emails autorizados pueden ingresar.<br/>
+            Si no recibís el link, revisá la carpeta de spam.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
 const TABS = [
@@ -2722,7 +3469,7 @@ const TABS = [
   { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
 ];
 
-export default function EstrategiaComercial({ userEmail }) {
+function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
   const [descarteData, setDescarteData] = useState(null);
@@ -2791,6 +3538,7 @@ export default function EstrategiaComercial({ userEmail }) {
           gastos={gastos}
           simulaciones={simulaciones}
           onNavigate={handleNavigate}
+          onLogout={onLogout}
         />
       </>
     );
@@ -2878,5 +3626,81 @@ export default function EstrategiaComercial({ userEmail }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP — Wrapper con autenticación Firebase
+// ═══════════════════════════════════════════════════════════════════════════
+export default function App() {
+  const [user,    setUser]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // ── Escuchar cambios de auth ──────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // ── Completar login desde magic link ─────────────────────────────────────
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+    let email = window.localStorage.getItem("emailParaLogin");
+    if (!email) {
+      email = window.prompt("Confirmá tu email para completar el acceso:");
+    }
+    if (!email) return;
+    signInWithEmailLink(auth, email, window.location.href)
+      .then(() => {
+        window.localStorage.removeItem("emailParaLogin");
+        window.history.replaceState(null, "", "/");
+      })
+      .catch((err) => console.error("Error completando magic link:", err));
+  }, []);
+
+  const handleLogout = () => signOut(auth);
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "#064e3b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: "16px",
+      }}>
+        <img
+          src={`data:image/png;base64,${LOGO_B64}`}
+          alt="VacaApp"
+          style={{ height: "56px", objectFit: "contain", opacity: 0.9 }}
+        />
+        <div style={{
+          width: "32px", height: "32px",
+          border: "3px solid rgba(255,255,255,0.3)",
+          borderTopColor: "#fff",
+          borderRadius: "50%",
+          animation: "spinDot 0.8s linear infinite",
+        }} />
+      </div>
+    );
+  }
+
+  // ── No autenticado → Login ────────────────────────────────────────────────
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // ── Autenticado → App principal ───────────────────────────────────────────
+  return (
+    <EstrategiaComercial
+      userEmail={user.email}
+      onLogout={handleLogout}
+    />
   );
 }
