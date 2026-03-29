@@ -518,6 +518,22 @@ const GLOBAL_STYLE = `
   .dash-stats   { animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both; }
   .simulator-enter { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+  /* ── Simulator zoom-in from center ──────────────────────────────────────── */
+  @keyframes zoomFromCenter {
+    0%   { opacity: 0; transform: scale(0.3) translateY(20px); }
+    60%  { opacity: 1; transform: scale(1.03) translateY(-3px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes zoomFromCenterFast {
+    0%   { opacity: 0; transform: scale(0.2); }
+    55%  { transform: scale(1.04); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .sim-zoom-enter {
+    animation: zoomFromCenter 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transform-origin: center center;
+  }
+
   /* ── Dashboard card hover ───────────────────────────────────────────── */
   .dash-card-inner {
     transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
@@ -3443,7 +3459,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           <GlobalPanel global={global} setGlobal={setGlobal} gastos={gastos} setGastos={setGastos} />
 
           {/* Simulator content — no tabs */}
-          <div className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl simulator-enter">
+          <div key={activeTab} className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl sim-zoom-enter">
             {activeTab === "poder"
               ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
               : activeTab === "vientres"
