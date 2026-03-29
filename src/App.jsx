@@ -99,6 +99,26 @@ const GLOBAL_STYLE = `
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
+
+  /* ── Mobile optimizations ────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    /* Bigger readable inputs */
+    input[type=number] { font-size: 18px !important; min-height: 48px; }
+    
+    /* Section titles smaller */
+    .text-xs.font-black.tracking-widest { font-size: 10px; }
+    
+    /* KPI cards stack better */
+    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+    
+    /* Tabs font */
+    .tab-label { font-size: 11px; }
+
+    /* Reduce card padding on mobile */
+    .rounded-2xl { border-radius: 1rem; }
+    .rounded-xl  { border-radius: 0.75rem; }
+  }
+
   /* Smooth horizontal scroll for tables on mobile */
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .table-scroll::-webkit-scrollbar { height: 4px; }
@@ -348,7 +368,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
       <div className={`flex items-stretch rounded-xl border ${accent.border} overflow-hidden shadow-sm`}>
         {/* Decrement con long-press */}
         <button {...decPress}
-          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-12 min-h-[44px] text-xl"} shrink-0 font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-10 min-h-[44px] text-lg"} shrink-0 font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
           aria-label="Reducir">−</button>
 
         <div className="relative flex-1 min-w-0">
@@ -357,7 +377,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
-            className={`w-full h-full ${accent.bg} ${accent.text} ${compact ? "px-1 py-2.5 text-sm" : "px-2 py-3 text-sm"} font-mono font-semibold text-center
+            className={`w-full h-full ${accent.bg} ${accent.text} ${compact ? "px-1 py-2.5 text-sm" : "px-1 py-2.5 text-base"} font-mono font-semibold text-center
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
               focus:outline-none focus:ring-2 ${accent.ring} transition-all`} />
         </div>
@@ -370,7 +390,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
         {/* Increment con long-press */}
         <button {...incPress}
-          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-12 min-h-[44px] text-xl"} shrink-0 font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-10 min-h-[44px] text-lg"} shrink-0 font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
           aria-label="Aumentar">+</button>
       </div>
 
@@ -543,7 +563,7 @@ function GastosComerciales({ gastos, setGastos }) {
         </div>
         {on && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Field label={`KM ${tipo}`} value={gastos[kmKey]} onChange={set(kmKey)} unit="km" step={10} sliderMax={1500} />
               <Field label="Precio / km" value={gastos[pkmKey]} onChange={set(pkmKey)} unit="$/km" step={50} />
             </div>
@@ -583,7 +603,7 @@ function GastosComerciales({ gastos, setGastos }) {
         <p className="text-xs font-black uppercase tracking-widest text-slate-500">Gastos Comerciales</p>
         <span className="text-xs text-slate-400 normal-case">— activá solo los que apliquen</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <FleteBlock tipo="compra" />
         <ComisionBlock tipo="compra" />
         <FleteBlock tipo="venta" />
@@ -672,7 +692,7 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
         </div>
         <div className="bg-white rounded-xl border border-sky-200 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📥 Destino — Animales que Compro</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" compact />
             <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} compact />
           </div>
@@ -867,7 +887,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
       {/* Parámetros */}
       <div>
         <SectionTitle icon="📋" color="text-slate-600">Parámetros de Compra y Recría</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <Field label="Cantidad de cabezas" value={inputs.cantidad} onChange={set("cantidad")} unit="cab" />
           <Field label="Peso de compra" value={inputs.pesoCompra} onChange={set("pesoCompra")} unit="kg"
             sliderMax={tipoCompra === "vacas" ? 600 : 400}
@@ -959,7 +979,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
       {/* Destete y venta de terneros */}
       <div>
         <SectionTitle icon="🐣" color="text-amber-600">Producción Anual — Destete</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="% de destete" value={inputs.pctDestete} onChange={set("pctDestete")} unit="%" step={0.5}
             hint={`≈ ${fmt(inputs.cantidad * inputs.pctDestete / 100, 1)} terneros/año`} />
           <Field label="Peso ternero destetado" value={inputs.pesoTerneroDestetado} onChange={set("pesoTerneroDestetado")} unit="kg" />
@@ -979,7 +999,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
       {/* Recupero por descarte */}
       <div>
         <SectionTitle icon="🔄" color="text-orange-600">Recupero — Venta de Descarte (Fin Vida Útil)</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <Field label="Peso vaca al descarte" value={inputs.pesoVacaDescarte} onChange={set("pesoVacaDescarte")} unit="kg" sliderMax={600} />
           <Field label="Precio venta descarte" value={inputs.precioDescarteSalidaKg} onChange={set("precioDescarteSalidaKg")} unit="$/kg" step={50} sliderMax={6000} />
           <div className="flex flex-col gap-1">
@@ -996,7 +1016,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
 
       {/* Costos */}
       <SectionTitle icon="📊" color="text-emerald-600">Desglose de Costos del Proyecto</SectionTitle>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard label="Inversión Inicial" value={fmtMoney(calc.inversionInicial)}
           sub={tipoCompra === "terneras" ? `${inputs.cantidad} cab × ${fmt(inputs.pesoCompra)} kg × $${fmt(inputs.precioKgCompra)}/kg` : `${inputs.cantidad} cab × $${fmt(inputs.precioBulto)}/cab`}
           bg="bg-emerald-50" border="border-emerald-200" color="text-emerald-700" />
@@ -1028,7 +1048,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
       </div>
 
       {/* Costo total */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 grid grid-cols-3 gap-4">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <p className="text-xs tracking-widest uppercase text-slate-400 mb-1">Costo Total del Proyecto</p>
           <p className="text-2xl font-mono font-bold text-slate-800">{fmtMoney(calc.costoTotalProyecto)}</p>
@@ -1223,7 +1243,7 @@ function TimelineSuplementacion({ mesesActivos, onChange, costoMensual, cantidad
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="rounded-lg bg-white border border-teal-200 px-3 py-2 text-center">
           <p className="text-xs text-teal-600 font-semibold uppercase tracking-wider">Meses activos</p>
           <p className="font-mono font-bold text-teal-800 text-xl">{mesesActivos.length}</p>
@@ -1349,7 +1369,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
   return (
     <div className="space-y-5">
       <SectionTitle icon="📋" color="text-slate-600">Datos de Compra — Base Común</SectionTitle>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <Field label="Cantidad de terneros" value={base.cantidad} onChange={setB("cantidad")} unit="cab" />
         <Field label="Peso de ingreso" value={base.pesoIngreso} onChange={setB("pesoIngreso")} unit="kg" sliderMax={400} />
         <Field label="Precio de compra" value={base.precioCompraKg} onChange={setB("precioCompraKg")} unit="$/kg" step={50} sliderMax={10000} />
@@ -1433,7 +1453,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <p className="text-xs text-amber-600">
               {fmt(inmagInvernada)} kg/mes × ${fmt(precioNovilloInmag)}/kg × {opA.mesesRecria} m × {base.cantidad} cab
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="bg-white rounded-lg border border-amber-200 px-3 py-2">
                 <p className="text-xs text-amber-600 font-semibold uppercase tracking-wider">Costo pastoreo total</p>
                 <p className="font-mono font-bold text-amber-800">{fmtMoney(calc.a.costoPastoreo)}</p>
@@ -1506,12 +1526,12 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-blue-700">Ganancia de Peso Vivo</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* MEJORA 2: GPV feedlot con paso 0.1 */}
               <Field label="GPV diaria en corral" value={opB.gpvDiaria} onChange={setOGpv} unit="kg/día" step={0.1} sliderMax={3} />
               <Field label="Días de encierre" value={opB.diasEncierre} onChange={setO("diasEncierre")} unit="días" sliderMax={150} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="bg-white rounded-lg border border-blue-200 px-3 py-2">
                 <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Kg ganados</p>
                 <p className="font-mono font-bold text-blue-800">{fmtKg(calc.b.gpvTotal)}</p>
@@ -1525,7 +1545,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-indigo-700">💡 Costos Operativos del Corral</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Costo ración / animal / día" value={opB.costoRacionDiaria} onChange={setO("costoRacionDiaria")} unit="$/día" step={100} highlight />
               <Field label="Costo hotelería / animal / día" value={opB.costoHoteleriadiaria} onChange={setO("costoHoteleriadiaria")} unit="$/día" step={100} />
             </div>
@@ -2564,7 +2584,7 @@ export default function EstrategiaComercial({ userEmail }) {
       <ToastContainer toasts={toasts} />
 
       <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
-        <div className="w-full max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-5 md:py-8">
+        <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8">
 
           {/* ── Top bar: back button + module indicator ──────────────── */}
           <nav className="simulator-enter bg-white border-b border-slate-200 -mx-3 sm:-mx-6 lg:-mx-8 -mt-5 md:-mt-8 px-4 py-3 mb-6 sticky top-0 z-40 shadow-sm">
@@ -2605,7 +2625,7 @@ export default function EstrategiaComercial({ userEmail }) {
           <div className="flex gap-0.5 sm:gap-1 border-b border-slate-200 overflow-x-auto scrollbar-hide">
             {TABS.map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`group flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-3 text-xs sm:text-sm font-semibold rounded-t-lg border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0
+                className={`group flex items-center gap-1 sm:gap-2 px-2 sm:px-5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0
                   ${activeTab === tab.id ? "border-emerald-500 text-emerald-700 bg-white" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/60"}`}>
                 <span className="text-base">{tab.icon}</span>
                 <span>{tab.label}</span>
@@ -2617,7 +2637,7 @@ export default function EstrategiaComercial({ userEmail }) {
             ))}
           </div>
 
-          <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-5 md:p-8 shadow-lg simulator-enter">
+          <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-3 sm:p-5 md:p-8 shadow-lg simulator-enter">
             {activeTab === "poder"
               ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
               : activeTab === "vientres"
