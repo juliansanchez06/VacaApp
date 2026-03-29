@@ -3336,46 +3336,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   };
 
   // ── Rendimiento kg/ha ────────────────────────────────────────────────────
-  const [hectareas,      setHectareas]      = useState(1000);
-  const [pesoVentaInvernada, setPesoVentaInvernada] = useState(380); // kg/cab sin feedlot
-  const [pesoVentaFeedlot,   setPesoVentaFeedlot]   = useState(480); // kg/cab con feedlot
-  const [pctDesteteReal, setPctDesteteReal] = useState(74);           // % real del año
-
-  // Ventas estimadas año actual
-  const novillosCampoAct  = terminacionDatos.novillosCampo;
-  const novillosFeedlotAct= terminacionDatos.novillosFeedlot;
-  const kgCampoAct        = novillosCampoAct  * pesoVentaInvernada;
-  const kgFeedlotAct      = novillosFeedlotAct * pesoVentaFeedlot;
-  const kgTotalAct        = kgCampoAct + kgFeedlotAct;
-  const kgHaAct           = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
-
-  // Proyección año siguiente basada en stock actual
-  const madresActuales    = criaDatos.vacas + criaDatos.vaquillonas;
-  const ternerosProyect   = Math.round(madresActuales * pctDesteteReal / 100);
-  const novProyMachos     = Math.round(ternerosProyect * 0.5); // 50% machos
-  const comprasMachos     = reciaDatos.ternerosCompraMachos;
-  const totalNovProxAno   = novProyMachos + comprasMachos + reciaDatos.novillos;
-  const kgCampoProx       = Math.round(totalNovProxAno * 0.6) * pesoVentaInvernada;   // 60% van campo
-  const kgFeedlotProx     = Math.round(totalNovProxAno * 0.4) * pesoVentaFeedlot;    // 40% feedlot
-  const kgTotalProx       = kgCampoProx + kgFeedlotProx;
-  const kgHaProx          = hectareas > 0 ? Math.round(kgTotalProx / hectareas) : 0;
-
-  // Historial para el gráfico: años cerrados + actual + proyección
-  const historialKgHa = [
-    ...Object.entries(historialAnos).sort().map(([ano, snap]) => {
-      const nc = snap.terminacion?.novillosCampo   || 0;
-      const nf = snap.terminacion?.novillosFeedlot || 0;
-      return {
-        ano, tipo: "real",
-        kgHa: hectareas > 0 ? Math.round((nc*pesoVentaInvernada + nf*pesoVentaFeedlot) / hectareas) : 0,
-        kg: nc*pesoVentaInvernada + nf*pesoVentaFeedlot,
-      };
-    }),
-    { ano: anoGanadero,                tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct },
-    { ano: `${anoGanadero} (proy.)`,   tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx },
-  ];
-
-  // ── Rendimiento kg/ha ────────────────────────────────────────────────────
   const [hectareas,          setHectareas]          = useState(1000);
   const [pesoVentaInvernada, setPesoVentaInvernada] = useState(380);
   const [pesoVentaFeedlot,   setPesoVentaFeedlot]   = useState(480);
