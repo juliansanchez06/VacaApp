@@ -3401,13 +3401,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const historialKgHa = [
     ...Object.entries(historialAnos).sort().map(([ano, snap]) => {
-      const nc = snap.terminacion?.novillosCampo   || 0;
-      const nf = snap.terminacion?.novillosFeedlot || 0;
+      const term = snap.terminacion || {};
+      const nc = term.novillosCampo   || 0;
+      const nf = term.novillosFeedlot || 0;
       const kg = nc * pesoVentaInvernada + nf * pesoVentaFeedlot;
-      return { ano: ano.replace("/20","/'"), tipo:"real", kgHa: hectareas>0?Math.round(kg/hectareas):0, kg, nc, nf };
+      const label = ano.slice(0, 4);
+      return { ano: label, tipo: "real", kgHa: hectareas > 0 ? Math.round(kg / hectareas) : 0, kg, nc, nf };
     }),
-    { ano: anoGanadero.replace("/20","/'"), tipo:"real",       kgHa: kgHaAct,  kg: kgTotalAct,  nc: novillosCampoAct,  nf: novillosFeedlotAct },
-    { ano: "Proyección",                    tipo:"proyectado", kgHa: kgHaProx, kg: kgTotalProx, nc: Math.round(totalNovProx*0.6), nf: Math.round(totalNovProx*0.4) },
+    { ano: anoGanadero.slice(0, 4), tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct,  nc: novillosCampoAct,  nf: novillosFeedlotAct },
+    { ano: "Proy.",                 tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx, nc: Math.round(totalNovProx * 0.6), nf: Math.round(totalNovProx * 0.4) },
   ];
 
   const SECCIONES = [
