@@ -2745,23 +2745,32 @@ function exportarPDF(titulo, secciones) {
 <title>${titulo} — VacaApp</title>
 <style>
   body { font-family: 'Segoe UI', sans-serif; color: #1e293b; max-width: 720px; margin: 0 auto; padding: 40px 32px; }
-  .logo { font-size: 22px; font-weight: 900; color: #10b981; letter-spacing: -0.5px; }
-  .titulo { font-size: 20px; font-weight: 800; margin: 20px 0 4px; }
-  .fecha { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-  th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
-  .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; }
+  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #10b981; padding-bottom:16px; margin-bottom:24px; }
+  .titulo { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  .fecha { color: #94a3b8; font-size: 13px; }
+  .badge { background:#ecfdf5; color:#065f46; font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:4px 10px; border-radius:20px; border:1px solid #6ee7b7; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border-radius:8px; overflow:hidden; }
+  th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+  tr:nth-child(even) td { background:#f8fafc; }
+  .footer { margin-top: 32px; border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; display:flex; justify-content:space-between; }
   @media print { body { padding: 20px; } }
 </style></head>
 <body>
-  <div class="logo">🐄 VacaApp</div>
+  <div class="header">
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:52px;object-fit:contain" alt="VacaApp"/>
+    <span class="badge">Simulador Económico Ganadero</span>
+  </div>
   <div class="titulo">${titulo}</div>
   <div class="fecha">Generado el ${fecha}</div>
+  <br/>
   <table>
     <thead><tr><th>Parámetro</th><th style="text-align:right">Valor</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="footer">Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión. — VacaApp Estrategia Comercial</div>
+  <div class="footer">
+    <span>Los cálculos son estimativos. Consultá con tu asesor antes de invertir.</span>
+    <span>VacaApp — Estrategia Comercial</span>
+  </div>
   <script>window.onload=()=>{ window.print(); }<\/script>
 </body></html>`;
 
