@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  setPersistence,
+  browserLocalPersistence,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
@@ -22,6 +24,7 @@ const firebaseConfig = {
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
+setPersistence(auth, browserLocalPersistence).catch(console.error);
 
 // ── Emails autorizados ────────────────────────────────────────────────────────
 const EMAILS_AUTORIZADOS = [
