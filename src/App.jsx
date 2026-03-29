@@ -2973,28 +2973,19 @@ function LoginScreen({ onLogin }) {
         .login-feat:hover .login-feat-icon { transform: scale(1.15) rotate(-5deg); }
       ` }} />
 
-      <div style={{
-        minHeight:"100vh", background:"#064e3b",
-        display:"flex", alignItems:"center", justifyContent:"center",
-        padding:"1.5rem 1rem", position:"relative", overflow:"hidden", fontFamily:"sans-serif"
-      }}>
-        {/* Animated background circles */}
-        <div className="login-bg-circle" style={{
-          width:520, height:520, background:"#10b981", opacity:0.13,
-          top:-180, right:-140, animation:"loginBgFloat 7s ease-in-out infinite"
-        }}/>
-        <div className="login-bg-circle" style={{
-          width:320, height:320, background:"#34d399", opacity:0.1,
-          bottom:-100, left:-80, animation:"loginBgFloat 9s ease-in-out infinite reverse"
-        }}/>
-        <div className="login-bg-circle" style={{
-          width:160, height:160, background:"#6ee7b7", opacity:0.08,
-          top:"35%", left:"6%", animation:"loginBgFloat 5s ease-in-out infinite"
-        }}/>
-        <div className="login-bg-circle" style={{
-          width:80, height:80, background:"#a7f3d0", opacity:0.12,
-          top:"15%", right:"10%", animation:"loginBgFloat 6s ease-in-out infinite 1s"
-        }}/>
+      <div className="login-bg">
+        {/* Background blobs */}
+        <div className="login-blob login-blob-1" />
+        <div className="login-blob login-blob-2" />
+        <div className="login-blob login-blob-3" />
+        <div className="login-blob login-blob-4" />
+        {/* Floating $ signs */}
+        <div className="login-dollar ld1">$</div>
+        <div className="login-dollar ld2">$</div>
+        <div className="login-dollar ld3">$</div>
+        <div className="login-dollar ld4">$</div>
+        <div className="login-dollar ld5">$</div>
+        <div className="login-dollar ld6">$</div>
 
         {/* Card */}
         <div className="login-card" style={{
