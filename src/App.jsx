@@ -31,10 +31,88 @@ const GLOBAL_STYLE = `
   /* ── Background ──────────────────────────────────────────────────── */
   .app-bg { background: #ffffff; min-height: 100vh; }
 
+  /* ── Google Fonts ──────────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&display=swap');
+
   /* ── Mobile-first touch sizing ───────────────────────────────────── */
   @media (max-width: 640px) {
     input[type=number] { font-size: 16px !important; }
   }
+
+  /* ── New animations ─────────────────────────────────────────────────── */
+  @keyframes popIn {
+    0%   { opacity: 0; transform: scale(0.8) translateY(10px); }
+    70%  { transform: scale(1.04) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes slideRight {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes wiggle {
+    0%,100% { transform: rotate(-3deg); }
+    50%      { transform: rotate(3deg); }
+  }
+  @keyframes pulseScale {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    50%      { box-shadow: 0 0 16px 4px rgba(16,185,129,0.3); }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Animated components ──────────────────────────────────────────── */
+  .section-enter { animation: slideRight 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+  .kpi-pop       { animation: popIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .kpi-pop:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-pop:nth-child(2) { animation-delay: 0.12s; }
+  .kpi-pop:nth-child(3) { animation-delay: 0.19s; }
+  .kpi-pop:nth-child(4) { animation-delay: 0.26s; }
+  .kpi-pop:nth-child(5) { animation-delay: 0.33s; }
+  .kpi-pop:nth-child(6) { animation-delay: 0.40s; }
+  .value-update  { animation: countUp 0.3s ease both; }
+
+  /* ── Gradient text ────────────────────────────────────────────────── */
+  .gradient-text {
+    background: linear-gradient(135deg, #10b981, #0ea5e9, #8b5cf6);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s ease infinite;
+  }
+
+  /* ── Section title accent line ────────────────────────────────────── */
+  .section-accent {
+    background: linear-gradient(90deg, #10b981, #0ea5e9, transparent);
+    height: 2px;
+    border-radius: 2px;
+  }
+
+  /* ── Glowing positive values ──────────────────────────────────────── */
+  .glow-green { animation: glow 2.5s ease-in-out infinite; border-radius: 12px; }
+
+  /* ── Hover lift on cards ──────────────────────────────────────────── */
+  .card-hover {
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+  }
+  .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 32px -4px rgba(0,0,0,0.12); }
+
+  /* ── Pulsing badge ────────────────────────────────────────────────── */
+  .badge-pulse { animation: pulseScale 2s ease-in-out infinite; }
+
+  /* ── Field focus ring glow ────────────────────────────────────────── */
+  input[type=number]:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.25) !important; }
 
   /* ── Sliders ──────────────────────────────────────────────────────── */
   input[type=range] {
@@ -100,24 +178,65 @@ const GLOBAL_STYLE = `
   }
 
 
+  /* ── xs breakpoint ────────────────────────────────────────────────────── */
+  @media (min-width: 480px) {
+    .xs\:inline { display: inline !important; }
+    .xs\:hidden  { display: none !important; }
+  }
+  @media (max-width: 479px) {
+    .xs\:inline { display: none !important; }
+    .xs\:hidden  { display: inline !important; }
+  }
+
   /* ── Mobile optimizations ────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    /* Bigger readable inputs */
     input[type=number] { font-size: 18px !important; min-height: 48px; }
-    
-    /* Section titles smaller */
-    .text-xs.font-black.tracking-widest { font-size: 10px; }
-    
-    /* KPI cards stack better */
-    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
-    
-    /* Tabs font */
-    .tab-label { font-size: 11px; }
-
-    /* Reduce card padding on mobile */
-    .rounded-2xl { border-radius: 1rem; }
-    .rounded-xl  { border-radius: 0.75rem; }
   }
+
+  /* ── Extra vivid accents ─────────────────────────────────────────────── */
+  @keyframes rainbowBorder {
+    0%   { border-color: #10b981; }
+    25%  { border-color: #0ea5e9; }
+    50%  { border-color: #8b5cf6; }
+    75%  { border-color: #f59e0b; }
+    100% { border-color: #10b981; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .result-positive {
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border-color: #10b981 !important;
+    animation: glow 3s ease-in-out infinite;
+  }
+  .result-negative {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border-color: #ef4444 !important;
+  }
+  .nav-accent {
+    background: linear-gradient(135deg, #1e293b, #334155);
+  }
+  .module-badge-poder     { background: linear-gradient(135deg, #0ea5e9, #06b6d4); }
+  .module-badge-vientres  { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+  .module-badge-invernada { background: linear-gradient(135deg, #10b981, #0d9488); }
+
+  /* ── Vibrant section backgrounds ────────────────────────────────────── */
+  .section-teal    { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); border-color: #5eead4; }
+  .section-violet  { background: linear-gradient(135deg, #faf5ff, #ede9fe); border-color: #c4b5fd; }
+  .section-amber   { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fcd34d; }
+  .section-lime    { background: linear-gradient(135deg, #f7fee7, #ecfccb); border-color: #bef264; }
+  .section-sky     { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-color: #7dd3fc; }
+
+  /* ── Animated number display ─────────────────────────────────────────── */
+  .num-positive { color: #059669; font-weight: 900; }
+  .num-negative { color: #dc2626; font-weight: 900; }
+  .num-neutral  { color: #1e293b; font-weight: 900; }
 
   /* Smooth horizontal scroll for tables on mobile */
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -342,8 +461,8 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
   const sliderMax_ = sliderMax ?? sliderCfg.max;
 
   const accent = highlight
-    ? { border: "border-emerald-300", bg: "bg-emerald-50", text: "text-emerald-800", ring: "focus:ring-emerald-400/50 focus:border-emerald-500", btn: "bg-emerald-100 hover:bg-emerald-200 text-emerald-700 active:bg-emerald-300", sliderClass: "" }
-    : { border: "border-slate-200", bg: "bg-white", text: "text-slate-800", ring: "focus:ring-emerald-400/50 focus:border-emerald-400", btn: "bg-slate-100 hover:bg-slate-200 text-slate-600 active:bg-slate-300", sliderClass: "" };
+    ? { border: "border-emerald-400", bg: "bg-emerald-50", text: "text-emerald-800", ring: "focus:ring-emerald-400/50 focus:border-emerald-500", btn: "bg-emerald-500 hover:bg-emerald-600 text-white active:bg-emerald-700", sliderClass: "" }
+    : { border: "border-slate-200", bg: "bg-white", text: "text-slate-800", ring: "focus:ring-emerald-400/50 focus:border-emerald-400", btn: "bg-slate-800 hover:bg-slate-900 text-white active:bg-black", sliderClass: "" };
 
   if (readOnly) {
     return (
@@ -362,7 +481,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
       <div className="flex items-center justify-between">
         <label className="text-xs font-semibold tracking-wider uppercase text-slate-500">{label}</label>
         <button onClick={reset} title="Poner en cero"
-          className="text-xs font-black bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-500 hover:text-orange-700 border border-orange-300 transition-all px-1.5 py-0.5 rounded leading-none tabular-nums select-none">×0</button>
+          className="text-xs font-black bg-gradient-to-r from-orange-400 to-red-400 hover:from-orange-500 hover:to-red-500 text-white border-0 transition-all px-2 py-0.5 rounded-lg leading-none tabular-nums select-none shadow-sm active:scale-95">×0</button>
       </div>
 
       <div className={`flex items-stretch rounded-xl border ${accent.border} overflow-hidden shadow-sm`}>
@@ -423,25 +542,25 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
 function SectionTitle({ children, icon, color = "text-emerald-600" }) {
   return (
-    <div className="flex items-center gap-2 mb-4 mt-1">
-      {icon && <span>{icon}</span>}
+    <div className="flex items-center gap-2 mb-4 mt-1 section-enter">
+      {icon && <span className="text-base">{icon}</span>}
       <h3 className={`text-xs font-black tracking-widest uppercase ${color}`}>{children}</h3>
-      <div className="flex-1 h-px bg-slate-100" />
+      <div className="flex-1 section-accent" />
     </div>
   );
 }
 
 function KpiCard({ label, value, sub, color = "text-slate-800", bg = "bg-white", border = "border-slate-200", large }) {
   return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-1 shadow-sm ${bg} ${border}`}>
-      <span className="text-xs font-semibold tracking-wider uppercase text-slate-400">{label}</span>
-      <span className={`font-mono font-bold tabular-nums ${large ? "text-2xl" : "text-xl"} ${color}`}>{value}</span>
-      {sub && <span className="text-xs text-slate-400">{sub}</span>}
+    <div className={`rounded-2xl border-2 p-4 flex flex-col gap-1 card-hover kpi-pop ${bg} ${border}`}>
+      <span className="text-xs font-bold tracking-wider uppercase text-slate-400">{label}</span>
+      <span className={`font-mono font-black tabular-nums value-update ${large ? "text-3xl" : "text-2xl"} ${color}`}>{value}</span>
+      {sub && <span className="text-xs text-slate-400 leading-tight">{sub}</span>}
     </div>
   );
 }
 
-function Divider() { return <div className="h-px bg-slate-100 my-5" />; }
+function Divider() { return <div className="my-6" style={{height:'2px',background:'linear-gradient(90deg,transparent,#e2e8f0,#10b981,#e2e8f0,transparent)'}} />; }
 
 // ─── Botón Fijar (Guardar configuración) ──────────────────────────────────────
 function SaveButton({ onSave, saving, saved }) {
@@ -487,7 +606,7 @@ function InflationIndicator({ precioCompra, precioVenta, inflacionMensual, meses
           {status.icon} {status.label}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white/70 rounded-lg p-2.5 border border-white">
           <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Var. Nominal</p>
           <p className={`font-mono font-bold text-lg ${variacionNominal >= 0 ? "text-slate-700" : "text-red-500"}`}>{fmtPct(variacionNominal)}</p>
@@ -511,12 +630,19 @@ function InflationIndicator({ precioCompra, precioVenta, inflacionMensual, meses
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 function ToggleSwitch({ on, onToggle, label }) {
   return (
-    <button onClick={onToggle} className="flex items-center gap-2 select-none transition-all"
+    <button onClick={onToggle}
+      className="flex items-center gap-2 select-none group"
       title={on ? "Activo — clic para desactivar" : "Inactivo — clic para activar"}>
-      <div className={`relative w-10 h-6 rounded-full transition-colors duration-200 shadow-inner ${on ? "bg-red-500" : "bg-slate-200"}`}>
-        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full shadow transition-transform duration-200 bg-white ${on ? "translate-x-4" : "translate-x-0"}`} />
+      <div className={`relative w-12 h-6 rounded-full transition-all duration-300 shadow-inner
+        ${on
+          ? "bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-emerald-200"
+          : "bg-slate-200"}`}>
+        <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-300
+          ${on ? "translate-x-6 bg-white shadow-emerald-300" : "translate-x-0 bg-white"}`}
+          style={{transition:"transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"}} />
       </div>
-      <span className={`text-xs font-semibold transition-colors ${on ? "text-red-700" : "text-slate-400"}`}>{label}</span>
+      <span className={`text-xs font-bold transition-all duration-200
+        ${on ? "text-emerald-700" : "text-slate-400"}`}>{label}</span>
     </button>
   );
 }
@@ -661,7 +787,7 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
   const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
 
   return (
-    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 md:p-6 space-y-5 shadow-sm">
+    <div className="rounded-2xl border-2 border-sky-200 p-5 md:p-6 space-y-5 shadow-lg card-hover" style={{background:"linear-gradient(135deg,#f0f9ff,#ecfeff)"}}>
       <div className="flex items-center gap-3">
         <span className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-sm">⇄</span>
         <div>
@@ -670,12 +796,12 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-sky-200 p-4 space-y-3">
+        <div className="rounded-xl border p-4 space-y-3 section-sky">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📤 Origen — Animales que Vendo</p>
-          <div className="grid grid-cols-3 gap-2">
-            <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" compact />
-            <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" compact />
-            <Field label="Precio venta" value={venta.precioKg} onChange={setV("precioKg")} unit="$/kg" step={50} compact />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" />
+            <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" />
+            <Field label="Precio venta" value={venta.precioKg} onChange={setV("precioKg")} unit="$/kg" step={50} />
           </div>
           <div className="rounded-lg bg-sky-50 border border-sky-100 p-3 space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
@@ -690,11 +816,11 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-sky-200 p-4 space-y-3">
+        <div className="rounded-xl border p-4 space-y-3 section-sky">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📥 Destino — Animales que Compro</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" compact />
-            <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} compact />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" />
+            <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} />
           </div>
           <div className="rounded-lg bg-sky-50 border border-sky-100 p-3 space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
@@ -802,6 +928,13 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
     // Suplementación Vacas Preñadas
     mesesSuplVacas: [],
     costoSuplVacasMes: 15000,
+    // Años de suplementación (de los años de vida útil, cuántos suplementás)
+    anosSuplementacion: 6,
+    // Creep Feeding terneros
+    kreepOn: false,
+    kreepMeses: 3,
+    kreepCostoMes: 8000,
+    kreepKgExtra: 15,
   });
   const set = (k) => (v) => setInputs((p) => ({ ...p, [k]: v }));
 
@@ -824,16 +957,30 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
     const mesesSuplTernerasValidos = inputs.mesesSuplTerneras.filter((m) => m <= inputs.mesesRecriaPreServicio);
     const costoSuplTerneras = mesesSuplTernerasValidos.length * inputs.costoSuplTernerasMes * inputs.cantidad;
 
-    // Suplementación Vacas Preñadas (se aplica por año de vida útil, ciclo anual de 12 meses)
+    // Suplementación Vacas Preñadas — aplica solo en los años seleccionados
+    const anosSupl = Math.min(inputs.anosSuplementacion ?? inputs.anosVidaUtil, inputs.anosVidaUtil);
     const costoSuplVacasAnual = inputs.mesesSuplVacas.length * inputs.costoSuplVacasMes * inputs.cantidad;
-    const costoSuplVacasTotal = costoSuplVacasAnual * inputs.anosVidaUtil;
+    const costoSuplVacasTotal = costoSuplVacasAnual * anosSupl;
 
-    const costoTotalProyecto = inversionInicial + costoRecriaPreServicio + costoPastoreoVida + costoIatfTotal + costoTorosTotal + costoSuplTerneras + costoSuplVacasTotal;
+    // Terneros (necesario antes del creep calc)
+    const ternerosAnualesCalc = inputs.cantidad * (inputs.pctDestete / 100);
+
+    // Creep Feeding terneros — costo adicional sobre los terneros que nacen
+    const costoKreepAnual = inputs.kreepOn
+      ? ternerosAnualesCalc * inputs.kreepMeses * (inputs.kreepCostoMes ?? 8000)
+      : 0;
+    const costoKreepTotal = costoKreepAnual * inputs.anosVidaUtil;
+    // Peso extra por creep (agrega kg al peso de destete en el cálculo de ingreso)
+    const pesoTerneroConKreep = inputs.kreepOn
+      ? inputs.pesoTerneroDestetado + inputs.kreepKgExtra
+      : inputs.pesoTerneroDestetado;
+
+    const costoTotalProyecto = inversionInicial + costoRecriaPreServicio + costoPastoreoVida + costoIatfTotal + costoTorosTotal + costoSuplTerneras + costoSuplVacasTotal + costoKreepTotal;
     const costoRetencionAnual = costoTotalProyecto / inputs.anosVidaUtil;
     const costoTotalPorVientre = costoTotalProyecto / inputs.cantidad;
 
-    const ternerosAnuales = inputs.cantidad * (inputs.pctDestete / 100);
-    const ingresoBrutoAnual = ternerosAnuales * inputs.pesoTerneroDestetado * inputs.precioTerneroKg;
+    const ternerosAnuales = ternerosAnualesCalc;
+    const ingresoBrutoAnual = ternerosAnuales * pesoTerneroConKreep * inputs.precioTerneroKg;
     const comisionVentaPctV = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const fleteVentaV = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const gastoComisionVentaAnual = ingresoBrutoAnual * comisionVentaPctV;
@@ -858,7 +1005,9 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
     return {
       inversionInicial, costoRecriaPreServicio, costoPastoreoVida,
       costoIatfTotal, costoTorosAnual, costoTorosTotal,
-      costoSuplTerneras, costoSuplVacasAnual, costoSuplVacasTotal, costoTotalProyecto,
+      costoSuplTerneras, costoSuplVacasAnual, costoSuplVacasTotal,
+      costoKreepAnual, costoKreepTotal, pesoTerneroConKreep,
+      anosSupl, costoTotalProyecto,
       costoRetencionAnual, costoTotalPorVientre,
       ternerosAnuales, ingresoBrutoAnual, ingresoNetoAnual, ingresoNetoVidaUtil,
       recuperoDescarte, ingresoTotalProyecto, margenNeto, margenPorVientrePorAno,
@@ -869,12 +1018,12 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
   const margenPositivo = calc.margenNeto >= 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 section-enter">
       {/* Tipo de compra */}
       <div>
-        <SectionTitle icon="🐄" color="text-slate-600">Tipo de Compra</SectionTitle>
+        <SectionTitle icon="🐮" color="text-slate-600">Tipo de Compra</SectionTitle>
         <div className="inline-flex rounded-xl border border-slate-200 p-1 bg-slate-50 gap-1">
-          {[{ id: "terneras", label: "Terneras", icon: "🐮" }, { id: "vacas", label: "Vacas Preñadas", icon: "🤰" }].map((t) => (
+          {[{ id: "terneras", label: "Terneras", icon: "🐮" }, { id: "vacas", label: "Vacas Preñadas", icon: "🐄" }].map((t) => (
             <button key={t.id} onClick={() => setTipoCompra(t.id)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2
                 ${tipoCompra === t.id ? "bg-white shadow text-emerald-700 border border-emerald-200" : "text-slate-400 hover:text-slate-600"}`}>
@@ -905,7 +1054,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
       </div>
 
       {/* MEJORA 5: Costo de Toros — visible para terneras y vacas preñadas */}
-      <div className="rounded-xl border-2 border-purple-200 bg-purple-50 p-4 space-y-3">
+      <div className="rounded-2xl border-2 p-4 space-y-3 shadow-sm card-hover section-violet">
         <div className="flex items-center gap-2">
           <span>🐂</span>
           <p className="text-xs font-black uppercase tracking-widest text-purple-700">Costo de Toros</p>
@@ -932,7 +1081,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
 
       {/* Suplementación — Terneras */}
       {tipoCompra === "terneras" && (
-        <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 space-y-4">
+        <div className="rounded-2xl border-2 p-5 space-y-4 section-teal">
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-black shrink-0">🌾</span>
             <div>
@@ -954,14 +1103,29 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
 
       {/* Suplementación — Vacas Preñadas */}
       {tipoCompra === "vacas" && (
-        <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 space-y-4">
+        <div className="rounded-2xl border-2 p-5 space-y-4 section-teal">
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-black shrink-0">🌾</span>
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-teal-700">Suplementación — Vacas Preñadas</p>
-              <p className="text-xs text-teal-500">Ciclo anual — marcá los meses de bache forrajero (se repite cada año)</p>
+              <p className="text-xs text-teal-500">Seleccioná los meses de bache forrajero y cuántos años del proyecto suplementás</p>
             </div>
           </div>
+
+          {/* Años de suplementación */}
+          <div className="rounded-xl bg-white border border-teal-200 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-widest text-teal-700">¿Cuántos años suplementás?</p>
+              <span className="text-xs font-bold bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full border border-teal-300">
+                {calc.anosSupl} de {inputs.anosVidaUtil} años
+              </span>
+            </div>
+            <Field label="Años con suplementación" value={inputs.anosSuplementacion}
+              onChange={(v) => set("anosSuplementacion")(Math.min(v, inputs.anosVidaUtil))}
+              unit="años" sliderMax={inputs.anosVidaUtil} minVal={0}
+              hint={`Los ${inputs.anosVidaUtil - calc.anosSupl} año${inputs.anosVidaUtil - calc.anosSupl !== 1 ? "s" : ""} restante${inputs.anosVidaUtil - calc.anosSupl !== 1 ? "s" : ""} no se suplementan (años buenos)`} />
+          </div>
+
           <TimelineSuplementacion
             mesesActivos={inputs.mesesSuplVacas}
             onChange={(next) => set("mesesSuplVacas")(next)}
@@ -970,7 +1134,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
           />
           <Field label="Costo suplemento / mes / cab" value={inputs.costoSuplVacasMes}
             onChange={set("costoSuplVacasMes")} unit="$/mes" step={500}
-            hint={`Anual: ${fmtMoney(calc.costoSuplVacasAnual)} · Total ${inputs.anosVidaUtil} años: ${fmtMoney(calc.costoSuplVacasTotal)}`} />
+            hint={`Anual: ${fmtMoney(calc.costoSuplVacasAnual)} · Total ${calc.anosSupl} años: ${fmtMoney(calc.costoSuplVacasTotal)}`} />
         </div>
       )}
 
@@ -992,6 +1156,55 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
             <p className="text-xs text-slate-400 italic">después de gastos de venta</p>
           </div>
         </div>
+      </div>
+
+      {/* Creep Feeding */}
+      <div className="rounded-2xl border-2 p-5 space-y-4 section-lime">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-lime-500 flex items-center justify-center text-white text-xs font-black shrink-0">🌽</span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-lime-700">Creep Feeding — Terneros</p>
+              <p className="text-xs text-lime-600">Suplementación a los terneros para aumentar el peso al destete</p>
+            </div>
+          </div>
+          <ToggleSwitch on={inputs.kreepOn} onToggle={() => set("kreepOn")(!inputs.kreepOn)} label={inputs.kreepOn ? "Activo" : "Off"} />
+        </div>
+
+        {inputs.kreepOn && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Meses de creep" value={inputs.kreepMeses}
+                onChange={set("kreepMeses")} unit="meses" sliderMax={6} minVal={1}
+                hint="Meses antes del destete" />
+              <Field label="Costo / ternero / mes" value={inputs.kreepCostoMes}
+                onChange={set("kreepCostoMes")} unit="$/mes" step={500}
+                hint={`Total anual: ${fmtMoney(calc.costoKreepAnual)}`} />
+              <Field label="Kg extra al destete" value={inputs.kreepKgExtra}
+                onChange={set("kreepKgExtra")} unit="kg" sliderMax={40} minVal={1}
+                hint={`Peso con creep: ${fmt(calc.pesoTerneroConKreep)} kg`} highlight />
+            </div>
+
+            {/* Resumen creep */}
+            <div className="rounded-xl bg-white border border-lime-200 p-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-lime-600 font-semibold uppercase tracking-wider">Terneros / año</p>
+                <p className="font-mono font-bold text-lime-800 text-lg">{fmt(calc.ternerosAnuales, 1)} cab</p>
+                <p className="text-xs text-lime-400">{inputs.pctDestete}% de {inputs.cantidad} vientres</p>
+              </div>
+              <div>
+                <p className="text-xs text-lime-600 font-semibold uppercase tracking-wider">Costo creep / año</p>
+                <p className="font-mono font-bold text-lime-800 text-lg">{fmtMoney(calc.costoKreepAnual)}</p>
+                <p className="text-xs text-lime-400">{fmt(calc.ternerosAnuales, 1)} tern × {inputs.kreepMeses} m × ${fmt(inputs.kreepCostoMes)}/m</p>
+              </div>
+              <div>
+                <p className="text-xs text-lime-600 font-semibold uppercase tracking-wider">Costo total ({inputs.anosVidaUtil} años)</p>
+                <p className="font-mono font-bold text-lime-900 text-xl">{fmtMoney(calc.costoKreepTotal)}</p>
+                <p className="text-xs text-emerald-600 font-semibold">+{fmt(inputs.kreepKgExtra)} kg → +{fmtMoney(calc.ternerosAnuales * inputs.kreepKgExtra * inputs.precioTerneroKg)} ingreso/año</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Divider />
@@ -1089,13 +1302,13 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
             </span>
           </div>
         ))}
-        <div className={`flex justify-between text-base font-black border-t-2 pt-2 mt-1 ${margenPositivo ? "border-emerald-300" : "border-red-300"}`}>
+        <div className={`flex justify-between text-base font-black border-t-2 pt-3 mt-2 rounded-xl px-3 py-3 ${margenPositivo ? "border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50" : "border-red-300 bg-gradient-to-r from-red-50 to-rose-50"}`}>
           <span className={margenPositivo ? "text-emerald-700" : "text-red-600"}> = Margen Neto Total</span>
           <span className={`font-mono text-2xl ${margenPositivo ? "text-emerald-600" : "text-red-500"}`}>{fmtMoney(calc.margenNeto)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KpiCard label="Margen / vientre / año" value={fmtMoney(calc.margenPorVientrePorAno)}
           sub="promedio anual por animal"
           color={margenPositivo ? "text-emerald-600" : "text-red-500"}
@@ -1138,7 +1351,7 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast }) {
 
             {/* Botón descarte */}
       <div className="pt-1">
-        <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="rounded-2xl border-2 border-dashed border-orange-300 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 section-amber">
           <div>
             <p className="font-bold text-orange-800 text-sm">🔄 Simular descarte a engorde</p>
             <p className="text-xs text-orange-600 mt-0.5">Pasá la vaca de descarte ({fmt(inputs.pesoVacaDescarte)} kg, {inputs.cantidad} cab) al Comparador.</p>
@@ -1377,7 +1590,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
 
       <GastosComerciales gastos={gastos} setGastos={setGastos} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-lg bg-slate-100 border border-slate-200 px-4 py-2.5">
           <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Inversión bruta</p>
           <p className="font-mono font-bold text-slate-700 text-lg">{fmtMoney(calc.inversionBruta)}</p>
@@ -1436,7 +1649,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <p className="text-xs font-black uppercase tracking-widest text-green-700">Ganancia de Peso Vivo</p>
             {/* MEJORA 2: paso 0.1 con step explícito */}
             <Field label="GPV diaria a pasto" value={opA.gpvDiaria} onChange={setAGpv} unit="kg/día" step={0.1} />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="bg-white rounded-lg border border-green-200 px-3 py-2">
                 <p className="text-xs text-green-600 font-semibold uppercase tracking-wider">Kg ganados</p>
                 <p className="font-mono font-bold text-green-800">{fmtKg(calc.a.gpvTotal)}</p>
@@ -1549,7 +1762,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
               <Field label="Costo ración / animal / día" value={opB.costoRacionDiaria} onChange={setO("costoRacionDiaria")} unit="$/día" step={100} highlight />
               <Field label="Costo hotelería / animal / día" value={opB.costoHoteleriadiaria} onChange={setO("costoHoteleriadiaria")} unit="$/día" step={100} />
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="bg-white rounded-lg border border-indigo-200 px-3 py-2.5">
                 <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wider leading-tight mb-1">Ración total<br/>/ animal</p>
                 <p className="font-mono font-bold text-indigo-700">{fmtMoney(calc.b.costoRacionPorAnimal)}</p>
@@ -1566,7 +1779,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             <div className="border-t border-indigo-200 pt-3">
               <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Margen por Kg Ganado</p>
               <p className="text-xs text-indigo-500 mb-2">Precio venta − (Ración/día ÷ GPV/día)</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="bg-white rounded-lg border border-indigo-200 px-3 py-2.5">
                   <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wider leading-tight mb-1">Costo/kg<br/>ganado</p>
                   <p className="font-mono font-bold text-indigo-700">{fmtMoney(calc.b.costoKgGanado, 0)}</p>
@@ -1729,7 +1942,7 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
         }
 
         return (
-          <div className={`rounded-xl border px-5 py-4 flex items-start gap-4 ${empate ? "border-slate-300 bg-slate-50" : calc.ganadorA ? "border-emerald-300 bg-emerald-50" : "border-blue-300 bg-blue-50"}`}>
+          <div className={`rounded-2xl border-2 px-5 py-5 flex items-start gap-4 shadow-lg card-hover ${empate ? "border-slate-300 bg-gradient-to-r from-slate-50 to-white" : calc.ganadorA ? "border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 glow-green" : "border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50"}`}>
             <span className="text-3xl shrink-0 mt-0.5">{empate ? "⚖️" : "🏆"}</span>
             <div>
               <p className="font-bold text-slate-800">
@@ -1904,14 +2117,14 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
   };
 
   const chips = [
-    { label: `INMAG V ${global.inmagVientres} kg`, color: "bg-violet-100 text-violet-700 border-violet-200" },
-    { label: `INMAG I ${global.inmagInvernada} kg`, color: "bg-green-100 text-green-700 border-green-200" },
-    { label: `Novillo $${fmt(global.precioNovilloInmag)}/kg`, color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    { label: `Inflación ${global.inflacionMensual}%/m`, color: "bg-orange-100 text-orange-700 border-orange-200" },
+    { label: `INMAG V ${global.inmagVientres} kg`, color: "bg-violet-100 text-violet-700 border-violet-300 shadow-violet-100" },
+    { label: `INMAG I ${global.inmagInvernada} kg`, color: "bg-emerald-100 text-emerald-700 border-emerald-300 shadow-emerald-100" },
+    { label: `Novillo $${fmt(global.precioNovilloInmag)}/kg`, color: "bg-sky-100 text-sky-700 border-sky-300 shadow-sky-100" },
+    { label: `Inflación ${global.inflacionMensual}%/m`, color: "bg-orange-100 text-orange-700 border-orange-300 shadow-orange-100" },
   ];
 
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 shadow-md mb-6">
+    <div className="rounded-2xl border-2 border-emerald-200 shadow-md mb-6" style={{background:"linear-gradient(135deg,#ecfdf5,#f0fdff,#f5f3ff)"}}>
       <button onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-5 py-4 text-left">
         <div className="flex items-center gap-3">
@@ -2044,9 +2257,9 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-lg mt-6 overflow-hidden">
+    <div className="rounded-2xl border-2 border-slate-100 bg-white shadow-xl mt-6 overflow-hidden card-hover">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+      <div className="flex items-center justify-between px-5 py-4 border-b-2 border-slate-100" style={{background:"linear-gradient(135deg,#f8fafc,#f0fdf4)"}}>
         <div className="flex items-center gap-3">
           <span className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-white text-xs font-black shrink-0">📋</span>
           <div>
@@ -2234,7 +2447,7 @@ function BotonExportarPDF({ titulo, secciones, color = "slate" }) {
   return (
     <button onClick={() => exportarPDF(titulo, secciones)}
       title="Exportar / Imprimir reporte"
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm select-none ${colores[color]}`}>
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs transition-all shadow-sm select-none card-hover ${colores[color]}`}>
       🖨️ Exportar PDF
     </button>
   );
@@ -2312,9 +2525,15 @@ function BotonGuardarSim({ onGuardar, color = "sky", onToast }) {
   };
   return (
     <button onClick={handle}
-      className={`flex items-center gap-2 px-5 py-3 rounded-xl text-white font-black text-sm transition-all shadow-md select-none
-        ${guardado ? "bg-emerald-500" : colores[color]}`}>
-      {guardado ? "✓ Guardado!" : "💾 Guardar simulación"}
+      className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-white font-black text-sm transition-all select-none relative overflow-hidden
+        ${guardado
+          ? "bg-gradient-to-r from-emerald-400 to-teal-500 scale-95 shadow-lg shadow-emerald-200"
+          : `${colores[color]} shadow-lg hover:shadow-xl hover:scale-105 active:scale-95`}`}
+      style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}>
+      <span className={`transition-transform ${guardado ? "rotate-12" : ""}`}>
+        {guardado ? "✅" : "💾"}
+      </span>
+      {guardado ? "¡Guardado!" : "Guardar simulación"}
     </button>
   );
 }
@@ -2438,222 +2657,3 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate }) {
           {simulaciones.length > 0 && (
             <span className="inline-block mt-4 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full">
               {simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""} guardada{simulaciones.length !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-
-        {/* ── Subtitle ───────────────────────────────────────────────────── */}
-        <p className="text-center text-slate-400 font-semibold text-xs mb-4 md:mb-5 uppercase tracking-widest">
-          ¿Qué querés simular hoy?
-        </p>
-
-        {/* ── Cards ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <div className="dash-card">
-            <MenuCard
-              title="Poder de Compra"
-              desc="¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales incluidos."
-              icon={<DollarSign size={38} className="text-white" />}
-              iconAnim="float"
-              color="green"
-              stats={["Triangulación", "Gastos incluidos", "Relación V/C"]}
-              onClick={() => onNavigate("poder")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Proyecto Vientres"
-              desc="ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad por vientre."
-              icon={<Calculator size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="multi"
-              stats={["ROI proyectado", "Costo/vientre", "Análisis IATF"]}
-              onClick={() => onNavigate("vientres")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Comp. Invernada"
-              desc="Invernada a campo vs feedlot — encontrá la opción más rentable con análisis detallado."
-              icon={<TrendingUp size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="amber"
-              stats={["Campo vs Feedlot", "Precio indiferencia", "Margen/cab"]}
-              onClick={() => onNavigate("invernada")}
-            />
-          </div>
-        </div>
-
-        {/* ── Parámetros globales ─────────────────────────────────────────── */}
-
-        <p className="text-center text-slate-400 mt-5 text-xs font-medium">
-          Los cálculos son estimativos · Consultá con tu asesor antes de invertir
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN
-// ═══════════════════════════════════════════════════════════════════════════
-const TABS = [
-  { id: "poder",     label: "Poder de Compra",  icon: "⇄",  sub: "Triangulación" },
-  { id: "vientres",  label: "Proyecto Vientres", icon: "🐄", sub: "Cría & rentabilidad" },
-  { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
-];
-
-export default function EstrategiaComercial({ userEmail }) {
-  const [vistaActual, setVistaActual]   = useState("inicio");
-  const [activeTab,   setActiveTab]     = useState("vientres");
-  const [descarteData, setDescarteData] = useState(null);
-  const [simulaciones, setSimulaciones] = useState([]);
-  const { toasts, push: pushToast } = useToast();
-
-  const CATEGORIAS = {
-    poder:     { label: "Poder de Compra",     emoji: "⇄" },
-    vientres:  { label: "Proyecto Vientres",   emoji: "🐄" },
-    invernada: { label: "Comparador Invernada", emoji: "⚖️" },
-  };
-
-  const agregarSimulacion = (sim) => {
-    const cat = CATEGORIAS[sim.tab] || { label: sim.tab, emoji: "📋" };
-    setSimulaciones((prev) => [{
-      ...sim,
-      id: Date.now(),
-      fecha: new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }),
-      categoriaLabel: cat.label,
-      categoriaEmoji: cat.emoji,
-    }, ...prev]);
-  };
-  const borrarSimulacion = (id) => { setSimulaciones((prev) => prev.filter((s) => s.id !== id)); pushToast("Simulación eliminada", "warn"); };
-  const borrarTodas = () => { setSimulaciones([]); pushToast("Historial borrado", "warn"); };
-
-  const [global, setGlobal] = useState({
-    inmagVientres: 10,
-    inmagInvernada: 8,
-    precioNovilloInmag: 1800,
-    inflacionMensual: 4,
-  });
-
-  const [gastos, setGastos] = useState({
-    fleteCompraOn: false,
-    kmCompra: 370,
-    precioKmCompra: 3500,
-    fleteVentaOn: false,
-    kmVenta: 370,
-    precioKmVenta: 3500,
-    comisionCompraOn: true,
-    comisionCompra: 3,
-    comisionVentaOn: true,
-    comisionVenta: 3,
-  });
-
-  // Navigate from dashboard card → simulator tab
-  const handleNavigate = (tabId) => {
-    setActiveTab(tabId);
-    setVistaActual("simuladores");
-  };
-
-  const handleDescarte = (data) => {
-    setDescarteData(data);
-    setActiveTab("invernada");
-  };
-
-  // ── Render dashboard ─────────────────────────────────────────────────────
-  if (vistaActual === "inicio") {
-    return (
-      <>
-        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
-        <ToastContainer toasts={toasts} />
-        <Dashboard
-          userEmail={userEmail}
-          global={global}
-          gastos={gastos}
-          simulaciones={simulaciones}
-          onNavigate={handleNavigate}
-        />
-      </>
-    );
-  }
-
-  // ── Render simulators ────────────────────────────────────────────────────
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
-      <ToastContainer toasts={toasts} />
-
-      <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
-        <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8">
-
-          {/* ── Top bar: back button + module indicator ──────────────── */}
-          <nav className="simulator-enter bg-white border-b border-slate-200 -mx-3 sm:-mx-6 lg:-mx-8 -mt-5 md:-mt-8 px-4 py-3 mb-6 sticky top-0 z-40 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <button
-                onClick={() => setVistaActual("inicio")}
-                className="flex items-center gap-2 text-blue-600 font-black hover:text-blue-800 transition-all uppercase text-xs tracking-widest group"
-              >
-                <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
-                Volver al Menú
-              </button>
-              <div className="flex items-center gap-3">
-                <img
-                  src={`data:image/png;base64,${LOGO_B64}`}
-                  alt="VacaApp"
-                  className="h-7 object-contain hidden sm:block"
-                  style={{ maxWidth: "90px" }}
-                />
-                <div className="font-black text-slate-800 uppercase text-[10px] tracking-tighter bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                  {activeTab === "poder" ? "Poder de Compra" : activeTab === "vientres" ? "Proyecto Vientres" : "Comp. Invernada"}
-                </div>
-              </div>
-              <div className="shrink-0">
-                {simulaciones.length > 0
-                  ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full">
-                      {simulaciones.length} guardada{simulaciones.length !== 1 ? "s" : ""}
-                    </span>
-                  : <span className="w-24 hidden sm:inline" />
-                }
-              </div>
-            </div>
-          </nav>
-
-          {/* Global panel */}
-          <GlobalPanel global={global} setGlobal={setGlobal} gastos={gastos} setGastos={setGastos} />
-
-          {/* Tabs */}
-          <div className="flex gap-0.5 sm:gap-1 border-b border-slate-200 overflow-x-auto scrollbar-hide">
-            {TABS.map((tab) => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`group flex items-center gap-1 sm:gap-2 px-2 sm:px-5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0
-                  ${activeTab === tab.id ? "border-emerald-500 text-emerald-700 bg-white" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/60"}`}>
-                <span className="text-base">{tab.icon}</span>
-                <span>{tab.label}</span>
-                <span className={`hidden md:inline text-xs font-normal ${activeTab === tab.id ? "text-emerald-400" : "text-slate-300"}`}>— {tab.sub}</span>
-                {tab.id === "invernada" && descarteData && (
-                  <span className="bg-orange-400 text-white text-xs font-black px-1.5 py-0.5 rounded-full">🔄</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="bg-white border border-slate-200 border-t-0 rounded-b-2xl rounded-tr-2xl p-3 sm:p-5 md:p-8 shadow-lg simulator-enter">
-            {activeTab === "poder"
-              ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast} />
-              : activeTab === "vientres"
-              ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast} />
-              : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast} />
-            }
-          </div>
-
-          {/* Historial de simulaciones */}
-          <SimulacionesPanel simulaciones={simulaciones} onBorrar={borrarSimulacion} onBorrarTodas={borrarTodas} />
-
-          <p className="text-center text-xs text-slate-400 mt-8 pb-4">
-            Los cálculos son estimativos. Consultá con tu asesor antes de tomar decisiones de inversión.
-          </p>
-        </div>
-      </div>
-    </>
-  );
-}
