@@ -487,7 +487,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
       <div className={`flex items-stretch rounded-xl border ${accent.border} overflow-hidden shadow-sm`}>
         {/* Decrement con long-press */}
         <button {...decPress}
-          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-10 min-h-[44px] text-lg"} shrink-0 font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-9 min-h-[44px] text-base"} shrink-0 font-black transition-all active:scale-95 border-r ${accent.border} touch-manipulation select-none`}
           aria-label="Reducir">−</button>
 
         <div className="relative flex-1 min-w-0">
@@ -509,7 +509,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
         {/* Increment con long-press */}
         <button {...incPress}
-          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-10 min-h-[44px] text-lg"} shrink-0 font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
+          className={`${accent.btn} flex items-center justify-center ${compact ? "w-8 min-h-[40px] text-base" : "w-9 min-h-[44px] text-base"} shrink-0 font-black transition-all active:scale-95 border-l ${accent.border} touch-manipulation select-none`}
           aria-label="Aumentar">+</button>
       </div>
 
@@ -795,10 +795,10 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
           <p className="text-xs text-sky-600">¿Si vendo X, cuántos Y puedo comprar? Los gastos comerciales se aplican automáticamente.</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl border p-4 space-y-3 section-sky">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📤 Origen — Animales que Vendo</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" />
             <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" />
             <Field label="Precio venta" value={venta.precioKg} onChange={setV("precioKg")} unit="$/kg" step={50} />
@@ -818,7 +818,7 @@ function PoderDeCompra({ gastos, onGuardar, onToast }) {
         </div>
         <div className="rounded-xl border p-4 space-y-3 section-sky">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">📥 Destino — Animales que Compro</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" />
             <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} />
           </div>
