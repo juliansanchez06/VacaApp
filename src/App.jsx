@@ -11,7 +11,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap } from "lucide-react";
+import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
 
 // ── Firebase init ─────────────────────────────────────────────────────────────
 const firebaseConfig = {
@@ -635,6 +635,21 @@ const GLOBAL_STYLE = `
   .card-strip-green  { background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7); }
   .card-strip-multi  { background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899); }
   .card-strip-amber  { background: linear-gradient(90deg, #f59e0b, #fb923c, #ef4444); }
+  .card-campo        { background: linear-gradient(135deg, #1e3a5f 0%, #1e4d8c 50%, #1a6b5c 100%); }
+  .card-strip-campo  { background: linear-gradient(90deg, #3b82f6, #0ea5e9, #10b981); }
+  .card-simulador    { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+  .card-strip-sim    { background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6); }
+
+  /* ── Campo animations ─────────────────────────────────────────────── */
+  @keyframes catPop {
+    0%   { opacity:0; transform: scale(0.85) translateY(8px); }
+    70%  { transform: scale(1.03); }
+    100% { opacity:1; transform: scale(1) translateY(0); }
+  }
+  .cat-enter { animation: catPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .cat-enter:nth-child(1) { animation-delay: 0.05s; }
+  .cat-enter:nth-child(2) { animation-delay: 0.12s; }
+  .cat-enter:nth-child(3) { animation-delay: 0.19s; }
 
 `;
 
@@ -3092,6 +3107,438 @@ function LoginScreen() {
 // ═══════════════════════════════════════════════════════════════════════════
 // DASHBOARD — Panel de Inicio
 // ═══════════════════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SIMULADOR MENU — Submenú con los 3 simuladores
+// ═══════════════════════════════════════════════════════════════════════════
+function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
+  return (
+    <div className="min-h-screen bg-white font-sans">
+      <nav className="sticky top-0 z-50 bg-white border-b-2 border-slate-100 shadow-md simulator-enter">
+        <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500" />
+        <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+          <button onClick={onVolver}
+            className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md transition-all active:scale-95 group"
+            style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}>
+            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+            Volver al Menú
+          </button>
+          <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
+            <img src={`data:image/png;base64,${LOGO_B64}`} alt="VacaApp"
+              className="h-8 sm:h-9 object-contain shrink-0" style={{ maxWidth: "100px" }} />
+            <div className="bg-violet-600 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
+              <span>📊</span><span className="hidden sm:inline">Simulador</span>
+            </div>
+          </div>
+          <div className="shrink-0">
+            {syncData
+              ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full badge-pulse">Datos sincronizados ✓</span>
+              : simulaciones.length > 0
+              ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full">{simulaciones.length} 💾</span>
+              : <span className="w-16 hidden sm:inline-block" />
+            }
+          </div>
+        </div>
+      </nav>
+
+      <div className="px-4 md:px-12 pt-8 pb-12 max-w-4xl mx-auto">
+        {syncData && (
+          <div className="mb-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 flex items-center gap-3 sim-zoom-enter">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white shrink-0">
+              <RefreshCw size={16} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Datos sincronizados desde Mi Campo</p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                {syncData.cantidad} vientres · {syncData.pctDestete}% destete · {syncData.pesoTerneroDestetado} kg ternero
+              </p>
+            </div>
+          </div>
+        )}
+
+        <p className="text-center text-slate-400 font-semibold text-xs mb-6 uppercase tracking-widest">
+          Elegí el simulador
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="dash-card">
+            <MenuCard
+              title="Poder de Compra"
+              desc="¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales incluidos."
+              icon={<DollarSign size={38} className="text-white" />}
+              iconAnim="float"
+              color="green"
+              stats={["Triangulación", "Gastos incluidos", "Relación V/C"]}
+              onClick={() => onNavigate("poder")}
+            />
+          </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Proyecto Vientres"
+              desc="ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad por vientre."
+              icon={<Calculator size={38} className="text-white" />}
+              iconAnim="bounce"
+              color="multi"
+              stats={["ROI proyectado", "Costo/vientre", "Análisis IATF"]}
+              onClick={() => onNavigate("vientres")}
+            />
+          </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Comp. Invernada"
+              desc="Invernada a campo vs feedlot — encontrá la opción más rentable con análisis detallado."
+              icon={<TrendingUp size={38} className="text-white" />}
+              iconAnim="bounce"
+              color="amber"
+              stats={["Campo vs Feedlot", "Precio indiferencia", "Margen/cab"]}
+              onClick={() => onNavigate("invernada")}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MI CAMPO — Gestión del establecimiento
+// ═══════════════════════════════════════════════════════════════════════════
+function MiCampo({ onVolver, onSincronizar }) {
+  const [seccion, setSeccion] = useState("stock");
+
+  // ── Stock hacienda ────────────────────────────────────────────────────────
+  const [stock, setStock] = useState({
+    cria:       { total: 320, preñadas: 272, vacias: 48 },
+    recria:     { total: 342, machos: 184, hembras: 158 },
+    terminacion:{ total: 180, pesoPromedio: 420, diasRestantes: 45 },
+  });
+
+  // ── Costos estructura ─────────────────────────────────────────────────────
+  const [costos, setCostos] = useState({
+    empleados:      1800000,
+    mantenimiento:   620000,
+    maquinaria:      380000,
+    rolados:         290000,
+    viajes:          180000,
+    varios:          940000,
+  });
+  const setC = (k) => (v) => setCostos(p => ({ ...p, [k]: v }));
+
+  const totalCostos = Object.values(costos).reduce((a,b) => a+b, 0);
+  const totalStock  = stock.cria.total + stock.recria.total + stock.terminacion.total;
+  const costoPorCab = totalStock > 0 ? Math.round(totalCostos / totalStock) : 0;
+
+  // ── Datos para sincronizar al simulador ───────────────────────────────────
+  const datosSync = {
+    cantidad:             stock.cria.preñadas,
+    pctDestete:           Math.round((stock.cria.preñadas * 0.85 / stock.cria.total) * 100),
+    pesoTerneroDestetado: 165,
+    anosVidaUtil:         6,
+  };
+
+  const SECCIONES = [
+    { id: "stock",  label: "Stock hacienda",       icon: "🐄" },
+    { id: "costos", label: "Costos estructura",    icon: "💰" },
+  ];
+
+  return (
+    <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
+
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 bg-white border-b-2 border-slate-100 shadow-md simulator-enter">
+        <div className={`h-1 w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500`} />
+        <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+          <button onClick={onVolver}
+            className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95 group"
+            style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}>
+            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+            Volver al Menú
+          </button>
+          <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
+            <img src={`data:image/png;base64,${LOGO_B64}`} alt="VacaApp"
+              className="h-8 sm:h-9 object-contain shrink-0" style={{ maxWidth: "100px" }} />
+            <div className="bg-blue-500 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
+              <span>🌾</span><span className="hidden sm:inline">Mi Campo</span>
+            </div>
+          </div>
+          <button onClick={() => onSincronizar(datosSync)}
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 group shrink-0">
+            <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+            <span className="hidden sm:inline">Sync al Simulador</span>
+          </button>
+        </div>
+      </nav>
+
+      <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-4 md:py-6">
+
+        {/* ── KPI resumen ─────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 simulator-enter">
+          {[
+            { label: "Total hacienda", value: `${totalStock} cab`, color: "text-slate-800", icon: "🐄" },
+            { label: "Cría", value: `${stock.cria.total} cab`, color: "text-emerald-700", icon: "🐮" },
+            { label: "Recría", value: `${stock.recria.total} cab`, color: "text-blue-700", icon: "🐂" },
+            { label: "Terminación", value: `${stock.terminacion.total} cab`, color: "text-amber-700", icon: "🥩" },
+          ].map((k, i) => (
+            <div key={i} className="kpi-pop bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col gap-1 shadow-sm card-hover">
+              <span className="text-sm">{k.icon}</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{k.label}</span>
+              <span className={`font-mono font-black text-2xl ${k.color}`}>{k.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Sub-nav secciones ────────────────────────────────────────── */}
+        <div className="flex gap-2 mb-5 overflow-x-auto">
+          {SECCIONES.map(s => (
+            <button key={s.id} onClick={() => setSeccion(s.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap
+                ${seccion === s.id
+                  ? "bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-md"
+                  : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300"}`}>
+              <span>{s.icon}</span>{s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── STOCK HACIENDA ──────────────────────────────────────────── */}
+        {seccion === "stock" && (
+          <div className="space-y-5 sim-zoom-enter">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              {/* Cría */}
+              <div className="cat-enter bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg card-hover">
+                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
+                      <p className="text-4xl font-black text-slate-800 mt-1">{stock.cria.total}</p>
+                      <p className="text-xs text-slate-400">vacas de cría</p>
+                    </div>
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-3xl">🐮</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Preñadas</span>
+                      <span className="font-black text-emerald-700">{stock.cria.preñadas} cab ({Math.round(stock.cria.preñadas/stock.cria.total*100)}%)</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all"
+                        style={{width: `${Math.round(stock.cria.preñadas/stock.cria.total*100)}%`}} />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Vacías</span>
+                      <span className="font-bold text-red-500">{stock.cria.vacias} cab</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Ajustar preñadas</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, cria: {...p.cria, preñadas: Math.max(0, p.cria.preñadas-1), vacias: Math.min(p.cria.total, p.cria.vacias+1)}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.cria.preñadas}</span>
+                        <button onClick={() => setStock(p => ({...p, cria: {...p.cria, preñadas: Math.min(p.cria.total, p.cria.preñadas+1), vacias: Math.max(0, p.cria.vacias-1)}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Total vacas</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, cria: {...p.cria, total: Math.max(0, p.cria.total-1)}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.cria.total}</span>
+                        <button onClick={() => setStock(p => ({...p, cria: {...p.cria, total: p.cria.total+1}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recría */}
+              <div className="cat-enter bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg card-hover">
+                <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
+                      <p className="text-4xl font-black text-slate-800 mt-1">{stock.recria.total}</p>
+                      <p className="text-xs text-slate-400">terneros / novillitos</p>
+                    </div>
+                    <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">🐂</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Machos</span>
+                      <span className="font-black text-blue-700">{stock.recria.machos} cab</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"
+                        style={{width: `${Math.round(stock.recria.machos/stock.recria.total*100)}%`}} />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Hembras</span>
+                      <span className="font-bold text-purple-600">{stock.recria.hembras} cab</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Machos</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, recria: {...p.recria, machos: Math.max(0, p.recria.machos-1), total: p.recria.machos-1+p.recria.hembras}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.recria.machos}</span>
+                        <button onClick={() => setStock(p => ({...p, recria: {...p.recria, machos: p.recria.machos+1, total: p.recria.machos+1+p.recria.hembras}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Hembras</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, recria: {...p.recria, hembras: Math.max(0, p.recria.hembras-1), total: p.recria.machos+p.recria.hembras-1}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.recria.hembras}</span>
+                        <button onClick={() => setStock(p => ({...p, recria: {...p.recria, hembras: p.recria.hembras+1, total: p.recria.machos+p.recria.hembras+1}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terminación */}
+              <div className="cat-enter bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg card-hover">
+                <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
+                      <p className="text-4xl font-black text-slate-800 mt-1">{stock.terminacion.total}</p>
+                      <p className="text-xs text-slate-400">novillos para venta</p>
+                    </div>
+                    <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">🥩</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Peso promedio</span>
+                      <span className="font-black text-amber-700">{stock.terminacion.pesoPromedio} kg</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
+                        style={{width: `${Math.min(100, Math.round(stock.terminacion.pesoPromedio/500*100))}%`}} />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Días para venta</span>
+                      <span className="font-bold text-orange-600">{stock.terminacion.diasRestantes} días</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Cabezas</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, terminacion: {...p.terminacion, total: Math.max(0, p.terminacion.total-1)}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.terminacion.total}</span>
+                        <button onClick={() => setStock(p => ({...p, terminacion: {...p.terminacion, total: p.terminacion.total+1}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Peso prom. (kg)</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setStock(p => ({...p, terminacion: {...p.terminacion, pesoPromedio: Math.max(0, p.terminacion.pesoPromedio-5)}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">−</button>
+                        <span className="flex-1 text-center text-sm font-mono font-bold">{stock.terminacion.pesoPromedio}</span>
+                        <button onClick={() => setStock(p => ({...p, terminacion: {...p.terminacion, pesoPromedio: p.terminacion.pesoPromedio+5}}))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen stock */}
+            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Resumen general</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-3xl font-black text-slate-800">{totalStock}</p>
+                  <p className="text-xs text-slate-400 mt-1">Total cabezas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-black text-emerald-700">{Math.round(stock.cria.preñadas/stock.cria.total*100)}%</p>
+                  <p className="text-xs text-slate-400 mt-1">% preñez cría</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-black text-blue-700">{Math.round(stock.recria.hembras/stock.recria.total*100)}%</p>
+                  <p className="text-xs text-slate-400 mt-1">% hembras recría</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-black text-amber-700">{stock.terminacion.diasRestantes}d</p>
+                  <p className="text-xs text-slate-400 mt-1">días para venta</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── COSTOS ESTRUCTURA ───────────────────────────────────────── */}
+        {seccion === "costos" && (
+          <div className="space-y-5 sim-zoom-enter">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { key: "empleados",    label: "Empleados",         icon: "👷", color: "border-violet-200 bg-violet-50", text: "text-violet-800", step: 50000 },
+                { key: "mantenimiento",label: "Mantenimiento",     icon: "🔧", color: "border-sky-200 bg-sky-50",    text: "text-sky-800",    step: 10000 },
+                { key: "maquinaria",   label: "Maquinaria",        icon: "🚜", color: "border-amber-200 bg-amber-50", text: "text-amber-800",  step: 10000 },
+                { key: "rolados",      label: "Rolados",           icon: "🌾", color: "border-green-200 bg-green-50", text: "text-green-800",  step: 10000 },
+                { key: "viajes",       label: "Viajes al campo",   icon: "🚗", color: "border-orange-200 bg-orange-50",text: "text-orange-800", step: 10000 },
+                { key: "varios",       label: "Varios / Otros",    icon: "📦", color: "border-slate-200 bg-slate-50", text: "text-slate-800",  step: 10000 },
+              ].map(({ key, label, icon, color, text, step }) => (
+                <div key={key} className={`rounded-2xl border-2 ${color} p-4 space-y-3 card-hover`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{icon}</span>
+                    <span className={`text-xs font-black uppercase tracking-widest ${text}`}>{label}</span>
+                    <span className="ml-auto text-xs text-slate-400 font-semibold">mensual</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setC(key)(Math.max(0, costos[key] - step))}
+                      className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all">−</button>
+                    <div className="flex-1 text-center">
+                      <span className={`font-mono font-black text-xl ${text}`}>{fmtMoney(costos[key])}</span>
+                    </div>
+                    <button onClick={() => setC(key)(costos[key] + step)}
+                      className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all">+</button>
+                  </div>
+                  <p className="text-xs text-slate-400 text-center">{fmtMoney(costos[key]/totalStock)}/cab/mes</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Total costos */}
+            <div className="bg-white border-2 border-emerald-200 rounded-3xl p-5 shadow-lg section-lime">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-1">Total estructura / mes</p>
+                  <p className="text-4xl font-black text-emerald-900">{fmtMoney(totalCostos)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400 mb-1">Costo por cabeza / mes</p>
+                  <p className="text-2xl font-black text-slate-800">${fmt(costoPorCab)}</p>
+                  <p className="text-xs text-slate-400">sobre {totalStock} cab totales</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
   const hora = new Date().getHours();
@@ -3135,43 +3582,62 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogo
 
         {/* ── Subtitle ───────────────────────────────────────────────────── */}
         <p className="text-center text-slate-400 font-semibold text-xs mb-4 md:mb-5 uppercase tracking-widest">
-          ¿Qué querés simular hoy?
+          ¿A dónde querés ir hoy?
         </p>
 
-        {/* ── Cards ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        {/* ── 2 big cards ────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
+
+          {/* Mi Campo */}
           <div className="dash-card">
-            <MenuCard
-              title="Poder de Compra"
-              desc="¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales incluidos."
-              icon={<DollarSign size={38} className="text-white" />}
-              iconAnim="float"
-              color="green"
-              stats={["Triangulación", "Gastos incluidos", "Relación V/C"]}
-              onClick={() => onNavigate("poder")}
-            />
+            <button onClick={() => onNavigate("campo")}
+              className="card-campo rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-blue-900/50 hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative">
+              <div className="h-1.5 w-full card-strip-campo" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
+              <div className="relative p-6 md:p-8">
+                <div className="bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30 w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 shadow-lg card-icon-float">
+                  <Map size={28} className="text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Mi Campo</h3>
+                <p className="text-blue-100 font-medium leading-relaxed text-sm mb-4">Stock de hacienda, costos de estructura y gestión de tu establecimiento.</p>
+                <div className="flex flex-wrap gap-1.5 mb-5">
+                  {["Stock hacienda", "Costos estructura", "Próximamente más"].map(s => (
+                    <span key={s} className="text-xs font-bold text-blue-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">{s}</span>
+                  ))}
+                </div>
+                <div className="bg-white/20 hover:bg-white/30 text-white border border-white/40 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200">
+                  <span>Ir a Mi Campo</span>
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                </div>
+              </div>
+            </button>
           </div>
+
+          {/* Simulador */}
           <div className="dash-card">
-            <MenuCard
-              title="Proyecto Vientres"
-              desc="ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad por vientre."
-              icon={<Calculator size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="multi"
-              stats={["ROI proyectado", "Costo/vientre", "Análisis IATF"]}
-              onClick={() => onNavigate("vientres")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Comp. Invernada"
-              desc="Invernada a campo vs feedlot — encontrá la opción más rentable con análisis detallado."
-              icon={<TrendingUp size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="amber"
-              stats={["Campo vs Feedlot", "Precio indiferencia", "Margen/cab"]}
-              onClick={() => onNavigate("invernada")}
-            />
+            <button onClick={() => onNavigate("simulador-menu")}
+              className="card-simulador rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-purple-900/50 hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative">
+              <div className="h-1.5 w-full card-strip-sim" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
+              <div className="relative p-6 md:p-8">
+                <div className="bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30 w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 shadow-lg card-icon-bounce">
+                  <BarChart2 size={28} className="text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Simulador</h3>
+                <p className="text-purple-100 font-medium leading-relaxed text-sm mb-4">Poder de Compra, Proyecto Vientres y Comparador de Invernada.</p>
+                <div className="flex flex-wrap gap-1.5 mb-5">
+                  {["Poder de Compra", "Proyecto Vientres", "Comp. Invernada"].map(s => (
+                    <span key={s} className="text-xs font-bold text-purple-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">{s}</span>
+                  ))}
+                </div>
+                <div className="bg-white/20 hover:bg-white/30 text-white border border-white/40 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200">
+                  <span>Ir al Simulador</span>
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -3196,6 +3662,7 @@ const TABS = [
 function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
+  const [syncData,    setSyncData]      = useState(null);
   const [descarteData, setDescarteData] = useState(null);
   const [simulaciones, setSimulaciones] = useState([]);
   const { toasts, push: pushToast } = useToast();
@@ -3239,10 +3706,23 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     comisionVenta: 3,
   });
 
-  // Navigate from dashboard card → simulator tab
+  // Navigate from dashboard
   const handleNavigate = (tabId) => {
-    setActiveTab(tabId);
-    setVistaActual("simuladores");
+    if (tabId === "campo") {
+      setVistaActual("campo");
+    } else if (tabId === "simulador-menu") {
+      setVistaActual("simulador-menu");
+    } else {
+      setActiveTab(tabId);
+      setVistaActual("simuladores");
+    }
+  };
+
+  // Sync from Mi Campo to Simulador
+  const handleSincronizar = (datos) => {
+    setSyncData(datos);
+    setVistaActual("simulador-menu");
+    pushToast("Datos sincronizados al simulador ✓", "success");
   };
 
   const handleDescarte = (data) => {
@@ -3263,6 +3743,36 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           simulaciones={simulaciones}
           onNavigate={handleNavigate}
           onLogout={onLogout}
+        />
+      </>
+    );
+  }
+
+  // ── Render Mi Campo ───────────────────────────────────────────────────────
+  if (vistaActual === "campo") {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+        <ToastContainer toasts={toasts} />
+        <MiCampo
+          onVolver={() => setVistaActual("inicio")}
+          onSincronizar={handleSincronizar}
+        />
+      </>
+    );
+  }
+
+  // ── Render Simulador Menu ─────────────────────────────────────────────────
+  if (vistaActual === "simulador-menu") {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
+        <ToastContainer toasts={toasts} />
+        <SimuladorMenu
+          onVolver={() => setVistaActual("inicio")}
+          onNavigate={(tabId) => { setActiveTab(tabId); setVistaActual("simuladores"); }}
+          simulaciones={simulaciones}
+          syncData={syncData}
         />
       </>
     );
