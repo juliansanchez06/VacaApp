@@ -1101,7 +1101,7 @@ function GastosComerciales({ gastos, setGastos }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PODER DE COMPRA
 // ═══════════════════════════════════════════════════════════════════════════
-function PoderDeCompra({ gastos, onGuardar, onToast, initialVenta }) {
+function PoderDeCompra({ gastos, onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
   const [venta, setVenta] = useState(initialVenta || { cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
   const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: 1800 });
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
@@ -1215,6 +1215,30 @@ function PoderDeCompra({ gastos, onGuardar, onToast, initialVenta }) {
             { label: "Sobrante", value: fmtMoney(calc.sobrante) },
           ]}
         />
+        {onAgregarAlCampo && calc.cabezasComprables > 0 && (
+          <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-4 space-y-3 mb-2">
+            <p className="text-xs font-black uppercase tracking-widest text-sky-700">🐄 Agregar compra a Mi Campo</p>
+            <p className="text-xs text-sky-600">Incorporar <span className="font-black">{Math.floor(calc.cabezasComprables)} animales</span> de {compra.pesoAnimal} kg — elegí la categoría:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onAgregarAlCampo({ categoria:"terneros-compra-machos", cantidad: Math.floor(calc.cabezasComprables) })}
+                className="bg-sky-600 hover:bg-sky-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Recría — machos compra
+              </button>
+              <button onClick={() => onAgregarAlCampo({ categoria:"terneros-compra-hembras", cantidad: Math.floor(calc.cabezasComprables) })}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Recría — hembras compra
+              </button>
+              <button onClick={() => onAgregarAlCampo({ categoria:"novillos-campo", cantidad: Math.floor(calc.cabezasComprables) })}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Terminación campo
+              </button>
+              <button onClick={() => onAgregarAlCampo({ categoria:"vacas", cantidad: Math.floor(calc.cabezasComprables) })}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Cría — vacas
+              </button>
+            </div>
+          </div>
+        )}
         <BotonGuardarSim color="sky" onToast={onToast} onGuardar={() => onGuardar({
           tab: "poder",
           nombre: `Triangulación: ${fmt(venta.cantidad)} nov ${fmt(venta.pesoPromedio)}kg → ${fmt(calc.cabezasComprables)} terneros`,
@@ -1248,7 +1272,7 @@ function PoderDeCompra({ gastos, onGuardar, onToast, initialVenta }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — PROYECTO VIENTRES
 // ═══════════════════════════════════════════════════════════════════════════
-function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast, initialInputs }) {
+function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast, initialInputs, onAgregarAlCampo }) {
   const { inmagVientres, precioNovilloInmag, inflacionMensual } = global;
 
   const [tipoCompra, setTipoCompra] = useState("terneras");
@@ -1722,6 +1746,22 @@ function ProyectoVientres({ global, gastos, onDescarte, onGuardar, onToast, init
             { label: "ROI", value: `${fmt(calc.roiPct, 1)}%` },
           ]}
         />
+        {onAgregarAlCampo && (
+          <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 space-y-3 mb-2">
+            <p className="text-xs font-black uppercase tracking-widest text-violet-700">🐄 Agregar vientres a Mi Campo</p>
+            <p className="text-xs text-violet-600">Incorporar <span className="font-black">{inputs.cantidad} vientres</span> — elegí la categoría:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onAgregarAlCampo({ categoria:"vacas", cantidad: inputs.cantidad })}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Cría — vacas
+              </button>
+              <button onClick={() => onAgregarAlCampo({ categoria:"vaquillonas", cantidad: inputs.cantidad })}
+                className="bg-teal-600 hover:bg-teal-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Cría — vaquillonas
+              </button>
+            </div>
+          </div>
+        )}
         <BotonGuardarSim color="violet" onToast={onToast} onGuardar={() => onGuardar({
           tab: "vientres",
           nombre: `Vientres: ${fmt(inputs.cantidad)} vientres × ${fmt(inputs.anosVidaUtil)} años`,
@@ -1817,7 +1857,7 @@ function TimelineSuplementacion({ mesesActivos, onChange, costoMensual, cantidad
   );
 }
 
-function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar, onToast, initialBase }) {
+function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuardar, onToast, initialBase, onAgregarAlCampo }) {
   const { inmagInvernada, precioNovilloInmag, inflacionMensual } = global;
 
   const [base, setBase] = useState(initialBase || {
@@ -2343,6 +2383,22 @@ function ComparadorInvernada({ global, gastos, setGastos, descarteData, onGuarda
             { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margen - calc.b.margen)) },
           ]}
         />
+        {onAgregarAlCampo && (
+          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3 mb-2">
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🐄 Agregar novillos a Mi Campo</p>
+            <p className="text-xs text-emerald-600">Incorporar <span className="font-black">{base.cantidad} novillos</span> — elegí dónde:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onAgregarAlCampo({ categoria:"novillos-campo", cantidad: base.cantidad })}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Terminación campo
+              </button>
+              <button onClick={() => onAgregarAlCampo({ categoria:"novillos-feedlot", cantidad: base.cantidad })}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                + Terminación feedlot
+              </button>
+            </div>
+          </div>
+        )}
         <BotonGuardarSim color="emerald" onToast={onToast} onGuardar={() => {
           const winner = calc.ganadorA ? "Invernada" : "Feedlot";
           onGuardar({
@@ -3204,38 +3260,26 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
-function MiCampo({ onVolver, onSincronizar }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno }) {
   const [seccion,    setSeccion]    = useState("stock");
-  const [subStock,   setSubStock]   = useState(null); // null | "cria" | "recria" | "terminacion"
+  const [subStock,   setSubStock]   = useState(null);
+  const [verHistorial, setVerHistorial] = useState(false);
+  const [anoViendo, setAnoViendo]   = useState(null); // null = actual
 
   // ── Cotizaciones globales ─────────────────────────────────────────────────
   const [dolar,   setDolar]   = useState(1420);
-  const [gasoil,  setGasoil]  = useState(1100); // $/litro
+  const [gasoil,  setGasoil]  = useState(1100);
 
   const usd = (pesos) => pesos > 0 ? `U$D ${fmt(Math.round(pesos / dolar))}` : "—";
 
-  // ── Stock detallado ───────────────────────────────────────────────────────
-  const [cria, setCria] = useState({
-    vacas:             200,
-    vaquillonas:        80,
-    ternerosNoDestetados: 238,
-    toros:              12,
-  });
-  const [recria, setRecria] = useState({
-    ternerosLiquidaMachos:  120,
-    ternerosLiquidaHembras:  98,
-    ternerosCompraMachos:    80,
-    ternerosCompraHembras:    0,
-    novillos:               44,
-  });
-  const [terminacion, setTerminacion] = useState({
-    novillosCampo:    120,
-    novillosFeedlot:   60,
-    pesoPromedioKg:   420,
-    diasRestantes:     45,
-    costoComidaDia:  4500,   // $/cab/día feedlot
-    costoHoteleriaDia: 800,  // $/cab/día
-  });
+  // Si estamos viendo un año histórico, usar esos datos (read-only)
+  const stockActivo = anoViendo ? historialAnos[anoViendo] : null;
+  const criaDatos       = stockActivo ? stockActivo.cria       : cria;
+  const reciaDatos      = stockActivo ? stockActivo.recria     : recria;
+  const terminacionDatos = stockActivo ? stockActivo.terminacion : terminacion;
+  const setCriaActiva   = anoViendo ? () => {} : setCria;
+  const setRecriaActiva = anoViendo ? () => {} : setRecria;
+  const setTermActiva   = anoViendo ? () => {} : setTerminacion;
 
   // ── Costos estructura detallados ──────────────────────────────────────────
   const [empleados, setEmpleados] = useState([
@@ -3277,16 +3321,16 @@ function MiCampo({ onVolver, onSincronizar }) {
   const costoViajesMes    = litrosTotalesMes * gasoil;
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes;
-  const totalStockCampo = cria.vacas + cria.vaquillonas + cria.ternerosNoDestetados + cria.toros
-    + recria.ternerosLiquidaMachos + recria.ternerosLiquidaHembras + recria.ternerosCompraMachos + recria.ternerosCompraHembras + recria.novillos
-    + terminacion.novillosCampo + terminacion.novillosFeedlot;
+  const totalStockCampo = criaDatos.vacas + criaDatos.vaquillonas + criaDatos.ternerosNoDestetados + criaDatos.toros
+    + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
+    + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
 
-  const feedlotMes = terminacion.novillosFeedlot * (terminacion.costoComidaDia + terminacion.costoHoteleriaDia) * 30;
+  const feedlotMes = terminacionDatos.novillosFeedlot * (terminacionDatos.costoComidaDia + terminacionDatos.costoHoteleriaDia) * 30;
 
   const datosSync = {
-    cantidad: cria.vacas + cria.vaquillonas,
-    pctDestete: Math.round(cria.ternerosNoDestetados / (cria.vacas + cria.vaquillonas) * 100),
+    cantidad: criaDatos.vacas + criaDatos.vaquillonas,
+    pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
     pesoTerneroDestetado: 165,
     anosVidaUtil: 6,
   };
@@ -3343,6 +3387,36 @@ function MiCampo({ onVolver, onSincronizar }) {
             <span className="hidden sm:inline">Sync al Simulador</span>
           </button>
         </div>
+        {/* Año ganadero bar */}
+        <div className="border-t border-slate-100 px-3 sm:px-6 lg:px-8 py-2 flex items-center gap-3 overflow-x-auto">
+          <span className="text-xs text-slate-400 font-semibold shrink-0">Año ganadero:</span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-black px-3 py-1 rounded-full ${!anoViendo ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-500 cursor-pointer hover:bg-slate-200"}`}
+              onClick={() => setAnoViendo(null)}>
+              {anoGanadero} {!anoViendo && "· actual"}
+            </span>
+            {Object.keys(historialAnos).sort().reverse().map(ano => (
+              <span key={ano}
+                className={`text-xs font-bold px-3 py-1 rounded-full cursor-pointer transition-all ${anoViendo === ano ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                onClick={() => setAnoViendo(ano)}>
+                {ano}
+              </span>
+            ))}
+          </div>
+          {!anoViendo && (
+            <button onClick={() => {
+              if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno();
+            }}
+              className="ml-auto text-xs font-bold text-slate-400 hover:text-orange-500 border border-dashed border-slate-200 hover:border-orange-300 px-3 py-1 rounded-full transition-all shrink-0">
+              Cerrar año →
+            </button>
+          )}
+          {anoViendo && (
+            <span className="ml-auto text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full shrink-0">
+              Solo lectura — año {anoViendo}
+            </span>
+          )}
+        </div>
       </nav>
 
       <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-4 md:py-6">
@@ -3351,9 +3425,9 @@ function MiCampo({ onVolver, onSincronizar }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 simulator-enter">
           {[
             { label:"Total hacienda", value:`${totalStockCampo} cab`, color:"text-slate-800", icon:"🐄" },
-            { label:"Cría",           value:`${cria.vacas+cria.vaquillonas} madres`, color:"text-emerald-700", icon:"🐮" },
-            { label:"Recría",         value:`${recria.ternerosLiquidaMachos+recria.ternerosLiquidaHembras+recria.ternerosCompraMachos+recria.ternerosCompraHembras+recria.novillos} cab`, color:"text-blue-700", icon:"🐂" },
-            { label:"Terminación",    value:`${terminacion.novillosCampo+terminacion.novillosFeedlot} cab`, color:"text-amber-700", icon:"🥩" },
+            { label:"Cría",           value:`${criaDatos.vacas+criaDatos.vaquillonas} madres`, color:"text-emerald-700", icon:"🐮" },
+            { label:"Recría",         value:`${reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} cab`, color:"text-blue-700", icon:"🐂" },
+            { label:"Terminación",    value:`${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} cab`, color:"text-amber-700", icon:"🥩" },
           ].map((k,i) => (
             <div key={i} className="kpi-pop bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col gap-1 shadow-sm card-hover">
               <span className="text-sm">{k.icon}</span>
@@ -3382,9 +3456,9 @@ function MiCampo({ onVolver, onSincronizar }) {
         {seccion === "stock" && !subStock && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sim-zoom-enter">
             {[
-              { id:"cria",        label:"Cría",        icon:"🐮", color:"emerald", strip:"from-emerald-400 to-teal-400",   border:"border-emerald-200", total: cria.vacas+cria.vaquillonas+cria.ternerosNoDestetados+cria.toros, sub:`${cria.vacas} vacas · ${cria.vaquillonas} vaq. · ${cria.toros} toros` },
-              { id:"recria",      label:"Recría",      icon:"🐂", color:"blue",    strip:"from-blue-400 to-indigo-400",    border:"border-blue-200",    total: recria.ternerosLiquidaMachos+recria.ternerosLiquidaHembras+recria.ternerosCompraMachos+recria.ternerosCompraHembras+recria.novillos, sub:`${recria.ternerosLiquidaMachos+recria.ternerosLiquidaHembras} tern. marca · ${recria.novillos} novillos` },
-              { id:"terminacion", label:"Terminación", icon:"🥩", color:"amber",   strip:"from-amber-400 to-orange-400",  border:"border-amber-200",   total: terminacion.novillosCampo+terminacion.novillosFeedlot, sub:`${terminacion.novillosCampo} campo · ${terminacion.novillosFeedlot} feedlot` },
+              { id:"cria",        label:"Cría",        icon:"🐮", color:"emerald", strip:"from-emerald-400 to-teal-400",   border:"border-emerald-200", total: criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros, sub:`${criaDatos.vacas} vacas · ${criaDatos.vaquillonas} vaq. · ${criaDatos.toros} toros` },
+              { id:"recria",      label:"Recría",      icon:"🐂", color:"blue",    strip:"from-blue-400 to-indigo-400",    border:"border-blue-200",    total: reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos, sub:`${reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} tern. marca · ${reciaDatos.novillos} novillos` },
+              { id:"terminacion", label:"Terminación", icon:"🥩", color:"amber",   strip:"from-amber-400 to-orange-400",  border:"border-amber-200",   total: terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot, sub:`${terminacionDatos.novillosCampo} campo · ${terminacionDatos.novillosFeedlot} feedlot` },
             ].map((cat,i) => (
               <button key={cat.id} onClick={() => setSubStock(cat.id)}
                 className={`cat-enter bg-white border-2 ${cat.border} rounded-3xl overflow-hidden shadow-lg card-hover text-left w-full group`}
@@ -3419,30 +3493,30 @@ function MiCampo({ onVolver, onSincronizar }) {
               <div className="p-5 md:p-6">
                 <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-5">Cría — detalle de rodeo</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <EditField label="Vacas" value={cria.vacas} onChange={v=>setCria(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
-                  <EditField label="Vaquillonas" value={cria.vaquillonas} onChange={v=>setCria(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
-                  <EditField label="Terneros no destetados" value={cria.ternerosNoDestetados} onChange={v=>setCria(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
-                  <EditField label="Toros" value={cria.toros} onChange={v=>setCria(p=>({...p,toros:v}))} hint={`Relación ${cria.toros>0?Math.round((cria.vacas+cria.vaquillonas)/cria.toros):0}:1 vaca/toro`} />
+                  <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
+                  <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
+                  <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
+                  <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
                 </div>
                 <div className="mt-5 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <div><p className="text-xs text-emerald-600">Total cría</p><p className="font-black text-emerald-900 text-xl">{cria.vacas+cria.vaquillonas+cria.ternerosNoDestetados+cria.toros}</p></div>
-                  <div><p className="text-xs text-emerald-600">Madres</p><p className="font-black text-emerald-900 text-xl">{cria.vacas+cria.vaquillonas}</p></div>
-                  <div><p className="text-xs text-emerald-600">Terneros/madre</p><p className="font-black text-emerald-900 text-xl">{(cria.vacas+cria.vaquillonas)>0?((cria.ternerosNoDestetados/(cria.vacas+cria.vaquillonas))*100).toFixed(0)+"%" : "—"}</p></div>
-                  <div><p className="text-xs text-emerald-600">Toros/madres</p><p className="font-black text-emerald-900 text-xl">{cria.toros>0?Math.round((cria.vacas+cria.vaquillonas)/cria.toros)+":1":"—"}</p></div>
+                  <div><p className="text-xs text-emerald-600">Total cría</p><p className="font-black text-emerald-900 text-xl">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros}</p></div>
+                  <div><p className="text-xs text-emerald-600">Madres</p><p className="font-black text-emerald-900 text-xl">{criaDatos.vacas+criaDatos.vaquillonas}</p></div>
+                  <div><p className="text-xs text-emerald-600">Terneros/madre</p><p className="font-black text-emerald-900 text-xl">{(criaDatos.vacas+criaDatos.vaquillonas)>0?((criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas))*100).toFixed(0)+"%" : "—"}</p></div>
+                  <div><p className="text-xs text-emerald-600">Toros/madres</p><p className="font-black text-emerald-900 text-xl">{criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros)+":1":"—"}</p></div>
                 </div>
                 <button
                   onClick={() => onSincronizar({
                     target: "vientres",
-                    descripcion: `${cria.vacas+cria.vaquillonas} madres · ${Math.round(cria.ternerosNoDestetados/(cria.vacas+cria.vaquillonas)*100)}% destete · datos reales de cría`,
+                    descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
                     inputs: {
-                      cantidad: cria.vacas + cria.vaquillonas,
+                      cantidad: criaDatos.vacas + criaDatos.vaquillonas,
                       pesoCompra: 380,
                       precioKgCompra: 1800,
                       precioBulto: 350000,
                       mesesRecriaPreServicio: 15,
                       anosVidaUtil: 6,
                       kgIatf: 8,
-                      pctDestete: Math.round(cria.ternerosNoDestetados / (cria.vacas + cria.vaquillonas) * 100),
+                      pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
                       pesoTerneroDestetado: 160,
                       precioTerneroKg: 2000,
                       pesoVacaDescarte: 380,
@@ -3479,29 +3553,29 @@ function MiCampo({ onVolver, onSincronizar }) {
               <div className="p-5 md:p-6">
                 <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-5">Recría — detalle</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <EditField label="Terneros marca líquida — machos" value={recria.ternerosLiquidaMachos} onChange={v=>setRecria(p=>({...p,ternerosLiquidaMachos:v}))} hint="Destetados de la cría propia" />
-                  <EditField label="Terneros marca líquida — hembras" value={recria.ternerosLiquidaHembras} onChange={v=>setRecria(p=>({...p,ternerosLiquidaHembras:v}))} hint="Candidatas a vaquillonas o venta" />
-                  <EditField label="Terneros compra — machos" value={recria.ternerosCompraMachos} onChange={v=>setRecria(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
-                  <EditField label="Terneros compra — hembras" value={recria.ternerosCompraHembras} onChange={v=>setRecria(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
-                  <EditField label="Novillos en recría" value={recria.novillos} onChange={v=>setRecria(p=>({...p,novillos:v}))} hint="En camino a terminación" />
+                  <EditField label="Terneros marca líquida — machos" value={reciaDatos.ternerosLiquidaMachos} onChange={v=>setRecria(p=>({...p,ternerosLiquidaMachos:v}))} hint="Destetados de la cría propia" />
+                  <EditField label="Terneros marca líquida — hembras" value={reciaDatos.ternerosLiquidaHembras} onChange={v=>setRecria(p=>({...p,ternerosLiquidaHembras:v}))} hint="Candidatas a vaquillonas o venta" />
+                  <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecria(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
+                  <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecria(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
+                  <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecria(p=>({...p,novillos:v}))} hint="En camino a terminación" />
                 </div>
                 <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   {[
-                    ["Total recría", recria.ternerosLiquidaMachos+recria.ternerosLiquidaHembras+recria.ternerosCompraMachos+recria.ternerosCompraHembras+recria.novillos],
-                    ["Marca líquida", recria.ternerosLiquidaMachos+recria.ternerosLiquidaHembras],
-                    ["Compra", recria.ternerosCompraMachos+recria.ternerosCompraHembras],
-                    ["Novillos", recria.novillos],
+                    ["Total recría", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos],
+                    ["Marca líquida", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras],
+                    ["Compra", reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras],
+                    ["Novillos", reciaDatos.novillos],
                   ].map(([l,v]) => (
                     <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
                   ))}
                 </div>
-                {recria.ternerosCompraMachos + recria.ternerosCompraHembras > 0 && (
+                {reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras > 0 && (
                   <button
                     onClick={() => onSincronizar({
                       target: "poder",
-                      descripcion: `${recria.ternerosCompraMachos+recria.ternerosCompraHembras} terneros comprados · simulando poder de compra`,
+                      descripcion: `${reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras} terneros comprados · simulando poder de compra`,
                       venta: {
-                        cantidad: recria.ternerosCompraMachos + recria.ternerosCompraHembras,
+                        cantidad: reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras,
                         pesoPromedio: 180,
                         precioKg: 2200,
                       }
@@ -3527,19 +3601,19 @@ function MiCampo({ onVolver, onSincronizar }) {
               <div className="p-5 md:p-6 space-y-5">
                 <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación — detalle</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <EditField label="Novillos en campo" value={terminacion.novillosCampo} onChange={v=>setTerminacion(p=>({...p,novillosCampo:v}))} />
-                  <EditField label="Novillos en feedlot" value={terminacion.novillosFeedlot} onChange={v=>setTerminacion(p=>({...p,novillosFeedlot:v}))} />
-                  <EditField label="Peso promedio (kg)" value={terminacion.pesoPromedioKg} onChange={v=>setTerminacion(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
-                  <EditField label="Días para venta" value={terminacion.diasRestantes} onChange={v=>setTerminacion(p=>({...p,diasRestantes:v}))} suffix=" días" />
+                  <EditField label="Novillos en campo" value={terminacionDatos.novillosCampo} onChange={v=>setTerminacion(p=>({...p,novillosCampo:v}))} />
+                  <EditField label="Novillos en feedlot" value={terminacionDatos.novillosFeedlot} onChange={v=>setTerminacion(p=>({...p,novillosFeedlot:v}))} />
+                  <EditField label="Peso promedio (kg)" value={terminacionDatos.pesoPromedioKg} onChange={v=>setTerminacion(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
+                  <EditField label="Días para venta" value={terminacionDatos.diasRestantes} onChange={v=>setTerminacion(p=>({...p,diasRestantes:v}))} suffix=" días" />
                 </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   <button
                     onClick={() => onSincronizar({
                       target: "poder",
-                      descripcion: `${terminacion.novillosCampo+terminacion.novillosFeedlot} novillos ${terminacion.pesoPromedioKg} kg · ¿cuántos terneros puedo reponer?`,
+                      descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos ${terminacionDatos.pesoPromedioKg} kg · ¿cuántos terneros puedo reponer?`,
                       venta: {
-                        cantidad: terminacion.novillosCampo + terminacion.novillosFeedlot,
-                        pesoPromedio: terminacion.pesoPromedioKg,
+                        cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
+                        pesoPromedio: terminacionDatos.pesoPromedioKg,
                         precioKg: 2200,
                       }
                     })}
@@ -3550,10 +3624,10 @@ function MiCampo({ onVolver, onSincronizar }) {
                   <button
                     onClick={() => onSincronizar({
                       target: "invernada",
-                      descripcion: `${terminacion.novillosCampo+terminacion.novillosFeedlot} novillos · ${terminacion.pesoPromedioKg} kg · campo vs feedlot`,
+                      descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos · ${terminacionDatos.pesoPromedioKg} kg · campo vs feedlot`,
                       base: {
-                        cantidad: terminacion.novillosCampo + terminacion.novillosFeedlot,
-                        pesoIngreso: terminacion.pesoPromedioKg,
+                        cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
+                        pesoIngreso: terminacionDatos.pesoPromedioKg,
                         precioCompraKg: 1800,
                       }
                     })}
@@ -3562,17 +3636,17 @@ function MiCampo({ onVolver, onSincronizar }) {
                     Comparar campo vs feedlot
                   </button>
                 </div>
-              {terminacion.novillosFeedlot > 0 && (
+              {terminacionDatos.novillosFeedlot > 0 && (
                   <div className="section-amber rounded-2xl border-2 p-4 space-y-4">
                     <p className="text-xs font-black uppercase tracking-widest text-amber-700">Costos feedlot</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <EditField label="Comida / cab / día" value={terminacion.costoComidaDia} onChange={v=>setTerminacion(p=>({...p,costoComidaDia:v}))} step={500} prefix="$" usdVal={usd(terminacion.costoComidaDia)} />
-                      <EditField label="Hotelería / cab / día" value={terminacion.costoHoteleriaDia} onChange={v=>setTerminacion(p=>({...p,costoHoteleriaDia:v}))} step={100} prefix="$" usdVal={usd(terminacion.costoHoteleriaDia)} />
+                      <EditField label="Comida / cab / día" value={terminacionDatos.costoComidaDia} onChange={v=>setTerminacion(p=>({...p,costoComidaDia:v}))} step={500} prefix="$" usdVal={usd(terminacionDatos.costoComidaDia)} />
+                      <EditField label="Hotelería / cab / día" value={terminacionDatos.costoHoteleriaDia} onChange={v=>setTerminacion(p=>({...p,costoHoteleriaDia:v}))} step={100} prefix="$" usdVal={usd(terminacionDatos.costoHoteleriaDia)} />
                     </div>
                     <div className="bg-white rounded-xl border border-amber-200 p-3 grid grid-cols-3 gap-3 text-center">
-                      <div><p className="text-xs text-amber-600">Costo/cab/día</p><p className="font-black text-amber-900">{fmtMoney(terminacion.costoComidaDia+terminacion.costoHoteleriaDia)}</p><p className="text-xs text-emerald-600">{usd(terminacion.costoComidaDia+terminacion.costoHoteleriaDia)}</p></div>
+                      <div><p className="text-xs text-amber-600">Costo/cab/día</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p></div>
                       <div><p className="text-xs text-amber-600">Costo mensual total</p><p className="font-black text-amber-900">{fmtMoney(feedlotMes)}</p><p className="text-xs text-emerald-600">{usd(feedlotMes)}</p></div>
-                      <div><p className="text-xs text-amber-600">Hasta venta ({terminacion.diasRestantes}d)</p><p className="font-black text-amber-900">{fmtMoney(terminacion.novillosFeedlot*(terminacion.costoComidaDia+terminacion.costoHoteleriaDia)*terminacion.diasRestantes)}</p><p className="text-xs text-emerald-600">{usd(terminacion.novillosFeedlot*(terminacion.costoComidaDia+terminacion.costoHoteleriaDia)*terminacion.diasRestantes)}</p></div>
+                      <div><p className="text-xs text-amber-600">Hasta venta ({terminacionDatos.diasRestantes}d)</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p></div>
                     </div>
                   </div>
                 )}
@@ -3887,6 +3961,13 @@ const TABS = [
   { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
 ];
 
+// ── Año ganadero helpers ─────────────────────────────────────────────────────
+function getAnoGanaderoActual() {
+  const hoy = new Date();
+  const año = hoy.getMonth() >= 6 ? hoy.getFullYear() : hoy.getFullYear() - 1;
+  return `${año}/${año+1}`;
+}
+
 function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
@@ -3894,6 +3975,65 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [descarteData, setDescarteData] = useState(null);
   const [simulaciones, setSimulaciones] = useState([]);
   const { toasts, push: pushToast } = useToast();
+
+  // ── Año ganadero ──────────────────────────────────────────────────────────
+  const [anoGanaderoActual, setAnoGanaderoActual] = useState(getAnoGanaderoActual());
+  const [historialAnos, setHistorialAnos] = useState({});
+
+  // ── Stock compartido con Mi Campo ─────────────────────────────────────────
+  const [campoCria, setCampoCria] = useState({
+    vacas: 200, vaquillonas: 80, ternerosNoDestetados: 238, toros: 12,
+  });
+  const [campoRecria, setCampoRecria] = useState({
+    ternerosLiquidaMachos: 120, ternerosLiquidaHembras: 98,
+    ternerosCompraMachos: 80, ternerosCompraHembras: 0, novillos: 44,
+  });
+  const [campoTerminacion, setCampoTerminacion] = useState({
+    novillosCampo: 120, novillosFeedlot: 60,
+    pesoPromedioKg: 420, diasRestantes: 45,
+    costoComidaDia: 4500, costoHoteleriaDia: 800,
+  });
+
+  // ── Agregar al campo desde simulador ─────────────────────────────────────
+  const handleAgregarAlCampo = (datos) => {
+    if (datos.categoria === "terneros-compra-machos") {
+      setCampoRecria(p => ({ ...p, ternerosCompraMachos: p.ternerosCompraMachos + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} terneros machos compra agregados a Recría`, "success");
+    } else if (datos.categoria === "terneros-compra-hembras") {
+      setCampoRecria(p => ({ ...p, ternerosCompraHembras: p.ternerosCompraHembras + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} terneras compra agregadas a Recría`, "success");
+    } else if (datos.categoria === "vacas") {
+      setCampoCria(p => ({ ...p, vacas: p.vacas + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} vacas agregadas a Cría`, "success");
+    } else if (datos.categoria === "vaquillonas") {
+      setCampoCria(p => ({ ...p, vaquillonas: p.vaquillonas + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} vaquillonas agregadas a Cría`, "success");
+    } else if (datos.categoria === "novillos-campo") {
+      setCampoTerminacion(p => ({ ...p, novillosCampo: p.novillosCampo + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} novillos agregados a Terminación campo`, "success");
+    } else if (datos.categoria === "novillos-feedlot") {
+      setCampoTerminacion(p => ({ ...p, novillosFeedlot: p.novillosFeedlot + datos.cantidad }));
+      pushToast(`✅ ${datos.cantidad} novillos agregados a Terminación feedlot`, "success");
+    }
+  };
+
+  // ── Cerrar año ganadero ───────────────────────────────────────────────────
+  const handleCerrarAno = () => {
+    const snapshot = {
+      ano: anoGanaderoActual,
+      cria: { ...campoCria },
+      recria: { ...campoRecria },
+      terminacion: { ...campoTerminacion },
+      fechaCierre: new Date().toLocaleDateString("es-AR"),
+    };
+    setHistorialAnos(p => ({ ...p, [anoGanaderoActual]: snapshot }));
+    // Calcular nuevo año
+    const [añoInicio] = anoGanaderoActual.split("/").map(Number);
+    const nuevoAno = `${añoInicio+1}/${añoInicio+2}`;
+    setAnoGanaderoActual(nuevoAno);
+    // El stock se mantiene (carry-over natural)
+    pushToast(`Año ${anoGanaderoActual} cerrado. Abriendo ${nuevoAno} ✓`, "success");
+  };
 
   const CATEGORIAS = {
     poder:     { label: "Poder de Compra",     emoji: "⇄" },
@@ -4000,6 +4140,12 @@ function EstrategiaComercial({ userEmail, onLogout }) {
         <MiCampo
           onVolver={() => setVistaActual("inicio")}
           onSincronizar={handleSincronizar}
+          cria={campoCria} setCria={setCampoCria}
+          recria={campoRecria} setRecria={setCampoRecria}
+          terminacion={campoTerminacion} setTerminacion={setCampoTerminacion}
+          anoGanadero={anoGanaderoActual}
+          historialAnos={historialAnos}
+          onCerrarAno={handleCerrarAno}
         />
       </>
     );
@@ -4100,12 +4246,15 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           <div key={activeTab + (syncData ? "-sync" : "")} className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl sim-zoom-enter">
             {activeTab === "poder"
               ? <PoderDeCompra gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast}
-                  initialVenta={syncData?.target === "poder" ? syncData.venta : undefined} />
+                  initialVenta={syncData?.target === "poder" ? syncData.venta : undefined}
+                  onAgregarAlCampo={handleAgregarAlCampo} />
               : activeTab === "vientres"
               ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast}
-                  initialInputs={syncData?.target === "vientres" ? syncData.inputs : undefined} />
+                  initialInputs={syncData?.target === "vientres" ? syncData.inputs : undefined}
+                  onAgregarAlCampo={handleAgregarAlCampo} />
               : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast}
-                  initialBase={syncData?.target === "invernada" ? syncData.base : undefined} />
+                  initialBase={syncData?.target === "invernada" ? syncData.base : undefined}
+                  onAgregarAlCampo={handleAgregarAlCampo} />
             }
           </div>
 
