@@ -1000,57 +1000,66 @@ function GastosComerciales({ gastos, setGastos }) {
     const on     = gastos[onKey];
     const flete  = on ? gastos[kmKey] * gastos[pkmKey] : 0;
     return (
-      <div className={`rounded-xl border p-3 space-y-2 transition-all ${on ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100"}`}>
+      <div className={`rounded-2xl border-2 p-3.5 transition-all duration-300 ${on
+        ? "bg-white border-sky-200 shadow-md shadow-sky-50"
+        : "bg-slate-50 border-slate-100"}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span>{icon}</span>
-            <span className="text-xs font-black uppercase tracking-widest text-slate-600">{label}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base">{icon}</span>
+            <span className={`text-xs font-black uppercase tracking-widest transition-colors ${on ? "text-sky-700" : "text-slate-400"}`}>{label}</span>
+            {on && <span className="text-xs font-bold bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full border border-sky-200 animate-pulse">{fmtMoney(flete)}</span>}
           </div>
           <ToggleSwitch on={on} onToggle={toggleFlete(tipo)} label={on ? "Activo" : "Off"} />
         </div>
-        {on && (
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${on ? "max-h-60 opacity-100 mt-3" : "max-h-0 opacity-0"}`}>
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Field label={`KM ${tipo}`} value={gastos[kmKey]} onChange={set(kmKey)} unit="km" step={10} sliderMax={1500} />
               <Field label="Precio / km" value={gastos[pkmKey]} onChange={set(pkmKey)} unit="$/km" step={50} />
             </div>
-            <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 flex justify-between items-center">
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Flete total calculado</span>
-              <span className="font-mono font-bold text-slate-800">{fmtMoney(flete)}</span>
+            <div className="rounded-xl bg-sky-50 border border-sky-200 px-3 py-2.5 flex justify-between items-center">
+              <span className="text-xs text-sky-600 font-bold uppercase tracking-wider">Flete total</span>
+              <span className="font-mono font-black text-sky-800 text-base">{fmtMoney(flete)}</span>
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   };
 
   const ComisionBlock = ({ tipo }) => {
-    const key   = tipo === "compra" ? "comisionCompra" : "comisionVenta";
-    const label = tipo === "compra" ? "Comisión Compra" : "Comisión Venta";
-    const icon  = tipo === "compra" ? "📋"             : "📄";
-    const on    = gastos[key] > 0;
+    const onKey = tipo === "compra" ? "comisionCompraOn" : "comisionVentaOn";
+    const key   = tipo === "compra" ? "comisionCompra"   : "comisionVenta";
+    const label = tipo === "compra" ? "Comisión Compra"  : "Comisión Venta";
+    const icon  = tipo === "compra" ? "📋"               : "📄";
+    const on    = gastos[onKey];
     return (
-      <div className={`rounded-xl border p-3 space-y-2 transition-all ${on ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100"}`}>
+      <div className={`rounded-2xl border-2 p-3.5 transition-all duration-300 ${on
+        ? "bg-white border-emerald-200 shadow-md shadow-emerald-50"
+        : "bg-slate-50 border-slate-100"}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span>{icon}</span>
-            <span className="text-xs font-black uppercase tracking-widest text-slate-600">{label}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base">{icon}</span>
+            <span className={`text-xs font-black uppercase tracking-widest transition-colors ${on ? "text-emerald-700" : "text-slate-400"}`}>{label}</span>
+            {on && <span className="text-xs font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">{gastos[key]}%</span>}
           </div>
           <ToggleSwitch on={on} onToggle={toggleComision(tipo)} label={on ? "Activo" : "Off"} />
         </div>
-        {on && <Field label="Porcentaje" value={gastos[key]} onChange={set(key)} unit="%" step={0.5} sliderMax={5} />}
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${on ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"}`}>
+          <Field label="Porcentaje" value={gastos[key]} onChange={set(key)} unit="%" step={0.5} sliderMax={5} />
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-3 shadow-lg">
       <div className="flex items-center gap-2">
-        <span className="text-base">🧾</span>
-        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Gastos Comerciales</p>
-        <span className="text-xs text-slate-400 normal-case">— activá solo los que apliquen</span>
+        <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-sm shadow-sm">🧾</span>
+        <p className="text-xs font-black uppercase tracking-widest text-slate-700">Gastos Comerciales</p>
+        <span className="text-xs text-slate-400 normal-case">— activá los que apliquen</span>
       </div>
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FleteBlock tipo="compra" />
         <ComisionBlock tipo="compra" />
         <FleteBlock tipo="venta" />
@@ -3395,13 +3404,3 @@ export default function App() {
   if (!user) {
     return <LoginScreen />;
   }
-
-  // ── Autenticado → App principal ───────────────────────────────────────────
-  return (
-    <EstrategiaComercial
-      userEmail={user.email}
-      onLogout={handleLogout}
-    />
-  );
-}
-
