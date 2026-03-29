@@ -2866,388 +2866,148 @@ function BotonGuardarSim({ onGuardar, color = "sky", onToast }) {
 // ═══════════════════════════════════════════════════════════════════════════
 const ACTION_URL = window.location.origin;
 
-function LoginScreen({ onLogin }) {
-  const [email, setEmail]     = useState("");
-  const [status, setStatus]   = useState("idle"); // idle | sending | sent | error | completing
+function LoginScreen() {
+  const [email, setEmail]   = useState("");
+  const [estado, setEstado] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // On mount: handle magic link callback
-  useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      setStatus("completing");
-      let saved = window.localStorage.getItem("vacaapp_email");
-      if (!saved) {
-        saved = window.prompt("Por seguridad, confirmá tu email:");
-      }
-      if (saved) {
-        signInWithEmailLink(auth, saved, window.location.href)
-          .then(() => {
-            window.localStorage.removeItem("vacaapp_email");
-            window.history.replaceState({}, document.title, "/");
-          })
-          .catch(() => {
-            setStatus("error");
-            setErrorMsg("El link expiró o ya fue usado. Pedí uno nuevo.");
-          });
-      }
-    }
-  }, []);
-
   const handleSend = async () => {
-    if (!email || !email.includes("@")) {
-      setErrorMsg("Ingresá un email válido.");
-      setStatus("error");
-      return;
-    }
-    setStatus("sending");
-    setErrorMsg("");
-    const actionCodeSettings = {
-      url: ACTION_URL,
-      handleCodeInApp: true,
-    };
+    const em = email.trim().toLowerCase();
+    if (!em || !em.includes("@")) { setErrorMsg("Ingresá un email válido."); setEstado("error"); return; }
+    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado para acceder."); setEstado("error"); return; }
+    setEstado("sending");
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem("vacaapp_email", email);
-      setStatus("sent");
-    } catch (err) {
-      setStatus("error");
-      if (err.code === "auth/unauthorized-continue-uri") {
-        setErrorMsg("URL no autorizada en Firebase. Agregá " + ACTION_URL + " en dominios autorizados.");
-      } else if (err.code === "auth/too-many-requests") {
-        setErrorMsg("Demasiados intentos. Esperá unos minutos.");
-      } else {
-        setErrorMsg(err.message || "Error al enviar. Intentá de nuevo.");
-      }
+      await sendSignInLinkToEmail(auth, em, ACTION_CODE_SETTINGS);
+      window.localStorage.setItem("emailParaLogin", em);
+      setEstado("sent");
+    } catch(err) {
+      setErrorMsg("Error al enviar el link. Intentá de nuevo."); setEstado("error");
     }
   };
+
+  const STYLE = `
+    .lb { min-height:100vh; background:#064e3b; display:flex; align-items:center; justify-content:center; padding:1.5rem 1rem; position:relative; overflow:hidden; font-family:sans-serif; }
+    .lblob { position:absolute; border-radius:50%; pointer-events:none; }
+    .lb1{width:560px;height:560px;background:#10b981;opacity:.11;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
+    .lb2{width:360px;height:360px;background:#34d399;opacity:.10;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
+    .lb3{width:200px;height:200px;background:#6ee7b7;opacity:.10;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
+    .lb4{width:110px;height:110px;background:#a7f3d0;opacity:.10;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
+    @keyframes lbf1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,-36px) scale(1.06)}}
+    @keyframes lbf2{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,24px) scale(1.09)}}
+    .ldollar{position:absolute;color:#a7f3d0;font-weight:900;pointer-events:none;user-select:none;line-height:1;}
+    .ld1{font-size:72px;opacity:.09;top:8%;left:4%;animation:fd1 7s ease-in-out infinite;}
+    .ld2{font-size:48px;opacity:.07;top:15%;right:6%;animation:fd2 9s ease-in-out 1s infinite;}
+    .ld3{font-size:96px;opacity:.06;bottom:12%;left:2%;animation:fd1 8s ease-in-out 2s infinite;}
+    .ld4{font-size:36px;opacity:.09;bottom:25%;right:4%;animation:fd2 6s ease-in-out .5s infinite;}
+    .ld5{font-size:60px;opacity:.07;top:55%;right:12%;animation:fd1 10s ease-in-out 1.5s infinite;}
+    .ld6{font-size:44px;opacity:.08;top:42%;left:15%;animation:fd2 7.5s ease-in-out 3s infinite;}
+    @keyframes fd1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
+    @keyframes fd2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-50px) rotate(28deg)}}
+    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:400px;position:relative;z-index:2;box-shadow:0 40px 100px -10px rgba(6,78,59,.5);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
+    @keyframes lcardIn{from{opacity:0;transform:translateY(40px) scale(0.93)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;animation:lfadeUp .6s cubic-bezier(.34,1.56,.64,1) .1s both;}
+    @keyframes lfadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;animation:llineGrow .5s .5s both;}
+    @keyframes llineGrow{from{width:0;opacity:0}to{width:56px;opacity:1}}
+    .lbadge{background:linear-gradient(135deg,#064e3b,#059669);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
+    .lslogan{font-size:10px;font-weight:700;letter-spacing:.18em;color:#6b7280;text-transform:uppercase;margin:0;}
+    .lh2{font-size:22px;font-weight:900;color:#111827;text-align:center;margin:1.25rem 0 .3rem;letter-spacing:-.4px;animation:lfadeUp .5s .2s both;}
+    .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.4rem;line-height:1.55;animation:lfadeUp .5s .28s both;}
+    .linpwrap{position:relative;margin-bottom:.75rem;animation:lfadeUp .5s .34s both;}
+    .linpicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;}
+    .linp{width:100%;box-sizing:border-box;padding:13px 14px 13px 44px;font-size:16px;border:2px solid #e5e7eb;border-radius:14px;outline:none;color:#111827;background:#f9fafb;transition:border-color .2s,box-shadow .2s;font-family:inherit;}
+    .linp:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.14);}
+    .linp::placeholder{color:#9ca3af;}
+    .linp.lerr{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12);}
+    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#064e3b,#059669);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;animation:lfadeUp .5s .4s both;}
+    .lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,78,59,.4);}
+    .lbtn:active{transform:scale(.97);}
+    .lbtn:disabled{opacity:.7;cursor:not-allowed;transform:none!important;}
+    .ltoast{display:none;margin-top:.75rem;background:#ecfdf5;border:2px solid #6ee7b7;border-radius:14px;padding:13px 15px;align-items:flex-start;gap:11px;}
+    .ltoast.show{display:flex;animation:lfadeUp .4s both;}
+    .ldot{width:10px;height:10px;background:#10b981;border-radius:50%;margin-top:3px;flex-shrink:0;animation:lpulse 1.5s ease-in-out infinite;}
+    @keyframes lpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5);opacity:.6}}
+    .lerrmsg{display:none;margin-top:.6rem;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:10px 13px;font-size:13px;color:#dc2626;font-weight:600;align-items:center;gap:8px;}
+    .lerrmsg.show{display:flex;animation:lfadeUp .3s both;}
+    .lfeats{display:flex;justify-content:center;gap:24px;margin-top:1.5rem;animation:lfadeUp .5s .48s both;}
+    .lfeat{display:flex;flex-direction:column;align-items:center;gap:5px;}
+    .lfeaticon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;}
+    .lfeatlabel{font-size:10px;font-weight:700;color:#9ca3af;text-align:center;text-transform:uppercase;letter-spacing:.05em;line-height:1.3;}
+    .lnote{font-size:11px;color:#9ca3af;text-align:center;margin:1.25rem 0 0;line-height:1.55;animation:lfadeUp .5s .54s both;}
+    .lspinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:lspin .7s linear infinite;display:inline-block;}
+    @keyframes lspin{to{transform:rotate(360deg)}}
+  `;
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes loginFadeUp {
-          from { opacity:0; transform:translateY(28px) scale(0.97); }
-          to   { opacity:1; transform:translateY(0) scale(1); }
-        }
-        @keyframes loginBgFloat {
-          0%,100% { transform: translateY(0) scale(1); }
-          50%      { transform: translateY(-20px) scale(1.05); }
-        }
-        @keyframes loginSpinner {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes loginPulse {
-          0%,100% { transform:scale(1); opacity:1; }
-          50%      { transform:scale(1.3); opacity:0.7; }
-        }
-        @keyframes loginSlideIn {
-          from { opacity:0; transform:translateY(10px); }
-          to   { opacity:1; transform:translateY(0); }
-        }
-        .login-bg-circle {
-          position:absolute; border-radius:50%; pointer-events:none;
-        }
-        .login-card {
-          animation: loginFadeUp 0.65s cubic-bezier(0.16,1,0.3,1) both;
-        }
-        .login-btn {
-          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
-        }
-        .login-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(6,78,59,0.4);
-        }
-        .login-btn:active:not(:disabled) { transform: scale(0.97); }
-        .login-input:focus {
-          border-color: #10b981 !important;
-          box-shadow: 0 0 0 4px rgba(16,185,129,0.18) !important;
-          outline: none;
-        }
-        .login-spinner {
-          width:18px; height:18px; border:2px solid rgba(255,255,255,0.3);
-          border-top-color:#fff; border-radius:50%;
-          animation: loginSpinner 0.7s linear infinite;
-          display:inline-block;
-        }
-        .login-toast { animation: loginSlideIn 0.4s ease both; }
-        .login-feat-icon { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
-        .login-feat:hover .login-feat-icon { transform: scale(1.15) rotate(-5deg); }
-      ` }} />
+      <style dangerouslySetInnerHTML={{ __html: STYLE }} />
+      <div className="lb">
+        <div className="lblob lb1" /><div className="lblob lb2" />
+        <div className="lblob lb3" /><div className="lblob lb4" />
+        <div className="ldollar ld1">$</div><div className="ldollar ld2">$</div>
+        <div className="ldollar ld3">$</div><div className="ldollar ld4">$</div>
+        <div className="ldollar ld5">$</div><div className="ldollar ld6">$</div>
 
-      <div className="login-bg">
-        {/* Background blobs */}
-        <div className="login-blob login-blob-1" />
-        <div className="login-blob login-blob-2" />
-        <div className="login-blob login-blob-3" />
-        <div className="login-blob login-blob-4" />
-        {/* Floating $ signs */}
-        <div className="login-dollar ld1">$</div>
-        <div className="login-dollar ld2">$</div>
-        <div className="login-dollar ld3">$</div>
-        <div className="login-dollar ld4">$</div>
-        <div className="login-dollar ld5">$</div>
-        <div className="login-dollar ld6">$</div>
-
-        {/* Card */}
-        <div className="login-card" style={{
-          background:"#fff", borderRadius:28, padding:"2.25rem 1.75rem",
-          width:"100%", maxWidth:420, position:"relative", zIndex:2,
-          boxShadow:"0 32px 80px rgba(0,0,0,0.25)"
-        }}>
+        <div className="lcard">
           {/* Logo */}
-          <div className="login-logo-wrap">
-            <img
-              src={`data:image/png;base64,${LOGO_B64}`}
-              alt="VacaApp"
-              style={{ height:"72px", maxWidth:"240px", objectFit:"contain", marginBottom:"10px" }}
-            />
-            <div className="login-line" />
+          <div className="lwrap">
+            <img src={`data:image/png;base64,${LOGO_B64}`} alt="VacaApp"
+              style={{ height:"72px", maxWidth:"240px", objectFit:"contain" }} />
+            <div className="lline" />
             <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-              <span className="login-slogan-badge">Simulador</span>
-              <span className="login-slogan">Económico Ganadero</span>
+              <span className="lbadge">Simulador</span>
+              <span className="lslogan">Económico Ganadero</span>
             </div>
           </div>
 
+          <h2 className="lh2">Bienvenido de vuelta</h2>
+          <p className="lsub">Ingresá tu email y te mandamos un link mágico.<br/>Un click y estás adentro, sin contraseña.</p>
 
-
-          {status === "completing" ? (
-            <div style={{textAlign:"center", padding:"2rem 0"}}>
-              <div className="login-spinner" style={{margin:"0 auto 1rem"}}/>
-              <p style={{color:"#374151", fontWeight:600, fontSize:15}}>Iniciando sesión...</p>
+          <div className="linpwrap">
+            <div className="linpicon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
             </div>
-          ) : status === "sent" ? (
-            <div className="login-toast" style={{
-              background:"#ecfdf5", border:"1.5px solid #6ee7b7",
-              borderRadius:16, padding:"1.25rem", textAlign:"center"
-            }}>
-              <div style={{
-                width:48, height:48, background:"#d1fae5", borderRadius:"50%",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                margin:"0 auto 1rem", fontSize:24
-              }}>✉️</div>
-              <p style={{fontWeight:800, color:"#065f46", fontSize:16, margin:"0 0 0.5rem"}}>
-                ¡Link enviado!
-              </p>
-              <p style={{color:"#047857", fontSize:13, margin:"0 0 1rem", lineHeight:1.5}}>
-                Revisá tu casilla <strong>{email}</strong> y hacé click en el link para entrar.
-              </p>
-              <p style={{color:"#6ee7b7", fontSize:11, margin:0}}>
-                El link expira en 15 minutos · Revisá spam si no llega
-              </p>
-              <button onClick={() => setStatus("idle")}
-                style={{
-                  marginTop:"1rem", background:"transparent", border:"1.5px solid #10b981",
-                  borderRadius:10, color:"#059669", fontWeight:700, fontSize:12,
-                  padding:"6px 16px", cursor:"pointer"
-                }}>
-                Usar otro email
-              </button>
-            </div>
-          ) : (
-            <>
-              <h2 style={{
-                fontSize:22, fontWeight:800, color:"#111827",
-                textAlign:"center", margin:"0 0 0.375rem", lineHeight:1.2
-              }}>
-                Bienvenido de vuelta
-              </h2>
-              <p style={{
-                fontSize:13, color:"#6b7280", textAlign:"center",
-                margin:"0 0 1.5rem", lineHeight:1.5
-              }}>
-                Ingresá tu email y te enviamos un link mágico.<br/>
-                Un click y entrás, sin contraseña.
-              </p>
+            <input className={`linp${estado === "error" ? " lerr" : ""}`} type="email"
+              placeholder="tu@email.com" value={email}
+              onChange={(e) => { setEmail(e.target.value); if(estado==="error"){setEstado("idle");setErrorMsg("");} }}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              disabled={estado === "sending" || estado === "sent"}
+            />
+          </div>
 
-              {/* Email input */}
-              <div style={{position:"relative", marginBottom:"0.75rem"}}>
-                <svg style={{
-                  position:"absolute", left:13, top:"50%", transform:"translateY(-50%)",
-                  opacity:0.4, pointerEvents:"none"
-                }} width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="3"/>
-                  <path d="m2 7 10 6 10-6"/>
-                </svg>
-                <input
-                  className="login-input"
-                  type="email"
-                  placeholder="tu@email.com"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setErrorMsg(""); }}
-                  onKeyDown={e => e.key === "Enter" && handleSend()}
-                  disabled={status === "sending"}
-                  style={{
-                    width:"100%", boxSizing:"border-box",
-                    padding:"13px 14px 13px 42px",
-                    fontSize:15, border:"2px solid #e5e7eb",
-                    borderRadius:14, fontFamily:"inherit",
-                    color:"#111827", background:"#fff",
-                    transition:"border-color 0.2s, box-shadow 0.2s"
-                  }}
-                />
-              </div>
-
-              {/* Error */}
-              {status === "error" && errorMsg && (
-                <div className="login-toast" style={{
-                  background:"#fef2f2", border:"1.5px solid #fca5a5",
-                  borderRadius:10, padding:"10px 14px",
-                  color:"#dc2626", fontSize:12, fontWeight:600,
-                  marginBottom:"0.75rem"
-                }}>
-                  ⚠️ {errorMsg}
-                </div>
+          {estado !== "sent" && (
+            <button className="lbtn" onClick={handleSend} disabled={estado === "sending"}>
+              {estado === "sending" ? (
+                <><span className="lspinner" /> Enviando...</>
+              ) : (
+                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg> Enviar link de acceso</>
               )}
-
-              {/* Send button */}
-              <button
-                className="login-btn"
-                onClick={handleSend}
-                disabled={status === "sending"}
-                style={{
-                  width:"100%", padding:"14px",
-                  background: status === "sending"
-                    ? "#6b7280"
-                    : "linear-gradient(135deg,#064e3b,#059669)",
-                  color:"#fff", border:"none", borderRadius:14,
-                  fontSize:15, fontWeight:700, cursor: status === "sending" ? "wait" : "pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                  letterSpacing:"0.02em"
-                }}>
-                {status === "sending" ? (
-                  <><div className="login-spinner"/> Enviando...</>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                      stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
-                    </svg>
-                    Enviar link de acceso
-                  </>
-                )}
-              </button>
-
-              {/* Features */}
-              <div style={{
-                display:"flex", justifyContent:"center", gap:24, marginTop:"1.5rem"
-              }}>
-                {[
-                  { icon:"🔒", label:"Sin contraseña" },
-                  { icon:"⚡", label:"Acceso rápido" },
-                  { icon:"👤", label:"Solo autorizados" },
-                ].map((f, i) => (
-                  <div key={i} className="login-feat" style={{
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:4
-                  }}>
-                    <div className="login-feat-icon" style={{
-                      width:36, height:36, borderRadius:10,
-                      background: i === 0 ? "#ecfdf5" : i === 1 ? "#fef3c7" : "#eff6ff",
-                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:16
-                    }}>{f.icon}</div>
-                    <span style={{
-                      fontSize:10, fontWeight:700, color:"#9ca3af",
-                      textTransform:"uppercase", letterSpacing:"0.05em", textAlign:"center"
-                    }}>{f.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p style={{
-                fontSize:11, color:"#9ca3af", textAlign:"center",
-                marginTop:"1.25rem", lineHeight:1.5
-              }}>
-                Si no recibís el link, revisá la carpeta de spam.
-              </p>
-            </>
+            </button>
           )}
+
+          <div className={`ltoast${estado === "sent" ? " show" : ""}`}>
+            <div className="ldot" />
+            <div>
+              <p style={{fontSize:13,fontWeight:700,color:"#065f46",margin:"0 0 3px"}}>Link enviado a {email}</p>
+              <p style={{fontSize:12,color:"#047857",margin:0}}>Revisá tu casilla y hacé click en el link. Expira en 15 min.</p>
+            </div>
+          </div>
+
+          <div className={`lerrmsg${estado === "error" ? " show" : ""}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            {errorMsg}
+          </div>
+
+          <div className="lfeats">
+            <div className="lfeat"><div className="lfeaticon" style={{background:"#ecfdf5"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><span className="lfeatlabel">Sin<br/>contraseña</span></div>
+            <div className="lfeat"><div className="lfeaticon" style={{background:"#eff6ff"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div><span className="lfeatlabel">Acceso<br/>exclusivo</span></div>
+            <div className="lfeat"><div className="lfeaticon" style={{background:"#fef3c7"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><span className="lfeatlabel">Acceso<br/>inmediato</span></div>
+          </div>
+
+          <p className="lnote">Solo los emails autorizados pueden ingresar.<br/>Si no recibís el link, revisá spam.</p>
         </div>
       </div>
     </>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MENU CARD — tarjeta de acceso rápido
-// ═══════════════════════════════════════════════════════════════════════════
-function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
-  const themes = {
-    green: {
-      card: "card-green",
-      strip: "card-strip-green",
-      textTitle: "text-white",
-      textDesc: "text-emerald-100",
-      textStat: "text-emerald-200",
-      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
-      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
-      shadow: "hover:shadow-emerald-900/50",
-      overlay: "from-emerald-900/20 to-transparent",
-    },
-    multi: {
-      card: "card-multi",
-      strip: "card-strip-multi",
-      textTitle: "text-white",
-      textDesc: "text-purple-100",
-      textStat: "text-purple-200",
-      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
-      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
-      shadow: "hover:shadow-purple-900/50",
-      overlay: "from-purple-900/20 to-transparent",
-    },
-    amber: {
-      card: "card-amber",
-      strip: "card-strip-amber",
-      textTitle: "text-white",
-      textDesc: "text-amber-100",
-      textStat: "text-amber-200",
-      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
-      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
-      shadow: "hover:shadow-amber-900/50",
-      overlay: "from-amber-900/20 to-transparent",
-    },
-  };
-  const t = themes[color] || themes.green;
-  const animClass = iconAnim === "float" ? "card-icon-float" : iconAnim === "spin" ? "card-icon-spin" : "card-icon-bounce";
-
-  return (
-    <button
-      onClick={onClick}
-      className={`${t.card} rounded-[2rem] overflow-hidden hover:shadow-2xl ${t.shadow} hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative`}
-    >
-      {/* Animated strip top */}
-      <div className={`h-1.5 w-full ${t.strip} bg-[length:200%] animate-[shimmer_2s_linear_infinite]`} />
-
-      {/* Subtle overlay pattern */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${t.overlay} pointer-events-none`} />
-      <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-black/10 translate-y-12 -translate-x-12 pointer-events-none" />
-
-      <div className="relative p-5 md:p-7">
-        {/* Animated Icon */}
-        <div className={`${t.iconWrap} w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-3 md:mb-4 transition-all duration-300 shadow-lg ${animClass}`}>
-          {icon}
-        </div>
-
-        <h3 className={`text-xl md:text-2xl font-black ${t.textTitle} mb-2 tracking-tight leading-tight`}>{title}</h3>
-        <p className={`${t.textDesc} font-medium leading-relaxed text-sm mb-3`}>{desc}</p>
-
-        {/* Stats pills */}
-        {stats && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {stats.map((s, i) => (
-              <span key={i} className={`text-xs font-bold ${t.textStat} bg-white/10 border border-white/20 px-2.5 py-1 rounded-full`}>
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className={`${t.cta} inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200`}>
-          <span>Abrir simulador</span>
-          <span className="transition-transform group-hover:translate-x-1">→</span>
-        </div>
-      </div>
-    </button>
   );
 }
 
