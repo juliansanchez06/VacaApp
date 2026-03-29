@@ -2866,6 +2866,63 @@ function BotonGuardarSim({ onGuardar, color = "sky", onToast }) {
 // ═══════════════════════════════════════════════════════════════════════════
 const ACTION_URL = window.location.origin;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MENU CARD
+// ═══════════════════════════════════════════════════════════════════════════
+function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
+  const themes = {
+    green: {
+      card: "card-green", strip: "card-strip-green",
+      textTitle: "text-white", textDesc: "text-emerald-100", textStat: "text-emerald-200",
+      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
+      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
+      shadow: "hover:shadow-emerald-900/50",
+    },
+    multi: {
+      card: "card-multi", strip: "card-strip-multi",
+      textTitle: "text-white", textDesc: "text-purple-100", textStat: "text-purple-200",
+      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
+      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
+      shadow: "hover:shadow-purple-900/50",
+    },
+    amber: {
+      card: "card-amber", strip: "card-strip-amber",
+      textTitle: "text-white", textDesc: "text-amber-100", textStat: "text-amber-200",
+      iconWrap: "bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30",
+      cta: "bg-white/20 hover:bg-white/30 text-white border border-white/40",
+      shadow: "hover:shadow-amber-900/50",
+    },
+  };
+  const t = themes[color] || themes.green;
+  const animClass = iconAnim === "float" ? "card-icon-float" : iconAnim === "spin" ? "card-icon-spin" : "card-icon-bounce";
+  return (
+    <button onClick={onClick}
+      className={`${t.card} rounded-[2rem] overflow-hidden hover:shadow-2xl ${t.shadow} hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative`}>
+      <div className={`h-1.5 w-full ${t.strip}`} />
+      <div className="absolute inset-0 pointer-events-none" style={{background:"linear-gradient(135deg,rgba(255,255,255,0.05),transparent)"}} />
+      <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
+      <div className="relative p-5 md:p-7">
+        <div className={`${t.iconWrap} w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-3 md:mb-4 transition-all duration-300 shadow-lg ${animClass}`}>
+          {icon}
+        </div>
+        <h3 className={`text-xl md:text-2xl font-black ${t.textTitle} mb-2 tracking-tight leading-tight`}>{title}</h3>
+        <p className={`${t.textDesc} font-medium leading-relaxed text-sm mb-3`}>{desc}</p>
+        {stats && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {stats.map((s, i) => (
+              <span key={i} className={`text-xs font-bold ${t.textStat} bg-white/10 border border-white/20 px-2.5 py-1 rounded-full`}>{s}</span>
+            ))}
+          </div>
+        )}
+        <div className={`${t.cta} inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200`}>
+          <span>Abrir simulador</span>
+          <span className="transition-transform group-hover:translate-x-1">→</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function LoginScreen() {
   const [email, setEmail]   = useState("");
   const [estado, setEstado] = useState("idle");
@@ -3347,3 +3404,4 @@ export default function App() {
     />
   );
 }
+
