@@ -100,6 +100,27 @@ const GLOBAL_STYLE = `
     position: relative;
     overflow: hidden;
   }
+  /* ── Floating $ signs ──────────────────────────────────────────────── */
+  @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
+  @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
+  @keyframes floatDollar3{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-30px) rotate(5deg)}}
+  @keyframes floatDollar4{0%,100%{transform:translateY(0) rotate(35deg)}50%{transform:translateY(-48px) rotate(25deg)}}
+  @keyframes floatDollar5{0%,100%{transform:translateY(0) rotate(-25deg)}50%{transform:translateY(-36px) rotate(-18deg)}}
+  @keyframes floatDollar6{0%,100%{transform:translateY(0) rotate(10deg)}50%{transform:translateY(-60px) rotate(18deg)}}
+  .login-dollar {
+    position: absolute;
+    color: #a7f3d0;
+    font-weight: 900;
+    pointer-events: none;
+    user-select: none;
+    line-height: 1;
+  }
+  .ld1{font-size:72px;opacity:.09;top:8%;left:4%;animation:floatDollar1 7s ease-in-out infinite;}
+  .ld2{font-size:48px;opacity:.07;top:15%;right:6%;animation:floatDollar2 9s ease-in-out 1s infinite;}
+  .ld3{font-size:96px;opacity:.06;bottom:12%;left:2%;animation:floatDollar3 8s ease-in-out 2s infinite;}
+  .ld4{font-size:36px;opacity:.09;bottom:25%;right:4%;animation:floatDollar4 6s ease-in-out .5s infinite;}
+  .ld5{font-size:60px;opacity:.07;top:55%;right:12%;animation:floatDollar5 10s ease-in-out 1.5s infinite;}
+  .ld6{font-size:44px;opacity:.08;top:42%;left:15%;animation:floatDollar6 7.5s ease-in-out 3s infinite;}
   .login-blob {
     position: absolute;
     border-radius: 50%;
@@ -125,16 +146,42 @@ const GLOBAL_STYLE = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 1.5rem;
-    animation: loginFadeUp 0.5s 0.1s both;
+    margin-bottom: 1.25rem;
+    animation: loginLogoIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+  }
+  @keyframes loginLogoIn {
+    from { opacity:0; transform: scale(0.6) rotate(-6deg); }
+    to   { opacity:1; transform: scale(1) rotate(0deg); }
+  }
+  .login-line {
+    height: 2px;
+    width: 56px;
+    background: linear-gradient(90deg, #10b981, #34d399, transparent);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    animation: loginLineGrow 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.5s both;
+  }
+  @keyframes loginLineGrow {
+    from { width: 0; opacity: 0; }
+    to   { width: 56px; opacity: 1; }
+  }
+  .login-slogan-badge {
+    background: linear-gradient(135deg, #064e3b, #059669);
+    color: #a7f3d0;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 20px;
   }
   .login-slogan {
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.18em;
     color: #6b7280;
     text-transform: uppercase;
-    margin: 0.5rem 0 0;
+    margin: 0;
   }
   .login-heading {
     font-size: 22px;
@@ -2956,26 +3003,20 @@ function LoginScreen({ onLogin }) {
           boxShadow:"0 32px 80px rgba(0,0,0,0.25)"
         }}>
           {/* Logo */}
-          <div style={{textAlign:"center", marginBottom:"0.5rem"}}>
+          <div className="login-logo-wrap">
             <img
               src={`data:image/png;base64,${LOGO_B64}`}
               alt="VacaApp"
-              style={{height:64, objectFit:"contain", marginBottom:"0.75rem"}}
+              style={{ height:"72px", maxWidth:"240px", objectFit:"contain", marginBottom:"10px" }}
             />
-            <p style={{
-              fontSize:10, fontWeight:700, letterSpacing:"0.22em",
-              color:"#6b7280", textTransform:"uppercase", margin:0
-            }}>
-              Gestión Ganadera Profesional
-            </p>
+            <div className="login-line" />
+            <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+              <span className="login-slogan-badge">Simulador</span>
+              <span className="login-slogan">Económico Ganadero</span>
+            </div>
           </div>
 
-          {/* Divider */}
-          <div style={{
-            height:2, margin:"1.25rem 0",
-            background:"linear-gradient(90deg,transparent,#d1fae5,#10b981,#d1fae5,transparent)",
-            borderRadius:2
-          }}/>
+
 
           {status === "completing" ? (
             <div style={{textAlign:"center", padding:"2rem 0"}}>
