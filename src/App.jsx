@@ -3030,7 +3030,15 @@ function LoginScreen() {
       window.localStorage.setItem("emailParaLogin", em);
       setEstado("sent");
     } catch(err) {
-      setErrorMsg("Error al enviar el link. Intentá de nuevo."); setEstado("error");
+      const code = err?.code || "";
+      let msg = "Error al enviar el link. Intentá de nuevo.";
+      if (code === "auth/invalid-email") msg = "Email inválido.";
+      else if (code === "auth/unauthorized-domain") msg = "Dominio no autorizado en Firebase. Agregá vacaapp-umber.vercel.app en Authentication → Settings → Authorized domains.";
+      else if (code === "auth/too-many-requests") msg = "Demasiados intentos. Esperá unos minutos.";
+      else if (code === "auth/operation-not-allowed") msg = "Email link no habilitado en Firebase. Activá Email/Password + Email link en Authentication → Sign-in method.";
+      else if (code) msg = `Error Firebase: ${code}`;
+      setErrorMsg(msg); setEstado("error");
+      console.error("Firebase auth error:", err);
     }
   };
 
