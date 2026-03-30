@@ -3761,6 +3761,56 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     </div>
                   );
                 })()}
+                {/* ── Botón Destetar ── */}
+                {(() => {
+                  const madres   = criaDatos.vacas + criaDatos.vaquillonas;
+                  const pren     = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
+                  const nacidos  = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
+                  const dest     = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
+                  const machos   = Math.round(dest * (criaDatos.pctMachos ?? 50) / 100);
+                  const hembras  = dest - machos;
+                  const yaDestetado = criaDatos.ternerosNoDestetados === 0 && (reciaDatos.ternerosLiquidaMachos > 0 || reciaDatos.ternerosLiquidaHembras > 0);
+                  return (
+                    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
+                        {yaDestetado && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">✓ Ya destetado</span>}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-white rounded-xl border border-emerald-200 py-2">
+                          <p className="text-xs text-emerald-600">Total destete</p>
+                          <p className="font-black text-emerald-900 text-lg">{dest}</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-blue-200 py-2">
+                          <p className="text-xs text-blue-600">Machos → recría</p>
+                          <p className="font-black text-blue-800 text-lg">{machos}</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-rose-200 py-2">
+                          <p className="text-xs text-rose-600">Hembras → recría</p>
+                          <p className="font-black text-rose-700 text-lg">{hembras}</p>
+                        </div>
+                      </div>
+                      <button
+                        disabled={dest === 0}
+                        onClick={() => onSincronizar({
+                          _accion: "pasar-destete-recria",
+                          machos,
+                          hembras,
+                        })}
+                        className={`w-full flex items-center justify-center gap-2 font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group
+                          ${dest === 0
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                            : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"}`}>
+                        <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                        Destetar {dest} terneros → Recría ({machos}M + {hembras}H)
+                      </button>
+                      <p className="text-xs text-emerald-600 text-center">
+                        Las vacas quedan libres · Los terneros pasan a Recría como marca líquida
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 <button
                   onClick={() => onSincronizar({
                     target: "vientres",
@@ -3817,15 +3867,29 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
                   <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
                 </div>
-                <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  {[
-                    ["Total recría", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos],
-                    ["Marca líquida", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras],
-                    ["Compra", reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras],
-                    ["Novillos", reciaDatos.novillos],
-                  ].map(([l,v]) => (
-                    <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
-                  ))}
+                <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    {[
+                      ["Total recría", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos],
+                      ["Marca líquida", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras],
+                      ["Compra", reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras],
+                      ["Novillos", reciaDatos.novillos],
+                    ].map(([l,v]) => (
+                      <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
+                    ))}
+                  </div>
+                  {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) > 0 && (
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                      <span className="text-sm">✓</span>
+                      <p className="text-xs text-emerald-700 font-semibold">
+                        {reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría —
+                        {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H
+                      </p>
+                    </div>
+                  )}
+                  {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) === 0 && (
+                    <p className="text-xs text-slate-400 text-center">Sin marca líquida — destetá desde Cría para agregar terneros</p>
+                  )}
                 </div>
                 {reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras > 0 && (
                   <button
@@ -4161,21 +4225,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div><p className="text-xs text-blue-600">Kg al cierre</p><p className="font-black text-blue-800 text-xl">{fmt(kgTernerosAlCierre)}</p></div>
                       <div><p className="text-xs text-emerald-600">kg/ha terneros</p><p className="font-black text-emerald-900 text-xl">{hectareas>0?Math.round(kgTernerosAlCierre/hectareas):"-"}</p></div>
                     </div>
-                    <button
-                      onClick={() => {
-                        const machos = Math.round(totalDestete * pctMachos / 100);
-                        const hembras = totalDestete - machos;
-                        onSincronizar({
-                          target: null,
-                          descripcion: null,
-                          _accion: "pasar-destete-recria",
-                          machos,
-                          hembras,
-                        });
-                      }}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
-                      <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                      Pasar {totalDestete} terneros destetados a Recría ({Math.round(totalDestete*pctMachos/100)}M + {totalDestete-Math.round(totalDestete*pctMachos/100)}H)
+                    <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
+                      className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95">
+                      → Ir a Cría para destetar
                     </button>
                   </div>
 
@@ -4542,7 +4594,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     paricionMes: 9, paricionAnio: new Date().getFullYear(), mesesDestete: 6,
   });
   const [campoRecria, setCampoRecria] = useState({
-    ternerosLiquidaMachos: 22, ternerosLiquidaHembras: 42,
+    ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
     ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: 16,
     pctMortandadRecria: 2,
   });
