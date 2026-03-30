@@ -3519,26 +3519,39 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
-  const EditField = ({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) => (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500 font-semibold">{label}</span>
-        {usdVal && <span className="text-xs text-emerald-600 font-semibold">{usdVal}</span>}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button onClick={() => onChange(Math.max(minVal, value - step))}
-          className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all">−</button>
-        <div className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-2 py-1.5 text-center">
-          <span className="text-xs text-slate-400">{prefix}</span>
-          <span className="font-mono font-black text-base text-slate-800">{fmt(value)}</span>
-          <span className="text-xs text-slate-400 ml-0.5">{suffix}</span>
+  const EditField = ({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) => {
+    const decFn  = useCallback(() => onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)), [value, step, minVal, onChange]);
+    const incFn  = useCallback(() => onChange(Math.round((value + step) * 100) / 100), [value, step, onChange]);
+    const decLP  = useLongPress(decFn, 180);
+    const incLP  = useLongPress(incFn, 180);
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 font-semibold">{label}</span>
+          <div className="flex items-center gap-1.5">
+            {usdVal && <span className="text-xs text-emerald-600 font-semibold">{usdVal}</span>}
+            {value !== minVal && (
+              <button onClick={() => onChange(minVal)}
+                className="text-xs text-slate-400 hover:text-red-500 font-black px-1.5 py-0.5 rounded-md hover:bg-red-50 transition-all"
+                title="Poner en 0">×0</button>
+            )}
+          </div>
         </div>
-        <button onClick={() => onChange(value + step)}
-          className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all">+</button>
+        <div className="flex items-center gap-1.5">
+          <button {...decLP}
+            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">−</button>
+          <div className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-2 py-1.5 text-center">
+            <span className="text-xs text-slate-400">{prefix}</span>
+            <span className="font-mono font-black text-base text-slate-800">{fmt(value)}</span>
+            <span className="text-xs text-slate-400 ml-0.5">{suffix}</span>
+          </div>
+          <button {...incLP}
+            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">+</button>
+        </div>
+        {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
       </div>
-      {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
@@ -3891,13 +3904,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <p className="text-xs text-slate-400 text-center">Sin marca líquida — destetá desde Cría para agregar terneros</p>
                   )}
                 </div>
-                {reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras > 0 && (
-                  <button
+                <button
                     onClick={() => onSincronizar({
                       target: "poder",
-                      descripcion: `${reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras} terneros comprados · simulando poder de compra`,
+                      descripcion: `${reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras > 0 ? reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+" terneros compra" : "nueva compra"} · simulando poder de compra`,
                       venta: {
-                        cantidad: reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras,
+                        cantidad: Math.max(1, reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras),
                         pesoPromedio: 180,
                         precioKg: 2200,
                       }
@@ -3906,7 +3918,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
                     Simular compra en Poder de Compra
                   </button>
-                )}
               </div>
             </div>
           </div>
