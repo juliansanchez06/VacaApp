@@ -3347,58 +3347,114 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     anosVidaUtil: 6,
   };
 
-  // ── Rendimiento kg/ha — calculado automático del stock ───────────────────
+  // ── Rendimiento kg/ha — dinámica productiva ────────────────────────────────
   const [hectareas, setHectareas] = useState(1000);
 
-  // Pesos de venta — calculados del stock, no editables por el usuario
-  const pVacaDescarte     = 380;  // promedio estándar vaca descarte
-  const pTerneroInvernada = terminacionDatos.pesoPromedioKg > 0 ? Math.round(terminacionDatos.pesoPromedioKg * 0.45) : 200; // ternero ~45% del novillo
-  const pNovilloInvernada = terminacionDatos.pesoPromedioKg > 0 ? Math.round(terminacionDatos.pesoPromedioKg * 0.82) : 360; // novillo inv ~82% del terminado
-  const pNovilloFaena     = terminacionDatos.pesoPromedioKg > 0 ? terminacionDatos.pesoPromedioKg : 420; // peso real del stock
+  // Parición
+  const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const hoy = new Date();
+  const [paricionMes, setParicionMes]   = useState(9);   // Octubre (0-indexed)
+  const [paricionAnio, setParicionAnio] = useState(hoy.getFullYear());
 
-  // ── Ventas año actual — solo animales que generan kg vendibles ──────────────
-  // Vacas descarte = vacías (campo calcula vacas - preñadas, o 0 si no hay dato)
-  const madresCria          = criaDatos.vacas + criaDatos.vaquillonas;
-  const preñadasEst         = Math.round(madresCria * 0.85);
-  const cabVacasDescarte    = (criaDatos.vacias !== undefined && criaDatos.vacias !== null) ? (criaDatos.vacias || 0) : Math.max(0, madresCria - preñadasEst);
-  // Terneros invernada = terneros machos marca líquida que se venden sin terminar
-  const cabTernerosInv      = reciaDatos.ternerosLiquidaMachos;
-  // Novillos invernada = novillos de recría (se venden como invernada)
-  const cabNovillosInv      = reciaDatos.novillos;
-  // Novillos faena = terminación campo + feedlot
-  const cabNovillosFaena    = terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
-  // NO se cuentan: vacas productivas, toros, vaquillonas en desarrollo, hembras recría
+  // GDP por categoría (kg/día)
+  const [gdpTernero,  setGdpTernero]  = useState(0.5);
+  const [gdpNovilloInv, setGdpNovilloInv] = useState(0.6);
+  const [gdpNovilloFaena, setGdpNovilloFaena] = useState(0.8);
+  const [gdpVaquillonaDesc, setGdpVaquillonaDesc] = useState(0.5);
 
-  const kgVacasDescarte     = cabVacasDescarte * pVacaDescarte;
-  const kgTernerosInv       = cabTernerosInv   * pTerneroInvernada;
-  const kgNovillosInv       = cabNovillosInv   * pNovilloInvernada;
-  const kgNovillosFaena     = cabNovillosFaena * pNovilloFaena;
-  const kgTotalAct          = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena;
-  const kgHaAct             = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
+  // Destete y reposición
+  const [meseDestete,   setMesesDestete]  = useState(6);  // meses desde parición al destete
+  const [pctMachos,     setPctMachos]     = useState(50);  // % machos del destete
+  const [pctReposicion, setPctReposicion] = useState(30);  // % hembras que quedan como vientres
 
-  // ── Proyección año siguiente ──────────────────────────────────────────────
-  // Madres actuales → destete 75% → 50% machos → novillos próx. año
-  const madresActuales       = criaDatos.vacas + criaDatos.vaquillonas;
-  const pctDesteteEst        = madresActuales > 0
-    ? Math.round(criaDatos.ternerosNoDestetados / madresActuales * 100)
-    : 75;
-  const ternerosProxAno      = Math.round(madresActuales * (pctDesteteEst / 100));
-  const machosDestete        = Math.round(ternerosProxAno * 0.5);
-  // Compras en recría actual que van a faena el próx. año
-  const comprasProx          = reciaDatos.ternerosCompraMachos;
-  // Vacas descarte proyectadas (mantener proporción actual)
-  const vacasDescarteProx    = cabVacasDescarte;
-  // Terneros invernada proyectados = machos del destete
-  const ternerosInvProx      = machosDestete;
-  // Novillos faena proyectados = novillos actuales en recría + compras
-  const novillosFaenaProx    = reciaDatos.novillos + comprasProx;
+  // Meses desde parición hasta cierre 30/jun
+  const calcMesesHastaCierre = (mes, anio) => {
+    const paricion  = new Date(anio, mes, 1);
+    // Próximo 30 de junio
+    const cierreAnio = paricion.getMonth() >= 6 ? paricion.getFullYear() + 1 : paricion.getFullYear();
+    const cierre    = new Date(cierreAnio, 5, 30);
+    const diff      = (cierre - paricion) / (1000 * 60 * 60 * 24 * 30);
+    return Math.max(0, Math.round(diff));
+  };
+  const mesesHastaCierre = calcMesesHastaCierre(paricionMes, paricionAnio);
+  const mesesDesteteHastaCierre = Math.max(0, mesesHastaCierre - meseDestete);
 
-  const kgVacasDescProx      = vacasDescarteProx  * pVacaDescarte;
-  const kgTernerosInvProx    = ternerosInvProx    * pTerneroInvernada;
-  const kgNovillosFaenaProx  = novillosFaenaProx  * pNovilloFaena;
-  const kgTotalProx          = kgVacasDescProx + kgTernerosInvProx + kgNovillosFaenaProx;
-  const kgHaProx             = hectareas > 0 ? Math.round(kgTotalProx / hectareas) : 0;
-  const tendencia            = kgHaProx > kgHaAct ? "sube" : kgHaProx < kgHaAct ? "baja" : "estable";
+  // Pesos de nacimiento / destete base
+  const pesoNacimiento  = 35;   // kg al nacer
+  const pesoDestete     = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
+
+  // Peso al cierre del año (30/jun) desde el destete
+  const pesoTerneroAlCierre    = Math.round(pesoDestete + mesesDesteteHastaCierre * 30 * gdpTernero);
+  const pesoNovilloInvAlCierre = Math.round(pesoDestete + mesesHastaCierre * 30 * gdpNovilloInv);
+  const pesoNovilloFaenaAlCierre = terminacionDatos.pesoPromedioKg > 0 ? terminacionDatos.pesoPromedioKg : Math.round(pesoDestete + mesesHastaCierre * 30 * gdpNovilloFaena);
+  const pesoVaquillonaAlCierre = Math.round(pesoDestete + mesesDesteteHastaCierre * 30 * gdpVaquillonaDesc);
+
+  // Cabezas por categoría
+  const madresCria         = criaDatos.vacas + criaDatos.vaquillonas;
+  const pctDesteteEst      = madresCria > 0 ? Math.round(criaDatos.ternerosNoDestetados / Math.max(1, madresCria) * 100) : 75;
+  const totalDestete       = Math.round(madresCria * (pctDesteteEst / 100));
+  const machosDest         = Math.round(totalDestete * pctMachos / 100);
+  const hembrasDest        = totalDestete - machosDest;
+  const hembrasReposicion  = Math.round(hembrasDest * pctReposicion / 100);
+  const hembrasVenta       = hembrasDest - hembrasReposicion;  // van a recría → venta
+
+  // Vacas descarte = vacías explícitas
+  const cabVacasDescarte   = criaDatos.vacias || 0;
+  // Terneros invernada = terneros machos recría que se venden al cierre
+  const cabTernerosInv     = reciaDatos.ternerosLiquidaMachos + machosDest;
+  // Novillos invernada = novillos recría
+  const cabNovillosInv     = reciaDatos.novillos;
+  // Novillos faena = terminación
+  const cabNovillosFaena   = terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
+  // Vaquillonas descarte (hembras fuera de reposición)
+  const cabVaquillonaDesc  = hembrasVenta + reciaDatos.ternerosLiquidaHembras;
+
+  // Pesos de venta calculados (GDP × meses)
+  const pVacaDescarte      = 380;
+  const pTerneroInvernada  = pesoTerneroAlCierre;
+  const pNovilloInvernada  = pesoNovilloInvAlCierre;
+  const pNovilloFaena      = pesoNovilloFaenaAlCierre;
+  const pVaquillonaDesc    = pesoVaquillonaAlCierre;
+
+  // kg totales por categoría
+  const kgVacasDescarte    = cabVacasDescarte   * pVacaDescarte;
+  const kgTernerosInv      = cabTernerosInv     * pTerneroInvernada;
+  const kgNovillosInv      = cabNovillosInv     * pNovilloInvernada;
+  const kgNovillosFaena    = cabNovillosFaena   * pNovilloFaena;
+  const kgVaquillonaDesc   = cabVaquillonaDesc  * pVaquillonaDesc;
+  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc;
+  const kgHaAct            = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
+
+  // Proyección año siguiente — con GDP proyectada 12 meses completos
+  const pesoTernProx       = Math.round(pesoDestete + 12 * 30 * gdpTernero);
+  const pesoNovInvProx     = Math.round(pesoDestete + 18 * 30 * gdpNovilloInv);
+  const pesoNovFaenaProx   = Math.round(pesoDestete + 24 * 30 * gdpNovilloFaena);
+  const pesoVaqProx        = Math.round(pesoDestete + 18 * 30 * gdpVaquillonaDesc);
+
+  const comprasProx        = reciaDatos.ternerosCompraMachos;
+  const novillosFaenaProx  = reciaDatos.novillos + comprasProx;
+  const ternerosInvProx    = machosDest;
+  const vaquillonaDescProx = hembrasVenta;
+  const vacasDescarteProx  = cabVacasDescarte;
+
+  const kgVacasDescProx    = vacasDescarteProx  * pVacaDescarte;
+  const kgTernerosInvProx  = ternerosInvProx    * pesoTernProx;
+  const kgNovillosFaenaProx= novillosFaenaProx  * pesoNovFaenaProx;
+  const kgVaqDescProx      = vaquillonaDescProx * pesoVaqProx;
+  const kgTotalProx        = kgVacasDescProx + kgTernerosInvProx + kgNovillosFaenaProx + kgVaqDescProx;
+  const kgHaProx           = hectareas > 0 ? Math.round(kgTotalProx / hectareas) : 0;
+  const tendencia          = kgHaProx > kgHaAct ? "sube" : kgHaProx < kgHaAct ? "baja" : "estable";
+
+  // Tabla mensual de acumulación de kg (actual: desde hoy hasta 30/jun)
+  const tablaAcumulacion = Array.from({ length: Math.min(mesesHastaCierre, 12) }, (_, i) => {
+    const m = i + 1;
+    return {
+      mes: MESES_ES[(paricionMes + i) % 12],
+      kgTernero:  Math.round(pesoNacimiento + m * 30 * gdpTernero),
+      kgNovilloInv: Math.round(pesoNacimiento + m * 30 * gdpNovilloInv),
+      kgNovFaena: Math.round(pesoNacimiento + m * 30 * gdpNovilloFaena),
+    };
+  });
 
   const historialKgHa = [
     ...Object.entries(historialAnos).sort().map(([ano, snap]) => {
@@ -3406,7 +3462,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
       const re = snap.recria      || {};
       const te = snap.terminacion || {};
       const madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
-      const descCr   = Math.max(0, madresCr - Math.round(madresCr * 0.85));
+      const descCr   = cr.vacias || Math.max(0, madresCr - Math.round(madresCr * 0.85));
       const kgDesc   = descCr * pVacaDescarte;
       const kgTern   = (re.ternerosLiquidaMachos || 0) * pTerneroInvernada;
       const kgNovInv = (re.novillos || 0) * pNovilloInvernada;
@@ -3746,36 +3802,134 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         {seccion === "rendimiento" && (
           <div className="space-y-5 sim-zoom-enter">
 
-            {/* Solo hectáreas — el resto se calcula del stock */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="shrink-0">
-                  <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" hint="Superficie productiva total" minVal={1} />
+            {/* ── Fila 1: Parición + Destete + GDP ── */}
+            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">📅 Parición y destete</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                {/* Mes de parición */}
+                <div className="space-y-1">
+                  <span className="text-xs text-slate-500 font-semibold">Mes de parición</span>
+                  <select value={paricionMes} onChange={e=>setParicionMes(Number(e.target.value))}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                    {MESES_ES.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                  </select>
                 </div>
-                <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label:"Peso vaca descarte", val:`${pVacaDescarte} kg`, color:"text-rose-600" },
-                    { label:"Peso ternero inv.",   val:`${pTerneroInvernada} kg`, color:"text-sky-600" },
-                    { label:"Peso novillo inv.",   val:`${pNovilloInvernada} kg`, color:"text-violet-600" },
-                    { label:"Peso novillo faena",  val:`${pNovilloFaena} kg`, color:"text-amber-600" },
-                  ].map((p,i)=>(
-                    <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                      <p className="text-xs text-slate-400">{p.label}</p>
-                      <p className={`font-mono font-black text-base ${p.color}`}>{p.val}</p>
-                      <p className="text-xs text-slate-300">del stock</p>
+
+                {/* Año de parición */}
+                <div className="space-y-1">
+                  <span className="text-xs text-slate-500 font-semibold">Año de parición</span>
+                  <select value={paricionAnio} onChange={e=>setParicionAnio(Number(e.target.value))}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                    {[hoy.getFullYear()-1, hoy.getFullYear(), hoy.getFullYear()+1].map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+
+                {/* Meses al destete */}
+                <EditField label="Meses al destete" value={meseDestete} onChange={setMesesDestete} step={1} suffix=" meses" hint={`Destete: ${MESES_ES[(paricionMes+meseDestete)%12]} · Peso: ${pesoDestete} kg`} minVal={1} />
+
+                {/* Hectáreas */}
+                <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" minVal={1} />
+              </div>
+
+              {/* Info calculada */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:"Meses hasta cierre", val: mesesHastaCierre+" m", color:"text-slate-700" },
+                  { label:"Meses post-destete", val: mesesDesteteHastaCierre+" m", color:"text-emerald-700" },
+                  { label:"Peso al destete",    val: pesoDestete+" kg", color:"text-blue-700" },
+                  { label:"Fecha destete",      val: MESES_ES[(paricionMes+meseDestete)%12], color:"text-violet-700" },
+                ].map((k,i)=>(
+                  <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-center">
+                    <p className="text-xs text-slate-400">{k.label}</p>
+                    <p className={`font-black text-base ${k.color}`}>{k.val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Fila 2: GDP por categoría ── */}
+            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚡ GDP por categoría (kg/día)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label:"Ternero",          val:gdpTernero,     set:setGdpTernero,    color:"sky",    peso:pesoTerneroAlCierre },
+                  { label:"Novillo invernada", val:gdpNovilloInv,  set:setGdpNovilloInv, color:"violet", peso:pesoNovilloInvAlCierre },
+                  { label:"Novillo faena",     val:gdpNovilloFaena,set:setGdpNovilloFaena,color:"amber", peso:pesoNovilloFaenaAlCierre },
+                  { label:"Vaquillona desc.",  val:gdpVaquillonaDesc,set:setGdpVaquillonaDesc,color:"rose",peso:pesoVaquillonaAlCierre },
+                ].map(({label,val,set,color,peso},i)=>(
+                  <div key={i} className={`section-${color==="sky"?"teal":color==="violet"?"violet":color==="amber"?"amber":"sky"} rounded-2xl border-2 p-3 space-y-2`}>
+                    <p className={`text-xs font-black uppercase tracking-widest text-${color}-700`}>{label}</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>set(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                        className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
+                      <div className="flex-1 text-center">
+                        <span className={`font-mono font-black text-xl text-${color}-800`}>{val.toFixed(1)}</span>
+                        <span className={`text-xs text-${color}-600 ml-1`}>kg/d</span>
+                      </div>
+                      <button onClick={()=>set(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                        className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
                     </div>
-                  ))}
+                    <input type="range" min="0" max="1.5" step="0.1" value={val}
+                      onChange={e=>set(Math.round(parseFloat(e.target.value)*10)/10)}
+                      className="w-full accent-emerald-500" />
+                    <p className={`text-xs text-${color}-600 text-center`}>Peso al cierre: <span className="font-black">{peso} kg</span></p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Fila 3: Machos / Hembras + Reposición ── */}
+            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">🐄 Distribución machos / hembras y reposición</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                {/* Slider machos/hembras */}
+                <div className="space-y-3">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-blue-700">♂ Machos {pctMachos}% — {machosDest} cab</span>
+                    <span className="text-rose-600">♀ Hembras {100-pctMachos}% — {hembrasDest} cab</span>
+                  </div>
+                  <div className="h-6 rounded-full overflow-hidden flex">
+                    <div className="bg-blue-400 transition-all duration-300 flex items-center justify-center text-white text-xs font-black"
+                      style={{width:`${pctMachos}%`}}>{pctMachos}%</div>
+                    <div className="bg-rose-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-pctMachos}%</div>
+                  </div>
+                  <input type="range" min="40" max="60" step="1" value={pctMachos}
+                    onChange={e=>setPctMachos(Number(e.target.value))}
+                    className="w-full accent-blue-500" />
+                  <p className="text-xs text-slate-400 text-center">Total destete: {totalDestete} cab ({machosDest} M + {hembrasDest} H)</p>
+                </div>
+
+                {/* % Reposición hembras */}
+                <div className="space-y-3">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-emerald-700">🔄 Reposición {pctReposicion}% — {hembrasReposicion} vaq.</span>
+                    <span className="text-amber-700">→ Venta {100-pctReposicion}% — {hembrasVenta} vaq.</span>
+                  </div>
+                  <div className="h-6 rounded-full overflow-hidden flex">
+                    <div className="bg-emerald-400 transition-all duration-300 flex items-center justify-center text-white text-xs font-black"
+                      style={{width:`${pctReposicion}%`}}>{pctReposicion}%</div>
+                    <div className="bg-amber-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-pctReposicion}%</div>
+                  </div>
+                  <input type="range" min="0" max="100" step="5" value={pctReposicion}
+                    onChange={e=>setPctReposicion(Number(e.target.value))}
+                    className="w-full accent-emerald-500" />
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                    <p className="text-xs text-amber-700 font-semibold">{hembrasVenta} vaquillonas → recría → venta ({pesoVaquillonaAlCierre} kg al cierre)</p>
+                    <p className="text-xs text-amber-600">= {fmt(kgVaquillonaDesc)} kg para rendimiento</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* KPIs */}
+            {/* ── KPIs ── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label:"kg/ha año actual",  val: kgHaAct,                color:"text-emerald-700", bg:"bg-emerald-50 border-emerald-200",  icon:"📦" },
-                { label:"kg/ha proyectado",  val: kgHaProx,               color: tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600", bg: tendencia==="sube"?"bg-blue-50 border-blue-200":tendencia==="baja"?"bg-red-50 border-red-200":"bg-slate-50 border-slate-100", icon: tendencia==="sube"?"📈":tendencia==="baja"?"📉":"➡️" },
-                { label:"kg totales año",    val: fmt(kgTotalAct)+" kg",  color:"text-slate-800",   bg:"bg-white border-slate-100",          icon:"🥩" },
-                { label:"Hectáreas campo",   val: fmt(hectareas)+" ha",   color:"text-amber-700",   bg:"bg-amber-50 border-amber-200",       icon:"🌾" },
+                { label:"kg/ha año actual",  val:kgHaAct,               color:"text-emerald-700", bg:"bg-emerald-50 border-emerald-200", icon:"📦" },
+                { label:"kg/ha proyectado",  val:kgHaProx,              color:tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600", bg:tendencia==="sube"?"bg-blue-50 border-blue-200":tendencia==="baja"?"bg-red-50 border-red-200":"bg-slate-50 border-slate-100", icon:tendencia==="sube"?"📈":tendencia==="baja"?"📉":"➡️" },
+                { label:"kg totales año",    val:fmt(kgTotalAct)+" kg", color:"text-slate-800",   bg:"bg-white border-slate-100", icon:"🥩" },
+                { label:"Hectáreas campo",   val:fmt(hectareas)+" ha",  color:"text-amber-700",   bg:"bg-amber-50 border-amber-200", icon:"🌾" },
               ].map((k,i)=>(
                 <div key={i} className={`kpi-pop border-2 ${k.bg} rounded-2xl p-4 space-y-1 card-hover`}>
                   <span className="text-base">{k.icon}</span>
@@ -3785,98 +3939,75 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               ))}
             </div>
 
-            {/* Gráfico barras + línea tendencia */}
+            {/* ── Gráfico ── */}
             <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
               <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Evolución kg/ha</p>
-                <div className="flex items-center gap-4 text-xs text-slate-400">
-                  <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span>Real</span>
-                  <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-blue-400 opacity-75"></span>Proyectado</span>
-                  <span className="flex items-center gap-1.5"><span className="inline-block w-6 h-0.5 bg-amber-400" style={{borderTop:"2px dashed #fbbf24"}}></span>Tendencia</span>
+                <div className="flex gap-4 text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Real</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-400 opacity-75 inline-block"></span>Proyectado</span>
                 </div>
               </div>
               {(() => {
-                const data     = historialKgHa;
-                const maxKgHa  = Math.max(...data.map(d => d.kgHa), 1);
-                const W = 580; const H = 200; const PAD_L = 44; const PAD_T = 16; const PAD_B = 36;
-                const chartH   = H - PAD_T - PAD_B;
-                const slots    = Math.max(data.length, 1);
-                const slotW    = (W - PAD_L) / slots;
-                const barW     = Math.min(52, slotW - 16);
-                const cx       = (i) => PAD_L + slotW * i + slotW / 2;
-                const cy       = (kgHa) => PAD_T + chartH - Math.max(4, (kgHa / maxKgHa) * chartH);
-                const gridVals = [0, 25, 50, 75, 100].map(p => Math.round(maxKgHa * p / 100));
+                const data    = historialKgHa;
+                const maxVal  = Math.max(...data.map(d=>d.kgHa), 1);
+                const W=580; const H=200; const PL=44; const PT=16; const PB=36;
+                const cH=H-PT-PB; const slots=Math.max(data.length,1);
+                const sW=(W-PL)/slots; const bW=Math.min(52,sW-16);
+                const cx=i=>PL+sW*i+sW/2;
+                const cy=v=>PT+cH-Math.max(4,(v/maxVal)*cH);
                 return (
-                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{fontFamily:"inherit",overflow:"visible"}}>
-                    {gridVals.map((v, i) => {
-                      const y = PAD_T + chartH - (v / maxKgHa) * chartH;
-                      return <g key={i}>
-                        <line x1={PAD_L} x2={W} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1"/>
-                        <text x={PAD_L-6} y={y+4} textAnchor="end" fontSize="9" fill="#94a3b8">{v}</text>
-                      </g>;
+                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{overflow:"visible"}}>
+                    {[0,25,50,75,100].map(p=>{
+                      const y=PT+cH-(p/100)*cH; const v=Math.round(maxVal*p/100);
+                      return <g key={p}><line x1={PL} x2={W} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1"/><text x={PL-6} y={y+4} textAnchor="end" fontSize="9" fill="#94a3b8">{v}</text></g>;
                     })}
-                    {data.map((d, i) => (
+                    {data.map((d,i)=>(
                       <g key={i}>
-                        <rect
-                          x={cx(i) - barW/2} y={cy(d.kgHa)}
-                          width={barW} height={Math.max(4, (d.kgHa/maxKgHa)*chartH)}
-                          rx="5"
-                          fill={d.tipo === "proyectado" ? "#60a5fa" : "#10b981"}
-                          opacity={d.tipo === "proyectado" ? 0.7 : 1}
-                        />
-                        <text x={cx(i)} y={cy(d.kgHa) - 5} textAnchor="middle" fontSize="10" fontWeight="700"
-                          fill={d.tipo === "proyectado" ? "#3b82f6" : "#059669"}>
-                          {d.kgHa}
-                        </text>
-                        <text x={cx(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#64748b">{d.ano}</text>
+                        <rect x={cx(i)-bW/2} y={cy(d.kgHa)} width={bW} height={Math.max(4,(d.kgHa/maxVal)*cH)} rx="5"
+                          fill={d.tipo==="proyectado"?"#60a5fa":"#10b981"} opacity={d.tipo==="proyectado"?0.7:1}/>
+                        <text x={cx(i)} y={cy(d.kgHa)-5} textAnchor="middle" fontSize="10" fontWeight="700" fill={d.tipo==="proyectado"?"#3b82f6":"#059669"}>{d.kgHa}</text>
+                        <text x={cx(i)} y={H-6} textAnchor="middle" fontSize="9" fill="#64748b">{d.ano}</text>
                       </g>
                     ))}
-                    {data.length > 1 && (
-                      <polyline
-                        points={data.map((d,i) => `${cx(i)},${cy(d.kgHa)}`).join(" ")}
-                        fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,3"
-                      />
-                    )}
-                    {data.map((d,i) => (
-                      <circle key={i} cx={cx(i)} cy={cy(d.kgHa)} r="4" fill="#f59e0b" stroke="white" strokeWidth="1.5"/>
-                    ))}
+                    {data.length>1&&<polyline points={data.map((d,i)=>`${cx(i)},${cy(d.kgHa)}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,3"/>}
+                    {data.map((d,i)=><circle key={i} cx={cx(i)} cy={cy(d.kgHa)} r="4" fill="#f59e0b" stroke="white" strokeWidth="1.5"/>)}
                   </svg>
                 );
               })()}
             </div>
 
-            {/* Tabla resumen categorías */}
+            {/* ── Tabla resumen año actual ── */}
             <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
               <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-              <div className="p-5">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-4">Tabla — año actual</p>
+              <div className="p-5 space-y-4">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-600">Tabla — año actual</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-slate-100">
-                        {["Categoría","Cabezas","Peso venta","kg totales","kg/ha"].map(h=>(
-                          <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Categoría"?"text-left pr-4":"text-right pr-2"}`}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
+                    <thead><tr className="border-b-2 border-slate-100">
+                      {["Categoría","Cab","Peso venta","kg totales","kg/ha"].map(h=>(
+                        <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Categoría"?"text-left pr-4":"text-right pr-2"}`}>{h}</th>
+                      ))}
+                    </tr></thead>
                     <tbody>
                       {[
-                        { cat:"Vacas descarte",      cab:cabVacasDescarte,  kg:kgVacasDescarte,  pesoV:pVacaDescarte,    color:"text-rose-700"    },
-                        { cat:"Terneros invernada",  cab:cabTernerosInv,    kg:kgTernerosInv,    pesoV:pTerneroInvernada,color:"text-sky-700"     },
-                        { cat:"Novillos invernada",  cab:cabNovillosInv,    kg:kgNovillosInv,    pesoV:pNovilloInvernada,color:"text-violet-700"  },
-                        { cat:"Novillos faena",      cab:cabNovillosFaena,  kg:kgNovillosFaena,  pesoV:pNovilloFaena,    color:"text-amber-700"  },
+                        { cat:"Vacas descarte",     cab:cabVacasDescarte,  kg:kgVacasDescarte,  peso:pVacaDescarte,    color:"text-rose-700"   },
+                        { cat:"Terneros invernada", cab:cabTernerosInv,    kg:kgTernerosInv,    peso:pTerneroInvernada,color:"text-sky-700"    },
+                        { cat:"Novillos invernada", cab:cabNovillosInv,    kg:kgNovillosInv,    peso:pNovilloInvernada,color:"text-violet-700" },
+                        { cat:"Novillos faena",     cab:cabNovillosFaena,  kg:kgNovillosFaena,  peso:pNovilloFaena,    color:"text-amber-700" },
+                        { cat:"Vaquillonas desc.",  cab:cabVaquillonaDesc, kg:kgVaquillonaDesc, peso:pVaquillonaDesc,  color:"text-pink-700"  },
                       ].map((r,i)=>(
-                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                          <td className={`py-3 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
-                          <td className="text-right py-3 pr-2 font-mono font-bold text-slate-700">{fmt(r.cab)}</td>
-                          <td className="text-right py-3 pr-2 font-mono text-slate-500">{fmt(r.pesoV)} kg</td>
-                          <td className="text-right py-3 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
-                          <td className="text-right py-3 font-mono font-bold text-emerald-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"}</td>
+                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                          <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
+                          <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.cab)}</td>
+                          <td className="text-right py-2.5 pr-2 font-mono text-slate-500">{fmt(r.peso)} kg</td>
+                          <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
+                          <td className="text-right py-2.5 font-mono font-bold text-emerald-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"}</td>
                         </tr>
                       ))}
                       <tr className="border-t-2 border-emerald-200 bg-emerald-50">
                         <td className="py-3 pr-4 font-black text-emerald-800">TOTAL AÑO ACTUAL</td>
-                        <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(cabVacasDescarte+cabTernerosInv+cabNovillosInv+cabNovillosFaena)}</td>
+                        <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(cabVacasDescarte+cabTernerosInv+cabNovillosInv+cabNovillosFaena+cabVaquillonaDesc)}</td>
                         <td className="text-right py-3 pr-2 text-slate-400">—</td>
                         <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(kgTotalAct)} kg</td>
                         <td className="text-right py-3 font-black text-emerald-800 font-mono text-lg">{kgHaAct}</td>
@@ -3885,26 +4016,27 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   </table>
                 </div>
 
-                {/* Proyección año siguiente */}
-                <div className="mt-5 border-t-2 border-slate-100 pt-4">
+                {/* Proyección */}
+                <div className="border-t-2 border-slate-100 pt-4">
                   <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">Proyección año siguiente</p>
                   <table className="w-full text-sm border-collapse">
                     <tbody>
                       {[
-                        { cat:"Vacas descarte",     cab:vacasDescarteProx, kg:kgVacasDescProx,    color:"text-rose-600"   },
-                        { cat:"Terneros invernada", cab:ternerosInvProx,   kg:kgTernerosInvProx,  color:"text-sky-600"    },
-                        { cat:"Novillos faena",     cab:novillosFaenaProx, kg:kgNovillosFaenaProx,color:"text-amber-600"  },
+                        { cat:"Vacas descarte",    cab:vacasDescarteProx,  kg:kgVacasDescProx,    color:"text-rose-600"  },
+                        { cat:"Terneros invernada",cab:ternerosInvProx,    kg:kgTernerosInvProx,  color:"text-sky-600"   },
+                        { cat:"Novillos faena",    cab:novillosFaenaProx,  kg:kgNovillosFaenaProx,color:"text-amber-600" },
+                        { cat:"Vaquillonas desc.", cab:vaquillonaDescProx, kg:kgVaqDescProx,      color:"text-pink-600"  },
                       ].map((r,i)=>(
-                        <tr key={i} className="border-b border-slate-50 hover:bg-blue-50 transition-colors">
+                        <tr key={i} className="border-b border-slate-50 hover:bg-blue-50">
                           <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
                           <td className="text-right py-2.5 pr-2 font-mono text-slate-600">{fmt(r.cab)} cab</td>
                           <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
-                          <td className="text-right py-2.5 font-mono text-blue-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"} kg/ha</td>
+                          <td className={`text-right py-2.5 font-mono text-blue-700`}>{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"} kg/ha</td>
                         </tr>
                       ))}
                       <tr className="border-t-2 border-blue-200 bg-blue-50">
                         <td className="py-3 pr-4 font-black text-blue-800">TOTAL PROYECTADO</td>
-                        <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(vacasDescarteProx+ternerosInvProx+novillosFaenaProx)} cab</td>
+                        <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(vacasDescarteProx+ternerosInvProx+novillosFaenaProx+vaquillonaDescProx)} cab</td>
                         <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(kgTotalProx)} kg</td>
                         <td className={`text-right py-3 font-black font-mono text-lg ${tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600"}`}>
                           {kgHaProx} {tendencia==="sube"?"↑":tendencia==="baja"?"↓":"→"}
@@ -3914,22 +4046,34 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   </table>
                 </div>
 
-                {/* Alerta proyección */}
-                {tendencia === "baja" && (
-                  <div className="mt-4 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-2xl p-3">
-                    <span className="text-base shrink-0">📉</span>
-                    <p className="text-xs text-orange-700 font-semibold">
-                      La proyección baja vs el año actual ({kgHaAct} → {kgHaProx} kg/ha).
-                      Considerá agregar más madres o comprar terneros desde el Simulador.
-                    </p>
-                  </div>
-                )}
-                {tendencia === "sube" && (
-                  <div className="mt-4 flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
-                    <span className="text-base shrink-0">📈</span>
-                    <p className="text-xs text-emerald-700 font-semibold">
-                      Buen ritmo — la proyección mejora de {kgHaAct} a {kgHaProx} kg/ha.
-                    </p>
+                {/* Alertas */}
+                {tendencia==="baja"&&<div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-2xl p-3"><span>📉</span><p className="text-xs text-orange-700 font-semibold">La proyección baja de {kgHaAct} a {kgHaProx} kg/ha. Considerá agregar más madres o comprar terneros.</p></div>}
+                {tendencia==="sube"&&<div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3"><span>📈</span><p className="text-xs text-emerald-700 font-semibold">Buen ritmo — la proyección mejora de {kgHaAct} a {kgHaProx} kg/ha.</p></div>}
+
+                {/* Tabla mensual acumulación */}
+                {tablaAcumulacion.length > 0 && (
+                  <div className="border-t-2 border-slate-100 pt-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Acumulación de kg por mes (desde parición)</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead><tr className="border-b border-slate-200">
+                          <th className="text-left py-1.5 pr-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
+                          <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-sky-500">Ternero</th>
+                          <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-violet-500">Nov. inv.</th>
+                          <th className="text-right py-1.5 font-black uppercase tracking-wider text-amber-500">Nov. faena</th>
+                        </tr></thead>
+                        <tbody>
+                          {tablaAcumulacion.map((r,i)=>(
+                            <tr key={i} className={`border-b border-slate-50 ${i===mesesDesteteHastaCierre-1?"bg-emerald-50":""}`}>
+                              <td className="py-1.5 pr-3 font-semibold text-slate-600">{r.mes}</td>
+                              <td className="text-right py-1.5 pr-3 font-mono font-bold text-sky-700">{r.kgTernero} kg</td>
+                              <td className="text-right py-1.5 pr-3 font-mono font-bold text-violet-700">{r.kgNovilloInv} kg</td>
+                              <td className="text-right py-1.5 font-mono font-bold text-amber-700">{r.kgNovFaena} kg</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
