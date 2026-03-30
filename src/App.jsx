@@ -3450,13 +3450,46 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const tendencia          = kgHaProx > kgHaAct ? "sube" : kgHaProx < kgHaAct ? "baja" : "estable";
 
   // Tabla mensual de acumulación de kg (actual: desde hoy hasta 30/jun)
+  // ── Parición escalonada 3 meses ─────────────────────────────────────────────
+  // Los terneros nacen repartidos en 3 meses (paricionMes, +1, +2)
+  // Cada lote tiene diferente cantidad de días hasta el cierre → diferente kg acumulado
+  const lotesPacion = [0, 1, 2].map(offset => {
+    const mes     = (paricionMes + offset) % 12;
+    const anio    = paricionMes + offset >= 12 ? paricionAnio + 1 : paricionAnio;
+    const mCierre = calcMesesHastaCierre(mes, anio);
+    const cabLote = Math.round(ternNacidosVivos / 3);  // reparto en 3 lotes iguales
+    // kg acumulados mes a mes hasta el cierre
+    const acumMensual = Array.from({ length: Math.min(mCierre, 12) }, (_, i) => ({
+      mes: MESES_ES[(mes + i) % 12],
+      diasAcum: (i + 1) * 30,
+      kgPorCab: Math.round(pesoNacimiento + (i + 1) * 30 * gdpTernero),
+      kgTotales: Math.round(cabLote * (pesoNacimiento + (i + 1) * 30 * gdpTernero)),
+      esMesDestete: (i + 1) === meseDestete,
+    }));
+    const kgAlDestete  = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
+    const kgAlCierre   = mCierre >= meseDestete
+      ? Math.round(pesoNacimiento + mCierre * 30 * gdpTernero)
+      : kgAlDestete;
+    return { mes, anio, mCierre, cabLote, acumMensual, kgAlDestete, kgAlCierre };
+  });
+
+  // Kg totales de terneros al cierre (suma de 3 lotes)
+  const kgTernerosAlCierre = lotesPacion.reduce((sum, l) => sum + l.cabLote * l.kgAlCierre, 0);
+  // Kg totales al momento del destete (suma de 3 lotes al mes destete)
+  const kgTernerosAlDestete = lotesPacion.reduce((sum, l) => sum + l.cabLote * l.kgAlDestete, 0);
+
+  // Mes actual para resaltar en la tabla
+  const mesActual = new Date().getMonth();
+  const anioActual = new Date().getFullYear();
+
   const tablaAcumulacion = Array.from({ length: Math.min(mesesHastaCierre, 12) }, (_, i) => {
     const m = i + 1;
     return {
       mes: MESES_ES[(paricionMes + i) % 12],
-      kgTernero:  Math.round(pesoNacimiento + m * 30 * gdpTernero),
+      kgTernero:    Math.round(pesoNacimiento + m * 30 * gdpTernero),
       kgNovilloInv: Math.round(pesoNacimiento + m * 30 * gdpNovilloInv),
-      kgNovFaena: Math.round(pesoNacimiento + m * 30 * gdpNovilloFaena),
+      kgNovFaena:   Math.round(pesoNacimiento + m * 30 * gdpNovilloFaena),
+      esMesDestete: m === meseDestete,
     };
   });
 
@@ -4068,31 +4101,111 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 {tendencia==="sube"&&<div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3"><span>📈</span><p className="text-xs text-emerald-700 font-semibold">Buen ritmo — la proyección mejora de {kgHaAct} a {kgHaProx} kg/ha.</p></div>}
 
                 {/* Tabla mensual acumulación */}
-                {tablaAcumulacion.length > 0 && (
-                  <div className="border-t-2 border-slate-100 pt-4">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Acumulación de kg por mes (desde parición)</p>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs border-collapse">
-                        <thead><tr className="border-b border-slate-200">
-                          <th className="text-left py-1.5 pr-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
-                          <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-sky-500">Ternero</th>
-                          <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-violet-500">Nov. inv.</th>
-                          <th className="text-right py-1.5 font-black uppercase tracking-wider text-amber-500">Nov. faena</th>
-                        </tr></thead>
-                        <tbody>
-                          {tablaAcumulacion.map((r,i)=>(
-                            <tr key={i} className={`border-b border-slate-50 ${i===mesesDesteteHastaCierre-1?"bg-emerald-50":""}`}>
-                              <td className="py-1.5 pr-3 font-semibold text-slate-600">{r.mes}</td>
-                              <td className="text-right py-1.5 pr-3 font-mono font-bold text-sky-700">{r.kgTernero} kg</td>
-                              <td className="text-right py-1.5 pr-3 font-mono font-bold text-violet-700">{r.kgNovilloInv} kg</td>
-                              <td className="text-right py-1.5 font-mono font-bold text-amber-700">{r.kgNovFaena} kg</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {/* ── Parición escalonada oct-dic ── */}
+                <div className="border-t-2 border-slate-100 pt-4 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">🐄 Kg acumulados por lote de parición</p>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <span className="w-3 h-3 rounded-sm bg-sky-400 inline-block"></span>En gestación/cría
+                      <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block ml-2"></span>Destete
+                      <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block ml-2"></span>Post-destete
                     </div>
                   </div>
-                )}
+
+                  {/* 3 lotes */}
+                  {lotesPacion.map((lote, li) => (
+                    <div key={li} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${li===0?"bg-sky-500":li===1?"bg-indigo-500":"bg-violet-500"}`}></span>
+                          <span className="text-xs font-black text-slate-700">
+                            Lote {li+1} — {MESES_ES[lote.mes]} {lote.anio}
+                          </span>
+                          <span className="text-xs text-slate-400">({lote.cabLote} cab)</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-slate-500">Al destete: <b className="text-emerald-700">{lote.kgAlDestete} kg/cab</b></span>
+                          <span className="text-slate-500">Al cierre: <b className="text-blue-700">{lote.kgAlCierre} kg/cab</b></span>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="border-b border-slate-200">
+                            <th className="text-left py-1.5 px-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
+                            <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-slate-400">Días</th>
+                            <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-sky-600">kg/cab</th>
+                            <th className="text-right py-1.5 px-3 font-black uppercase tracking-wider text-emerald-600">kg lote</th>
+                          </tr></thead>
+                          <tbody>
+                            {lote.acumMensual.map((r,i)=>(
+                              <tr key={i} className={`border-b border-slate-100 ${r.esMesDestete?"bg-emerald-50 font-bold":"hover:bg-white"}`}>
+                                <td className={`py-1.5 px-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>
+                                  {r.mes} {r.esMesDestete?"← destete":""}
+                                </td>
+                                <td className="text-right py-1.5 px-2 font-mono text-slate-500">{r.diasAcum}d</td>
+                                <td className={`text-right py-1.5 px-2 font-mono font-bold ${r.esMesDestete?"text-emerald-700":"text-sky-700"}`}>{r.kgPorCab} kg</td>
+                                <td className={`text-right py-1.5 px-3 font-mono font-bold ${r.esMesDestete?"text-emerald-800":"text-slate-700"}`}>{fmt(r.kgTotales)} kg</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Resumen 3 lotes + botón pasar a recría */}
+                  <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                      <div><p className="text-xs text-emerald-600">Total terneros</p><p className="font-black text-emerald-900 text-xl">{ternNacidosVivos}</p></div>
+                      <div><p className="text-xs text-emerald-600">Kg al destete</p><p className="font-black text-emerald-900 text-xl">{fmt(kgTernerosAlDestete)}</p></div>
+                      <div><p className="text-xs text-blue-600">Kg al cierre</p><p className="font-black text-blue-800 text-xl">{fmt(kgTernerosAlCierre)}</p></div>
+                      <div><p className="text-xs text-emerald-600">kg/ha terneros</p><p className="font-black text-emerald-900 text-xl">{hectareas>0?Math.round(kgTernerosAlCierre/hectareas):"-"}</p></div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const machos = Math.round(totalDestete * pctMachos / 100);
+                        const hembras = totalDestete - machos;
+                        onSincronizar({
+                          target: null,
+                          descripcion: null,
+                          _accion: "pasar-destete-recria",
+                          machos,
+                          hembras,
+                        });
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                      <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                      Pasar {totalDestete} terneros destetados a Recría ({Math.round(totalDestete*pctMachos/100)}M + {totalDestete-Math.round(totalDestete*pctMachos/100)}H)
+                    </button>
+                  </div>
+
+                  {/* Tabla comparativa kg/cab por mes */}
+                  {tablaAcumulacion.length > 0 && (
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Comparativo por categoría — kg/cab/mes</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="border-b border-slate-200">
+                            <th className="text-left py-1.5 pr-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
+                            <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-sky-500">Ternero</th>
+                            <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-violet-500">Nov. inv.</th>
+                            <th className="text-right py-1.5 font-black uppercase tracking-wider text-amber-500">Nov. faena</th>
+                          </tr></thead>
+                          <tbody>
+                            {tablaAcumulacion.map((r,i)=>(
+                              <tr key={i} className={`border-b border-slate-50 ${r.esMesDestete?"bg-emerald-50":""}`}>
+                                <td className={`py-1.5 pr-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>{r.mes}{r.esMesDestete?" ← destete":""}</td>
+                                <td className="text-right py-1.5 pr-3 font-mono font-bold text-sky-700">{r.kgTernero} kg</td>
+                                <td className="text-right py-1.5 pr-3 font-mono font-bold text-violet-700">{r.kgNovilloInv} kg</td>
+                                <td className="text-right py-1.5 font-mono font-bold text-amber-700">{r.kgNovFaena} kg</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -4534,6 +4647,18 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 
   // Sync from Mi Campo to specific simulator
   const handleSincronizar = (datos) => {
+    // Special action: pasar terneros destetados a recría
+    if (datos._accion === "pasar-destete-recria") {
+      setCampoRecria(p => ({
+        ...p,
+        ternerosLiquidaMachos: p.ternerosLiquidaMachos + datos.machos,
+        ternerosLiquidaHembras: p.ternerosLiquidaHembras + datos.hembras,
+      }));
+      // Reset terneros no destetados en cría
+      setCampoCria(p => ({ ...p, ternerosNoDestetados: 0 }));
+      pushToast(`✅ ${datos.machos + datos.hembras} terneros pasados a Recría (${datos.machos}M + ${datos.hembras}H)`, "success");
+      return;
+    }
     setSyncData(datos);
     // Route directly to the target simulator
     if (datos.target === "poder") {
