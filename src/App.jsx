@@ -3356,20 +3356,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const [pNovilloInvernada,setPNovilloInvernada]= useState(360);
   const [pNovilloFaena,    setPNovilloFaena]    = useState(450);
 
-  // ── Ventas año actual (desde stock real) ──────────────────────────────────
-  // Vacas descarte = vacías del rodeo
-  const cabVacasDescarte    = criaDatos.vacias !== undefined ? criaDatos.vacias : 0;
-  // Terneros invernada = terneros marca líquida (machos, se venden)
+  // ── Ventas año actual — solo animales que generan kg vendibles ──────────────
+  // Vacas descarte = vacías (campo calcula vacas - preñadas, o 0 si no hay dato)
+  const madresCria          = criaDatos.vacas + criaDatos.vaquillonas;
+  const preñadasEst         = Math.round(madresCria * 0.85);
+  const cabVacasDescarte    = (criaDatos.vacias !== undefined && criaDatos.vacias !== null) ? (criaDatos.vacias || 0) : Math.max(0, madresCria - preñadasEst);
+  // Terneros invernada = terneros machos marca líquida que se venden sin terminar
   const cabTernerosInv      = reciaDatos.ternerosLiquidaMachos;
-  // Novillos invernada = novillos en recría (campo)
+  // Novillos invernada = novillos de recría (se venden como invernada)
   const cabNovillosInv      = reciaDatos.novillos;
   // Novillos faena = terminación campo + feedlot
   const cabNovillosFaena    = terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
+  // NO se cuentan: vacas productivas, toros, vaquillonas en desarrollo, hembras recría
 
-  const kgVacasDescarte     = cabVacasDescarte    * pVacaDescarte;
-  const kgTernerosInv       = cabTernerosInv      * pTerneroInvernada;
-  const kgNovillosInv       = cabNovillosInv      * pNovilloInvernada;
-  const kgNovillosFaena     = cabNovillosFaena    * pNovilloFaena;
+  const kgVacasDescarte     = cabVacasDescarte * pVacaDescarte;
+  const kgTernerosInv       = cabTernerosInv   * pTerneroInvernada;
+  const kgNovillosInv       = cabNovillosInv   * pNovilloInvernada;
+  const kgNovillosFaena     = cabNovillosFaena * pNovilloFaena;
   const kgTotalAct          = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena;
   const kgHaAct             = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
 
@@ -3402,11 +3405,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
       const cr = snap.cria        || {};
       const re = snap.recria      || {};
       const te = snap.terminacion || {};
-      const kgDesc  = (cr.vacias || 0)  * pVacaDescarte;
-      const kgTern  = (re.ternerosLiquidaMachos || 0) * pTerneroInvernada;
-      const kgNovInv= (re.novillos || 0) * pNovilloInvernada;
-      const kgFaena = ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
-      const kg      = kgDesc + kgTern + kgNovInv + kgFaena;
+      const madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
+      const descCr   = Math.max(0, madresCr - Math.round(madresCr * 0.85));
+      const kgDesc   = descCr * pVacaDescarte;
+      const kgTern   = (re.ternerosLiquidaMachos || 0) * pTerneroInvernada;
+      const kgNovInv = (re.novillos || 0) * pNovilloInvernada;
+      const kgFaena  = ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
+      const kg       = kgDesc + kgTern + kgNovInv + kgFaena;
       return { ano: ano.slice(0, 4), tipo: "real", kgHa: hectareas > 0 ? Math.round(kg / hectareas) : 0, kg };
     }),
     { ano: anoGanadero.slice(0, 4), tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct  },
@@ -3574,13 +3579,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
                   <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
+                  <EditField label="Vacas vacías (descarte)" value={criaDatos.vacias||0} onChange={v=>setCriaActiva(p=>({...p,vacias:v}))} hint="Van al rendimiento como descarte" />
                   <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
                   <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
                 </div>
                 <div className="mt-5 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div><p className="text-xs text-emerald-600">Total cría</p><p className="font-black text-emerald-900 text-xl">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros}</p></div>
-                  <div><p className="text-xs text-emerald-600">Madres</p><p className="font-black text-emerald-900 text-xl">{criaDatos.vacas+criaDatos.vaquillonas}</p></div>
-                  <div><p className="text-xs text-emerald-600">Terneros/madre</p><p className="font-black text-emerald-900 text-xl">{(criaDatos.vacas+criaDatos.vaquillonas)>0?((criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas))*100).toFixed(0)+"%" : "—"}</p></div>
+                  <div><p className="text-xs text-emerald-600">Madres productivas</p><p className="font-black text-emerald-900 text-xl">{criaDatos.vacas+criaDatos.vaquillonas}</p></div>
+                  <div><p className="text-xs text-rose-600">Vacías (descarte)</p><p className="font-black text-rose-700 text-xl">{criaDatos.vacias||0}</p></div>
                   <div><p className="text-xs text-emerald-600">Toros/madres</p><p className="font-black text-emerald-900 text-xl">{criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros)+":1":"—"}</p></div>
                 </div>
                 <button
@@ -4245,14 +4251,14 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 
   // ── Stock compartido con Mi Campo ─────────────────────────────────────────
   const [campoCria, setCampoCria] = useState({
-    vacas: 200, vaquillonas: 80, ternerosNoDestetados: 238, toros: 12,
+    vacas: 54, vaquillonas: 21, ternerosNoDestetados: 0, toros: 2, vacias: 8,
   });
   const [campoRecria, setCampoRecria] = useState({
-    ternerosLiquidaMachos: 120, ternerosLiquidaHembras: 98,
-    ternerosCompraMachos: 80, ternerosCompraHembras: 0, novillos: 44,
+    ternerosLiquidaMachos: 22, ternerosLiquidaHembras: 42, // 25 terneras + 17 vaq recría
+    ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: 16,
   });
   const [campoTerminacion, setCampoTerminacion] = useState({
-    novillosCampo: 120, novillosFeedlot: 60,
+    novillosCampo: 0, novillosFeedlot: 0,
     pesoPromedioKg: 420, diasRestantes: 45,
     costoComidaDia: 4500, costoHoteleriaDia: 800,
   });
