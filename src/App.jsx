@@ -3350,11 +3350,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // ── Rendimiento kg/ha — calculado automático del stock ───────────────────
   const [hectareas, setHectareas] = useState(1000);
 
-  // Pesos de venta por categoría (defaults, el usuario puede ajustar)
-  const [pVacaDescarte,    setPVacaDescarte]    = useState(380);
-  const [pTerneroInvernada,setPTerneroInvernada]= useState(200);
-  const [pNovilloInvernada,setPNovilloInvernada]= useState(360);
-  const [pNovilloFaena,    setPNovilloFaena]    = useState(450);
+  // Pesos de venta — calculados del stock, no editables por el usuario
+  const pVacaDescarte     = 380;  // promedio estándar vaca descarte
+  const pTerneroInvernada = terminacionDatos.pesoPromedioKg > 0 ? Math.round(terminacionDatos.pesoPromedioKg * 0.45) : 200; // ternero ~45% del novillo
+  const pNovilloInvernada = terminacionDatos.pesoPromedioKg > 0 ? Math.round(terminacionDatos.pesoPromedioKg * 0.82) : 360; // novillo inv ~82% del terminado
+  const pNovilloFaena     = terminacionDatos.pesoPromedioKg > 0 ? terminacionDatos.pesoPromedioKg : 420; // peso real del stock
 
   // ── Ventas año actual — solo animales que generan kg vendibles ──────────────
   // Vacas descarte = vacías (campo calcula vacas - preñadas, o 0 si no hay dato)
@@ -3746,15 +3746,26 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         {seccion === "rendimiento" && (
           <div className="space-y-5 sim-zoom-enter">
 
-            {/* Hectáreas + pesos de venta por categoría */}
+            {/* Solo hectáreas — el resto se calcula del stock */}
             <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚙️ Configuración del campo</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <EditField label="Hectáreas totales" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" hint="Superficie productiva total" minVal={1} />
-                <EditField label="Peso venta vacas descarte" value={pVacaDescarte} onChange={setPVacaDescarte} step={5} suffix=" kg" hint="Promedio vacas vacías" />
-                <EditField label="Peso terneros invernada" value={pTerneroInvernada} onChange={setPTerneroInvernada} step={5} suffix=" kg" hint="Terneros machos vendidos" />
-                <EditField label="Peso novillos invernada" value={pNovilloInvernada} onChange={setPNovilloInvernada} step={5} suffix=" kg" hint="Novillos de recría sin terminar" />
-                <EditField label="Peso novillos faena" value={pNovilloFaena} onChange={setPNovilloFaena} step={5} suffix=" kg" hint="Terminación campo + feedlot" />
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="shrink-0">
+                  <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" hint="Superficie productiva total" minVal={1} />
+                </div>
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label:"Peso vaca descarte", val:`${pVacaDescarte} kg`, color:"text-rose-600" },
+                    { label:"Peso ternero inv.",   val:`${pTerneroInvernada} kg`, color:"text-sky-600" },
+                    { label:"Peso novillo inv.",   val:`${pNovilloInvernada} kg`, color:"text-violet-600" },
+                    { label:"Peso novillo faena",  val:`${pNovilloFaena} kg`, color:"text-amber-600" },
+                  ].map((p,i)=>(
+                    <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                      <p className="text-xs text-slate-400">{p.label}</p>
+                      <p className={`font-mono font-black text-base ${p.color}`}>{p.val}</p>
+                      <p className="text-xs text-slate-300">del stock</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
