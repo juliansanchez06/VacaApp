@@ -4895,7 +4895,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
           {/* Resultado ejercicio */}
           {seccion === "resultado" && (
-            {/* Resultado: sidebar + contenido igual que el resto */}
             <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
 
               {/* Sidebar resultado — solo desktop */}
