@@ -3707,7 +3707,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           `}</style>
 
           {/* Sidebar desktop — oculto en resultado para que ocupe ancho completo */}
-          <div className="campo-sidebar">
+          <div className="campo-sidebar" style={seccion === "resultado" ? {display:"none"} : undefined}>
             {SECCIONES.map(s => (
               <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
                 style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
@@ -4895,152 +4895,154 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ══════════════════════════════════════════════════════════════ */}
 
 
+          {/* Resultado ejercicio */}
+          {seccion === "resultado" && (
+            <div className="space-y-5 sim-zoom-enter">
+              <div className="space-y-5 sim-zoom-enter">
+
+              {/* Feedlot activo */}
+              {feedlotLotes.length > 0 && (
+              <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
+              <div className="p-5 space-y-3">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
+              {feedlotLotes.map((fl,i)=>(
+              <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <div>
+              <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+              <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
+              </div>
+              <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
+              {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
+              </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
+              {[
+              ["Entrada", `${fl.pesoEntrada} kg`],
+              ["Salida est.", `${fl.pesoSalida} kg`],
+              ["Días feedlot", `${fl.diasFeedlot}d`],
+              ["Ingreso est.", fmtMoney(fl.ingreso)],
+              ].map(([l,v])=>(
+              <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
+              <p className="text-xs text-slate-400">{l}</p>
+              <p className="font-black text-slate-800 text-sm">{v}</p>
+              </div>
+              ))}
+              </div>
+              <button onClick={()=>onSalidaFeedlot(fl)}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+              ✅ Confirmar salida de feedlot → registrar venta
+              </button>
+              </div>
+              ))}
+              </div>
+              </div>
+              )}
+
+              {/* Ventas del ejercicio */}
+              <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+              <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
+              <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
+              </div>
+              {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
+              <div className="text-center py-8 text-slate-300">
+              <p className="font-semibold">Sin ventas registradas este ejercicio</p>
+              <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
+              </div>
+              ) : (
+              <>
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+              <thead><tr className="border-b-2 border-slate-100">
+              {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad",""].map(h=>(
+              <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
+              ))}
+              </tr></thead>
+              <tbody>
+              {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
+              <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+              <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
+              <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
+              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
+              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
+              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
+              <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
+              <td className="text-right py-2.5">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
+              </td>
+              <td className="text-right py-2.5 pl-1">
+              <button onClick={()=>onDeshacerVenta(v)}
+              className="text-xs text-slate-300 hover:text-red-500 font-black w-7 h-7 rounded-lg hover:bg-red-50 transition-all flex items-center justify-center">↩</button>
+              </td>
+              </tr>
+              ))}
+              </tbody>
+              </table>
+              </div>
+
+              {/* KPIs resultado */}
+              {(() => {
+              const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
+              const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
+              const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
+              const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
+              return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+              <p className="text-xs text-emerald-600">Ingreso total</p>
+              <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+              <p className="text-xs text-slate-500">Cabezas vendidas</p>
+              <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+              <p className="text-xs text-slate-500">kg vendidos</p>
+              <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+              <p className="text-xs text-blue-600">kg/ha</p>
+              <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
+              </div>
+              </div>
+              );
+              })()}
+              </>
+              )}
+              </div>
+              </div>
+
+              {/* Proyección año siguiente — feedlot que se pasa */}
+              {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
+              <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente — feedlot que se pasa</p>
+              {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
+              <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
+              <div>
+              <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+              <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
+              </div>
+              <div className="text-right">
+              <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
+              <p className="text-xs text-blue-600">{fl.ejercicio}</p>
+              </div>
+              </div>
+              ))}
+              </div>
+              )}
+
+              </div>
+              )}
+            </div>
+            </div>
+          )}
+
           </div>{/* end main content */}
         </div>{/* end layout flex */}
-        {/* Resultado ejercicio — ancho completo, fuera del sidebar */}
-        {seccion === "resultado" && (
-          <div className="space-y-5 sim-zoom-enter">
-            <div className="space-y-5 sim-zoom-enter">
-
-            {/* Feedlot activo */}
-            {feedlotLotes.length > 0 && (
-            <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
-            <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
-            <div className="p-5 space-y-3">
-            <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
-            {feedlotLotes.map((fl,i)=>(
-            <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-            <div>
-            <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-            <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
-            </div>
-            <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
-            {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
-            </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
-            {[
-            ["Entrada", `${fl.pesoEntrada} kg`],
-            ["Salida est.", `${fl.pesoSalida} kg`],
-            ["Días feedlot", `${fl.diasFeedlot}d`],
-            ["Ingreso est.", fmtMoney(fl.ingreso)],
-            ].map(([l,v])=>(
-            <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
-            <p className="text-xs text-slate-400">{l}</p>
-            <p className="font-black text-slate-800 text-sm">{v}</p>
-            </div>
-            ))}
-            </div>
-            <button onClick={()=>onSalidaFeedlot(fl)}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-            ✅ Confirmar salida de feedlot → registrar venta
-            </button>
-            </div>
-            ))}
-            </div>
-            </div>
-            )}
-
-            {/* Ventas del ejercicio */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-            <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
-            <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
-            </div>
-            {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
-            <div className="text-center py-8 text-slate-300">
-            <p className="font-semibold">Sin ventas registradas este ejercicio</p>
-            <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
-            </div>
-            ) : (
-            <>
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-            <thead><tr className="border-b-2 border-slate-100">
-            {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad",""].map(h=>(
-            <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
-            ))}
-            </tr></thead>
-            <tbody>
-            {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
-            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-            <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
-            <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
-            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
-            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
-            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
-            <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
-            <td className="text-right py-2.5">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
-            </td>
-            <td className="text-right py-2.5 pl-1">
-            <button onClick={()=>onDeshacerVenta(v)}
-            className="text-xs text-slate-300 hover:text-red-500 font-black w-7 h-7 rounded-lg hover:bg-red-50 transition-all flex items-center justify-center">↩</button>
-            </td>
-            </tr>
-            ))}
-            </tbody>
-            </table>
-            </div>
-
-            {/* KPIs resultado */}
-            {(() => {
-            const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
-            const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
-            const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
-            const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
-            return (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-emerald-600">Ingreso total</p>
-            <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-slate-500">Cabezas vendidas</p>
-            <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-slate-500">kg vendidos</p>
-            <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-blue-600">kg/ha</p>
-            <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
-            </div>
-            </div>
-            );
-            })()}
-            </>
-            )}
-            </div>
-            </div>
-
-            {/* Proyección año siguiente — feedlot que se pasa */}
-            {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
-            <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente — feedlot que se pasa</p>
-            {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
-            <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
-            <div>
-            <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-            <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
-            </div>
-            <div className="text-right">
-            <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
-            <p className="text-xs text-blue-600">{fl.ejercicio}</p>
-            </div>
-            </div>
-            ))}
-            </div>
-            )}
-
-            </div>
-            )}
-          </div>
-        )}
 
 
       {/* ══════════════════════════════════════════════════════════════
@@ -5123,6 +5125,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   onVentaLote(modalVenta, ventaModalidad, ventaPrecioKg, ventaDiasFeedlot, ventaGdpFeedlot, ventaCostoFeedlot);
                   // Sacar de lotesRecria
                   setLotesRecria(prev=>prev.filter(l=>l.id!==modalVenta.id));
+                  // Sacar del stock permanentemente según categoría del lote
+                  const catLote = modalVenta.categoria;
+                  if (catLote === "marca-liquida") {
+                    const mitad = Math.ceil(modalVenta.cabezas / 2);
+                    setRecria(p => ({ ...p,
+                      ternerosLiquidaMachos: Math.max(0, p.ternerosLiquidaMachos - mitad),
+                      ternerosLiquidaHembras: Math.max(0, p.ternerosLiquidaHembras - (modalVenta.cabezas - mitad)),
+                    }));
+                  } else if (catLote === "compra") {
+                    setRecria(p => ({ ...p, ternerosCompraMachos: Math.max(0, p.ternerosCompraMachos - modalVenta.cabezas) }));
+                  } else {
+                    setRecria(p => ({ ...p, novillos: Math.max(0, p.novillos - modalVenta.cabezas) }));
+                  }
                   setModalVenta(null);
                   setSeccion("resultado");
                 }}
@@ -5343,9 +5358,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   // Deshacer venta → restaurar lote en recría
   const handleDeshacerVenta = (venta) => {
     setVentasEjercicio(p => p.filter(v => v.id !== venta.id));
-    // Restaurar lote en recría
-    setCampoRecria(p => ({ ...p, novillos: p.novillos + venta.cabezas }));
-    pushToast(`↩ Venta deshecha — ${venta.cabezas} cab volvieron a Recría`, "warn");
+    pushToast(`↩ Venta eliminada del registro — los animales ya salieron del campo`, "warn");
   };
 
   // ── Stock compartido con Mi Campo ─────────────────────────────────────────
