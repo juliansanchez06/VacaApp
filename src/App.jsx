@@ -5051,11 +5051,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               )}
 
-              </div>{/* end contenido resultado */}
-            </div>{/* end flex resultado */}
+              </div>
+            </div>
           )}
-          </div>{/* end main content */}
-        </div>{/* end layout flex */}
+          </div>
+        </div>
 
 
       {/* ══════════════════════════════════════════════════════════════
