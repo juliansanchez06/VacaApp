@@ -3694,36 +3694,33 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ))}
         </div>
 
-        {/* ── Nav: grilla en mobile, sidebar en desktop ─────────────────── */}
-        <div className="flex gap-6 items-start">
+
+        {/* ── Layout: sidebar + contenido ──────────────────────────────── */}
+        <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
 
           {/* Sidebar — solo desktop */}
-          <div className="hidden md:flex shrink-0 w-44 flex-col gap-1 sticky top-24">
+          <div style={{width:"176px", flexShrink:0, display:"flex", flexDirection:"column", gap:"4px", position:"sticky", top:"5.5rem"}}
+            className="hidden md:flex">
             {SECCIONES.map(s => (
               <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-2xl text-left transition-all
-                  ${seccion === s.id
-                    ? "bg-slate-800 text-white shadow-md"
-                    : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>
-                <span className="text-base leading-none">{s.icon}</span>
-                <span className="text-xs font-black uppercase tracking-widest leading-tight">{s.label}</span>
+                style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
+                <span style={{fontSize:"16px", lineHeight:1}}>{s.icon}</span>
+                <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
               </button>
             ))}
           </div>
 
-          {/* Contenido principal */}
-          <div className="flex-1 min-w-0 space-y-0">
+          {/* Main content */}
+          <div style={{flex:1, minWidth:0}}>
 
-            {/* Mobile nav: grilla 3 cols */}
-            <div className="grid grid-cols-3 gap-2 mb-5 md:hidden">
+            {/* Mobile nav: grilla 3×2 */}
+            <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"8px", marginBottom:"20px"}}
+              className="md:hidden">
               {SECCIONES.map(s => (
                 <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                  className={`flex flex-col items-center gap-1 px-1 py-3 rounded-2xl text-center transition-all
-                    ${seccion === s.id
-                      ? "bg-slate-800 text-white shadow-md"
-                      : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300"}`}>
-                  <span className="text-xl leading-none">{s.icon}</span>
-                  <span className="text-xs font-black uppercase tracking-widest leading-tight mt-0.5">{s.label}</span>
+                  style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
+                  <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
+                  <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
                 </button>
               ))}
             </div>
@@ -5014,8 +5011,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         </div>
       )}
 
-          </div>{/* end flex-1 contenido */}
-        </div>{/* end flex sidebar+contenido */}
+          </div>{/* end main content */}
+        </div>{/* end layout flex */}
 
       {/* ══════════════════════════════════════════════════════════════
           MODAL VENTA DE LOTE
