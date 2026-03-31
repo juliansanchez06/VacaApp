@@ -3698,9 +3698,18 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         {/* ── Layout: sidebar + contenido ──────────────────────────────── */}
         <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
 
-          {/* Sidebar — solo desktop */}
-          <div style={{width:"176px", flexShrink:0, display:"flex", flexDirection:"column", gap:"4px", position:"sticky", top:"5.5rem"}}
-            className="hidden md:flex">
+          {/* Nav sidebar (desktop) / grilla (mobile) — detectado por ancho de pantalla */}
+          <style>{`
+            .campo-sidebar { display:flex; flex-direction:column; gap:4px; width:176px; flex-shrink:0; position:sticky; top:5.5rem; }
+            .campo-mobile-nav { display:none; }
+            @media (max-width: 767px) {
+              .campo-sidebar { display:none; }
+              .campo-mobile-nav { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px; }
+            }
+          `}</style>
+
+          {/* Sidebar desktop */}
+          <div className="campo-sidebar">
             {SECCIONES.map(s => (
               <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
                 style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
@@ -3713,9 +3722,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* Main content */}
           <div style={{flex:1, minWidth:0}}>
 
-            {/* Mobile nav: grilla 3×2 */}
-            <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"8px", marginBottom:"20px"}}
-              className="md:hidden">
+            {/* Grilla mobile */}
+            <div className="campo-mobile-nav">
               {SECCIONES.map(s => (
                 <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
                   style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
