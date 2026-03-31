@@ -4879,10 +4879,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════
-          RESULTADO POR EJERCICIO
-      ══════════════════════════════════════════════════════════════ */}
-      {seccion === "resultado" && (
+        {/* ══════════════════════════════════════════════════════════════
+            RESULTADO POR EJERCICIO
+        ══════════════════════════════════════════════════════════════ */}
+        {seccion === "resultado" && (
         <div className="space-y-5 sim-zoom-enter">
 
           {/* Feedlot activo */}
