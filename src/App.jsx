@@ -3511,11 +3511,51 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     { ano: "Proy.",                 tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx },
   ];
 
+  // ── Lotes de recría ─────────────────────────────────────────────────────────
+  const hoyFecha = new Date();
+  const fechaHoyStr = hoyFecha.toISOString().slice(0,10);
+
+  const [lotesRecria, setLotesRecria] = useState([
+    {
+      id: 1, categoria: "novillos", label: "Novillos en recría",
+      cabezas: 114, pesoEntrada: 220, gdp: 0.6,
+      fechaEntrada: "2024-09-01", pesoObjetivo: 380, mesesObjetivo: 10,
+      color: "amber",
+    },
+  ]);
+
+  const calcLote = (lote) => {
+    const entrada  = new Date(lote.fechaEntrada);
+    const diasTrans= Math.max(0, Math.round((hoyFecha - entrada) / 86400000));
+    const pesoActual = Math.round(lote.pesoEntrada + diasTrans * lote.gdp);
+    const diasParaPeso = lote.gdp > 0 ? Math.max(0, Math.round((lote.pesoObjetivo - pesoActual) / lote.gdp)) : 999;
+    const diasTotalesObjetivo = lote.mesesObjetivo * 30;
+    const diasRestMeses = Math.max(0, diasTotalesObjetivo - diasTrans);
+    const diasRestantes = Math.min(diasParaPeso, diasRestMeses);
+    const fechaSalida  = new Date(hoyFecha.getTime() + diasRestantes * 86400000);
+    const pctPeso      = Math.min(100, Math.round((pesoActual - lote.pesoEntrada) / (lote.pesoObjetivo - lote.pesoEntrada) * 100));
+    const pctTiempo    = Math.min(100, Math.round(diasTrans / diasTotalesObjetivo * 100));
+    const pctProgreso  = Math.max(pctPeso, pctTiempo);
+    const listo        = pesoActual >= lote.pesoObjetivo || diasTrans >= diasTotalesObjetivo;
+    const kgGanados    = Math.round(diasTrans * lote.gdp);
+    const kgFaltantes  = Math.max(0, lote.pesoObjetivo - pesoActual);
+    const mesStr = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    const fechaSalidaStr = listo ? "Listo para vender" : `${mesStr[fechaSalida.getMonth()]} ${fechaSalida.getFullYear()}`;
+    return { diasTrans, pesoActual, diasParaPeso, diasRestMeses, diasRestantes, pctProgreso, pctPeso, pctTiempo, listo, kgGanados, kgFaltantes, fechaSalidaStr };
+  };
+
+  const CATS_RECRIA = [
+    { id:"marca-liquida", label:"Marca líquida", icon:"🐮", color:"emerald" },
+    { id:"compra",        label:"Compra",         icon:"🛒", color:"blue"    },
+    { id:"novillos",      label:"Novillos",       icon:"🐂", color:"amber"   },
+  ];
+
   const SECCIONES = [
-    { id: "stock",       label: "Stock hacienda",    icon: "🐄" },
-    { id: "rendimiento", label: "Rendimiento",        icon: "📊" },
-    { id: "costos",      label: "Costos estructura",  icon: "💰" },
-    { id: "config",      label: "Cotizaciones",       icon: "💲" },
+    { id: "stock",        label: "Stock hacienda",    icon: "🐄" },
+    { id: "recria-lotes", label: "Estado recría",     icon: "📈" },
+    { id: "rendimiento",  label: "Rendimiento",        icon: "📊" },
+    { id: "costos",       label: "Costos estructura",  icon: "💰" },
+    { id: "config",       label: "Cotizaciones",       icon: "💲" },
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
@@ -4271,6 +4311,223 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               </div>
             </div>
+
+          </div>
+        )}
+
+        {seccion === "recria-lotes" && (
+          <div className="space-y-5 sim-zoom-enter">
+
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Lotes activos en recría</p>
+                <p className="text-xs text-slate-400 mt-0.5">GDP y progreso hacia el peso/tiempo objetivo</p>
+              </div>
+              <button
+                onClick={() => setLotesRecria(prev => [...prev, {
+                  id: Date.now(), categoria: "compra", label: "Nuevo lote",
+                  cabezas: 50, pesoEntrada: 180, gdp: 0.6,
+                  fechaEntrada: fechaHoyStr, pesoObjetivo: 380, mesesObjetivo: 10, color: "blue",
+                }])}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                + Agregar lote
+              </button>
+            </div>
+
+            {lotesRecria.length === 0 && (
+              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center">
+                <p className="text-slate-400 font-semibold text-sm">Sin lotes en recría</p>
+                <p className="text-xs text-slate-300 mt-1">Tocá "Agregar lote" para empezar</p>
+              </div>
+            )}
+
+            {/* Lotes */}
+            {lotesRecria.map((lote, li) => {
+              const calc = calcLote(lote);
+              const cat = CATS_RECRIA.find(c => c.id === lote.categoria) || CATS_RECRIA[2];
+              const setL = (k) => (v) => setLotesRecria(prev => prev.map((l,i) => i===li ? {...l,[k]:v} : l));
+              const colorMap = { emerald:"#10b981", blue:"#3b82f6", amber:"#f59e0b" };
+              const barColor = calc.listo ? "#10b981" : colorMap[cat.color] || "#94a3b8";
+
+              return (
+                <div key={lote.id} className={`bg-white border-2 ${calc.listo?"border-emerald-300":"border-slate-100"} rounded-3xl overflow-hidden shadow-lg`}>
+                  <div className={`h-1.5 ${calc.listo?"bg-gradient-to-r from-emerald-400 to-teal-400":"bg-gradient-to-r from-"+cat.color+"-400 to-"+cat.color+"-500"}`}
+                    style={{background: calc.listo ? "linear-gradient(90deg,#10b981,#14b8a6)" : `linear-gradient(90deg,${barColor}aa,${barColor})`}} />
+
+                  <div className="p-5 space-y-4">
+                    {/* Header lote */}
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{cat.icon}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <input value={lote.label} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,label:e.target.value}:l))}
+                              className="font-black text-slate-800 text-sm bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-emerald-400 w-40"/>
+                            {calc.listo && <span className="text-xs font-black text-white bg-emerald-500 px-2 py-0.5 rounded-full badge-pulse">✓ Listo para vender</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {CATS_RECRIA.map(c=>(
+                              <button key={c.id} onClick={()=>setL("categoria")(c.id)}
+                                className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${lote.categoria===c.id?"bg-slate-800 text-white":"text-slate-400 hover:text-slate-600"}`}>
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={()=>setLotesRecria(prev=>prev.filter((_,i)=>i!==li))}
+                        className="text-xs text-slate-300 hover:text-red-400 font-bold transition-colors px-2 py-1 rounded-lg hover:bg-red-50">✕</button>
+                    </div>
+
+                    {/* Barra de progreso */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500 font-semibold">Progreso</span>
+                        <span className="font-black" style={{color:barColor}}>{calc.pctProgreso}%</span>
+                      </div>
+                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700"
+                          style={{width:`${calc.pctProgreso}%`, background: barColor}}/>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>Peso: {calc.pctPeso}%</span>
+                        <span>Tiempo: {calc.pctTiempo}%</span>
+                      </div>
+                    </div>
+
+                    {/* KPIs del lote */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label:"Peso actual",    val:`${calc.pesoActual} kg`,        color:"text-slate-800",   bg:"bg-slate-50"                     },
+                        { label:"Kg ganados",     val:`+${calc.kgGanados} kg`,         color:"text-emerald-700", bg:"bg-emerald-50"                   },
+                        { label:"Días en campo",  val:`${calc.diasTrans} días`,         color:"text-blue-700",    bg:"bg-blue-50"                      },
+                        { label:calc.listo?"Estado":"Sale estimado", val:calc.listo?"✓ Listo":calc.fechaSalidaStr, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
+                      ].map((k,i)=>(
+                        <div key={i} className={`${k.bg} rounded-xl p-2.5 text-center`}>
+                          <p className="text-xs text-slate-400">{k.label}</p>
+                          <p className={`font-black text-base ${k.color}`}>{k.val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Mini gráfico SVG de acumulación */}
+                    {(() => {
+                      const meses = lote.mesesObjetivo;
+                      const puntos = Array.from({length: meses+1}, (_,i) => ({
+                        m: i,
+                        kg: Math.round(lote.pesoEntrada + i*30*lote.gdp),
+                        esHoy: Math.abs(i*30 - calc.diasTrans) < 20,
+                      }));
+                      const maxKg = puntos[puntos.length-1].kg;
+                      const minKg = lote.pesoEntrada;
+                      const W=400; const H=80; const PL=8; const PR=8; const PT=8; const PB=20;
+                      const cW=W-PL-PR; const cH=H-PT-PB;
+                      const cx=i=>(PL+cW*i/meses);
+                      const cy=kg=>(PT+cH*(1-(kg-minKg)/(maxKg-minKg)));
+                      const mesStr=["E","F","M","A","M","J","J","A","S","O","N","D"];
+                      const entradaMes=new Date(lote.fechaEntrada).getMonth();
+                      return (
+                        <div className="bg-slate-50 rounded-2xl p-3">
+                          <p className="text-xs text-slate-400 font-semibold mb-1">Evolución de peso kg/cab</p>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+                            {/* Línea objetivo */}
+                            <line x1={PL} x2={W-PR} y1={cy(lote.pesoObjetivo)} y2={cy(lote.pesoObjetivo)}
+                              stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
+                            <text x={W-PR+2} y={cy(lote.pesoObjetivo)+4} fontSize="8" fill="#10b981">{lote.pesoObjetivo}</text>
+                            {/* Línea de crecimiento */}
+                            <polyline
+                              points={puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")}
+                              fill="none" stroke={barColor} strokeWidth="2"/>
+                            {/* Área rellena */}
+                            <polygon
+                              points={`${cx(0)},${cy(minKg)} ${puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")} ${cx(meses)},${cy(minKg)}`}
+                              fill={barColor} opacity="0.08"/>
+                            {/* Punto HOY */}
+                            {calc.diasTrans > 0 && calc.diasTrans < meses*30 && (
+                              <>
+                                <line x1={PL+cW*calc.diasTrans/(meses*30)} x2={PL+cW*calc.diasTrans/(meses*30)} y1={PT} y2={H-PB} stroke="#64748b" strokeWidth="1" strokeDasharray="3,2"/>
+                                <circle cx={PL+cW*calc.diasTrans/(meses*30)} cy={cy(calc.pesoActual)} r="5" fill={barColor} stroke="white" strokeWidth="1.5"/>
+                                <text x={PL+cW*calc.diasTrans/(meses*30)} y={cy(calc.pesoActual)-8} textAnchor="middle" fontSize="9" fontWeight="700" fill={barColor}>{calc.pesoActual}kg</text>
+                              </>
+                            )}
+                            {/* Labels mes */}
+                            {puntos.filter((_,i)=>i%2===0).map((p,i)=>(
+                              <text key={i} x={cx(p.m)} y={H-5} textAnchor="middle" fontSize="8" fill="#94a3b8">
+                                {mesStr[(entradaMes+p.m)%12]}
+                              </text>
+                            ))}
+                          </svg>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Configuración del lote */}
+                    <details className="group">
+                      <summary className="text-xs font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600 transition-colors list-none flex items-center gap-1">
+                        <span className="group-open:rotate-90 transition-transform inline-block">▶</span> Editar parámetros del lote
+                      </summary>
+                      <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <EditField label="Cabezas" value={lote.cabezas} onChange={setL("cabezas")} step={1} minVal={1}/>
+                        <EditField label="Peso entrada (kg)" value={lote.pesoEntrada} onChange={setL("pesoEntrada")} step={5} suffix=" kg"/>
+                        <EditField label="GDP (kg/día)" value={lote.gdp} onChange={v=>setL("gdp")(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
+                        <EditField label="Peso objetivo (kg)" value={lote.pesoObjetivo} onChange={setL("pesoObjetivo")} step={5} suffix=" kg"/>
+                        <EditField label="Meses objetivo" value={lote.mesesObjetivo} onChange={setL("mesesObjetivo")} step={1} suffix=" m" minVal={1}/>
+                        <div className="space-y-1">
+                          <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
+                          <input type="date" value={lote.fechaEntrada} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,fechaEntrada:e.target.value}:l))}
+                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400"/>
+                        </div>
+                      </div>
+                    </details>
+
+                    {/* Botones acción */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={() => onSincronizar({
+                          target: "poder",
+                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · venta y reposición`,
+                          venta: { cantidad: lote.cabezas, pesoPromedio: calc.pesoActual, precioKg: 2200 },
+                        })}
+                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
+                        <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
+                        Vender {lote.cabezas} cab y simular reposición
+                      </button>
+                      <button
+                        onClick={() => onSincronizar({
+                          target: "invernada",
+                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg → campo vs feedlot`,
+                          base: { cantidad: lote.cabezas, pesoIngreso: calc.pesoActual, precioCompraKg: 1800 },
+                        })}
+                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
+                        <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
+                        Comparar campo vs feedlot
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Resumen total */}
+            {lotesRecria.length > 0 && (
+              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Resumen total recría</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  {[
+                    { label:"Total animales", val:lotesRecria.reduce((a,l)=>a+l.cabezas,0)+" cab" },
+                    { label:"Listos para vender", val:lotesRecria.filter(l=>calcLote(l).listo).reduce((a,l)=>a+l.cabezas,0)+" cab" },
+                    { label:"Lotes activos", val:lotesRecria.length },
+                    { label:"Peso prom. actual", val: Math.round(lotesRecria.reduce((a,l)=>a+calcLote(l).pesoActual*l.cabezas,0)/Math.max(1,lotesRecria.reduce((a,l)=>a+l.cabezas,0)))+" kg" },
+                  ].map((k,i)=>(
+                    <div key={i} className="bg-slate-50 rounded-xl p-3">
+                      <p className="text-xs text-slate-400">{k.label}</p>
+                      <p className="font-black text-slate-800 text-xl">{k.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
         )}
