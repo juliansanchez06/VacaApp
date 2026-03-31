@@ -3711,31 +3711,128 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             STOCK HACIENDA
         ══════════════════════════════════════════════════════════════ */}
         {seccion === "stock" && !subStock && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sim-zoom-enter">
-            {[
-              { id:"cria",        label:"Cría",        icon:"🐮", color:"emerald", strip:"from-emerald-400 to-teal-400",   border:"border-emerald-200", total: criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros, sub:`${criaDatos.vacas} vacas · ${criaDatos.vaquillonas} vaq. · ${criaDatos.toros} toros` },
-              { id:"recria",      label:"Recría",      icon:"🐂", color:"blue",    strip:"from-blue-400 to-indigo-400",    border:"border-blue-200",    total: reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos, sub:`${reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} tern. marca · ${reciaDatos.novillos} novillos` },
-              { id:"terminacion", label:"Terminación", icon:"🥩", color:"amber",   strip:"from-amber-400 to-orange-400",  border:"border-amber-200",   total: terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot, sub:`${terminacionDatos.novillosCampo} campo · ${terminacionDatos.novillosFeedlot} feedlot` },
-            ].map((cat,i) => (
-              <button key={cat.id} onClick={() => setSubStock(cat.id)}
-                className={`cat-enter bg-white border-2 ${cat.border} rounded-3xl overflow-hidden shadow-lg card-hover text-left w-full group`}
-                style={{animationDelay:`${i*0.12}s`}}>
-                <div className={`h-1.5 bg-gradient-to-r ${cat.strip}`} />
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className={`w-14 h-14 rounded-2xl bg-${cat.color}-100 flex items-center justify-center text-3xl`}>{cat.icon}</div>
-                    <div className={`text-xs font-black px-2.5 py-1 rounded-full bg-${cat.color}-100 text-${cat.color}-700 border border-${cat.color}-200`}>
-                      Ver detalle →
+          <div className="space-y-4 sim-zoom-enter">
+
+            {/* ── CRÍA — vista fija ───────────────────────────────────────── */}
+            <div className="cat-enter bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.05s"}}>
+              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🐮</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
+                      <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
                     </div>
                   </div>
-                  <div>
-                    <p className={`text-xs font-black uppercase tracking-widest text-${cat.color}-700`}>{cat.label}</p>
-                    <p className="text-4xl font-black text-slate-800 mt-1">{cat.total} <span className="text-base font-bold text-slate-400">cab</span></p>
-                    <p className="text-xs text-slate-400 mt-1">{cat.sub}</p>
-                  </div>
+                  <button onClick={() => setSubStock("cria")}
+                    className="flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-all">
+                    ✏️ Editar
+                  </button>
                 </div>
-              </button>
-            ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label:"Vacas",           val: criaDatos.vacas,                 color:"text-emerald-800" },
+                    { label:"Vaquillonas",     val: criaDatos.vaquillonas,           color:"text-emerald-700" },
+                    { label:"Toros",           val: criaDatos.toros,                 color:"text-slate-700"   },
+                    { label:"Vacías (desc.)",  val: criaDatos.vacias||0,             color:"text-rose-600"    },
+                    { label:"Tern. no dest.",  val: criaDatos.ternerosNoDestetados,  color:"text-blue-700"    },
+                    { label:"% Preñez",        val: `${criaDatos.pctPreniez??85}%`,  color:"text-emerald-700" },
+                    { label:"% Destete",       val: `${criaDatos.pctDestete??75}%`,  color:"text-emerald-700" },
+                    { label:"% Mort. cría",    val: `${criaDatos.pctMortandadCria??2}%`, color:"text-slate-500" },
+                  ].map(({label,val,color})=>(
+                    <div key={label} className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                      <p className="text-xs text-slate-400">{label}</p>
+                      <p className={`font-black text-base ${color}`}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                  <span>Parición: <b className="text-slate-600">{["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][criaDatos.paricionMes??9]} {criaDatos.paricionAnio??new Date().getFullYear()}</b></span>
+                  <span>·</span>
+                  <span>Destete: <b className="text-slate-600">{criaDatos.mesesDestete??6} meses</b></span>
+                  <span>·</span>
+                  <span>Machos/Hembras: <b className="text-slate-600">{criaDatos.pctMachos??50}/{100-(criaDatos.pctMachos??50)}</b></span>
+                  <span>·</span>
+                  <span>Repos: <b className="text-slate-600">{criaDatos.pctReposicion??30}%</b></span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── RECRÍA — vista fija ─────────────────────────────────────── */}
+            <div className="cat-enter bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.12s"}}>
+              <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400"/>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🐂</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
+                      <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} <span className="text-base font-bold text-slate-400">cab</span></p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSubStock("recria")}
+                    className="flex items-center gap-1.5 text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all">
+                    ✏️ Editar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { label:"Marca líq. machos",   val: reciaDatos.ternerosLiquidaMachos,  color:"text-blue-800"   },
+                    { label:"Marca líq. hembras",  val: reciaDatos.ternerosLiquidaHembras, color:"text-rose-600"   },
+                    { label:"Compra machos",        val: reciaDatos.ternerosCompraMachos,   color:"text-indigo-700" },
+                    { label:"Compra hembras",       val: reciaDatos.ternerosCompraHembras,  color:"text-pink-600"   },
+                    { label:"Novillos",             val: reciaDatos.novillos,               color:"text-slate-700"  },
+                    { label:"% Mort. recría",       val: `${reciaDatos.pctMortandadRecria??2}%`, color:"text-slate-500" },
+                  ].map(({label,val,color})=>(
+                    <div key={label} className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                      <p className="text-xs text-slate-400">{label}</p>
+                      <p className={`font-black text-base ${color}`}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+                {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) > 0 && (
+                  <div className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <span className="text-sm">✓</span>
+                    <p className="text-xs text-emerald-700 font-semibold">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría — {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── TERMINACIÓN — vista fija ────────────────────────────────── */}
+            <div className="cat-enter bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.19s"}}>
+              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🥩</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
+                      <p className="text-3xl font-black text-slate-800">{terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} <span className="text-base font-bold text-slate-400">cab</span></p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSubStock("terminacion")}
+                    className="flex items-center gap-1.5 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-2 rounded-xl transition-all">
+                    ✏️ Editar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label:"Campo",          val: terminacionDatos.novillosCampo,              color:"text-amber-800"  },
+                    { label:"Feedlot",        val: terminacionDatos.novillosFeedlot,            color:"text-orange-700" },
+                    { label:"Peso prom.",     val: `${terminacionDatos.pesoPromedioKg} kg`,     color:"text-slate-700"  },
+                    { label:"% Mort. feedlot",val: `${terminacionDatos.pctMortandadFeedlot??2}%`, color:"text-slate-500" },
+                  ].map(({label,val,color})=>(
+                    <div key={label} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                      <p className="text-xs text-slate-400">{label}</p>
+                      <p className={`font-black text-base ${color}`}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
