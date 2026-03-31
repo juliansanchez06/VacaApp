@@ -3526,7 +3526,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     {
       id: 1, categoria: "novillos", label: "Novillos en recría",
       cabezas: 114, pesoEntrada: 220, gdp: 0.6,
-      fechaEntrada: "2024-09-01", pesoObjetivo: 380, mesesObjetivo: 10,
+      fechaEntrada: "2024-09-01", mesesRecria: 10,
       color: "amber",
     },
   ]);
@@ -3534,21 +3534,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const calcLote = (lote) => {
     const entrada  = new Date(lote.fechaEntrada);
     const diasTrans= Math.max(0, Math.round((hoyFecha - entrada) / 86400000));
-    const pesoActual = Math.round(lote.pesoEntrada + diasTrans * lote.gdp);
-    const diasParaPeso = lote.gdp > 0 ? Math.max(0, Math.round((lote.pesoObjetivo - pesoActual) / lote.gdp)) : 999;
-    const diasTotalesObjetivo = lote.mesesObjetivo * 30;
-    const diasRestMeses = Math.max(0, diasTotalesObjetivo - diasTrans);
-    const diasRestantes = Math.min(diasParaPeso, diasRestMeses);
-    const fechaSalida  = new Date(hoyFecha.getTime() + diasRestantes * 86400000);
-    const pctPeso      = Math.min(100, Math.round((pesoActual - lote.pesoEntrada) / (lote.pesoObjetivo - lote.pesoEntrada) * 100));
-    const pctTiempo    = Math.min(100, Math.round(diasTrans / diasTotalesObjetivo * 100));
-    const pctProgreso  = Math.max(pctPeso, pctTiempo);
-    const listo        = pesoActual >= lote.pesoObjetivo || diasTrans >= diasTotalesObjetivo;
+    const mesesRecria = lote.mesesRecria ?? lote.mesesObjetivo ?? 10;
+    const diasTotales  = mesesRecria * 30;
+    const diasRestantes= Math.max(0, diasTotales - diasTrans);
+    const pesoActual   = Math.round(lote.pesoEntrada + diasTrans * lote.gdp);
+    const pesoFinal    = Math.round(lote.pesoEntrada + diasTotales * lote.gdp);
+    const pctTiempo    = Math.min(100, Math.round(diasTrans / diasTotales * 100));
+    const listo        = diasTrans >= diasTotales;
     const kgGanados    = Math.round(diasTrans * lote.gdp);
-    const kgFaltantes  = Math.max(0, lote.pesoObjetivo - pesoActual);
+    const kgPorGanar   = Math.round(diasRestantes * lote.gdp);
+    const fechaSalida  = new Date(hoyFecha.getTime() + diasRestantes * 86400000);
     const mesStr = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     const fechaSalidaStr = listo ? "Listo para vender" : `${mesStr[fechaSalida.getMonth()]} ${fechaSalida.getFullYear()}`;
-    return { diasTrans, pesoActual, diasParaPeso, diasRestMeses, diasRestantes, pctProgreso, pctPeso, pctTiempo, listo, kgGanados, kgFaltantes, fechaSalidaStr };
+    return { diasTrans, pesoActual, pesoFinal, diasTotales, diasRestantes, pctTiempo, listo, kgGanados, kgPorGanar, fechaSalidaStr, mesesRecria };
   };
 
   const CATS_RECRIA = [
@@ -4500,7 +4498,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   onClick={() => setLotesRecria(prev => [...prev, {
                     id: Date.now(), categoria: "compra", label: "Nuevo lote",
                     cabezas: 50, pesoEntrada: 180, gdp: 0.6,
-                    fechaEntrada: fechaHoyStr, pesoObjetivo: 380, mesesObjetivo: 10, color: "blue",
+                    fechaEntrada: fechaHoyStr, mesesRecria: 10, color: "blue",
                   }])}
                   className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
                   + Agregar lote
@@ -4556,25 +4554,25 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-500 font-semibold">Progreso</span>
-                          <span className="font-black" style={{color:barColor}}>{calc.pctProgreso}%</span>
+                          <span className="font-black" style={{color:barColor}}>{calc.pctTiempo}%</span>
                         </div>
                         <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-700"
-                            style={{width:`${calc.pctProgreso}%`, background: barColor}}/>
+                            style={{width:`${calc.pctTiempo}%`, background: barColor}}/>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400">
-                          <span>Peso: {calc.pctPeso}%</span>
-                          <span>Tiempo: {calc.pctTiempo}%</span>
+                          <span>{calc.diasTrans}d de {calc.mesesRecria*30}d totales</span>
+                          <span>{calc.pctTiempo}% completado</span>
                         </div>
                       </div>
   
                       {/* KPIs del lote */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                          { label:"Peso actual",    val:`${calc.pesoActual} kg`,        color:"text-slate-800",   bg:"bg-slate-50"                     },
-                          { label:"Kg ganados",     val:`+${calc.kgGanados} kg`,         color:"text-emerald-700", bg:"bg-emerald-50"                   },
-                          { label:"Días en campo",  val:`${calc.diasTrans} días`,         color:"text-blue-700",    bg:"bg-blue-50"                      },
-                          { label:calc.listo?"Estado":"Sale estimado", val:calc.listo?"✓ Listo":calc.fechaSalidaStr, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
+                          { label:"Peso actual",   val:`${calc.pesoActual} kg`,  color:"text-slate-800", bg:"bg-slate-50"   },
+                          { label:"Peso final est.", val:`${calc.pesoFinal} kg`, color:"text-blue-700",  bg:"bg-blue-50"    },
+                          { label:"Kg ganados",      val:`+${calc.kgGanados} kg`, color:"text-emerald-700", bg:"bg-emerald-50" },
+                          { label:calc.listo?"Estado":"Días restantes", val:calc.listo?"✓ Listo":`${calc.diasRestantes}d`, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
                         ].map((k,i)=>(
                           <div key={i} className={`${k.bg} rounded-xl p-2.5 text-center`}>
                             <p className="text-xs text-slate-400">{k.label}</p>
@@ -4585,7 +4583,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   
                       {/* Mini gráfico SVG de acumulación */}
                       {(() => {
-                        const meses = lote.mesesObjetivo;
+                        const meses = lote.mesesRecria ?? lote.mesesObjetivo ?? 10;
                         const puntos = Array.from({length: meses+1}, (_,i) => ({
                           m: i,
                           kg: Math.round(lote.pesoEntrada + i*30*lote.gdp),
@@ -4606,7 +4604,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               {/* Línea objetivo */}
                               <line x1={PL} x2={W-PR} y1={cy(lote.pesoObjetivo)} y2={cy(lote.pesoObjetivo)}
                                 stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
-                              <text x={W-PR+2} y={cy(lote.pesoObjetivo)+4} fontSize="8" fill="#10b981">{lote.pesoObjetivo}</text>
+                              <text x={W-PR+2} y={cy(pf)+4} fontSize="8" fill="#10b981">{pf}kg</text>
                               {/* Línea de crecimiento */}
                               <polyline
                                 points={puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")}
@@ -4643,8 +4641,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           <EditField label="Cabezas" value={lote.cabezas} onChange={setL("cabezas")} step={1} minVal={1}/>
                           <EditField label="Peso entrada (kg)" value={lote.pesoEntrada} onChange={setL("pesoEntrada")} step={5} suffix=" kg"/>
                           <EditField label="GDP (kg/día)" value={lote.gdp} onChange={v=>setL("gdp")(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
-                          <EditField label="Peso objetivo (kg)" value={lote.pesoObjetivo} onChange={setL("pesoObjetivo")} step={5} suffix=" kg"/>
-                          <EditField label="Meses objetivo" value={lote.mesesObjetivo} onChange={setL("mesesObjetivo")} step={1} suffix=" m" minVal={1}/>
+                          <EditField label="Meses de recría" value={lote.mesesRecria ?? lote.mesesObjetivo ?? 10} onChange={setL("mesesRecria")} step={1} suffix=" m" minVal={1} hint={`Peso final: ${Math.round(lote.pesoEntrada + (lote.mesesRecria??10)*30*lote.gdp)} kg`}/>
                           <div className="space-y-1">
                             <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
                             <input type="date" value={lote.fechaEntrada} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,fechaEntrada:e.target.value}:l))}
