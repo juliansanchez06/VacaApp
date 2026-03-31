@@ -4895,28 +4895,33 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
           {/* Resultado ejercicio */}
           {seccion === "resultado" && (
-            <div className="space-y-5 sim-zoom-enter">
+            {/* Resultado: sidebar + contenido igual que el resto */}
+            <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
 
-              {/* Nav mobile en resultado */}
-              <div className="campo-mobile-nav" style={{marginBottom:"16px"}}>
+              {/* Sidebar resultado — solo desktop */}
+              <div className="campo-sidebar">
                 {SECCIONES.map(s => (
                   <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                    style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
-                    <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
-                    <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
+                    style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
+                    <span style={{fontSize:"16px", lineHeight:1}}>{s.icon}</span>
+                    <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Header con nav desktop */}
-              <div style={{display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"4px"}} className="hidden md:flex">
-                {SECCIONES.map(s => (
-                  <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                    style={{display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"10px", fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
-                    <span>{s.icon}</span>{s.label}
-                  </button>
-                ))}
-              </div>
+              {/* Contenido resultado */}
+              <div style={{flex:1, minWidth:0}} className="space-y-5 sim-zoom-enter">
+
+                {/* Mobile nav */}
+                <div className="campo-mobile-nav">
+                  {SECCIONES.map(s => (
+                    <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
+                      style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
+                      <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
+                      <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
 
               {/* Feedlot activo */}
               {feedlotLotes.length > 0 && (
@@ -5047,7 +5052,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               )}
 
-            </div>
+              </div>{/* end contenido resultado */}
+            </div>{/* end flex resultado */}
           )}
           </div>{/* end main content */}
         </div>{/* end layout flex */}
@@ -5083,7 +5089,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* Precio de venta */}
-              <EditField label="Precio de venta ($/kg)" value={ventaPrecioKg} onChange={setVentaPrecioKg} step={50} prefix="$"/>
+              <div className="space-y-1">
+                <span className="text-xs text-slate-500 font-semibold">Precio de venta ($/kg)</span>
+                <div className="flex items-center gap-1.5">
+                  <button onPointerDown={()=>setVentaPrecioKg(v=>Math.max(0,v-50))}
+                    className="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95">−</button>
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">$</span>
+                    <input type="number" min="0" step="50"
+                      value={ventaPrecioKg}
+                      onChange={e=>{ const n=parseFloat(e.target.value); if(!isNaN(n)) setVentaPrecioKg(n); }}
+                      onFocus={e=>e.target.select()}
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-6 pr-3 py-2 text-center font-mono font-black text-base text-slate-800 focus:outline-none focus:border-emerald-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
+                  </div>
+                  <button onPointerDown={()=>setVentaPrecioKg(v=>v+50)}
+                    className="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95">+</button>
+                </div>
+              </div>
 
               {/* Feedlot params */}
               {ventaModalidad==="feedlot" && (
