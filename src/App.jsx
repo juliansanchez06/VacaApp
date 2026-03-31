@@ -3676,7 +3676,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         </div>
       </nav>
 
-      <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-6 lg:px-8 py-4 md:py-6">
+      <div className="w-full max-w-[1200px] mx-auto px-2 sm:px-4 py-4 md:py-6">
 
         {/* KPI resumen */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 simulator-enter">
@@ -3694,18 +3694,39 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ))}
         </div>
 
-        {/* Sub-nav */}
-        <div className="flex gap-2 mb-5 overflow-x-auto">
-          {SECCIONES.map(s => (
-            <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap
-                ${seccion === s.id
-                  ? "bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-md"
-                  : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300"}`}>
-              <span>{s.icon}</span>{s.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Nav: grilla en mobile, sidebar en desktop ─────────────────── */}
+        <div className="flex gap-6 items-start">
+
+          {/* Sidebar — solo desktop */}
+          <div className="hidden md:flex shrink-0 w-44 flex-col gap-1 sticky top-24">
+            {SECCIONES.map(s => (
+              <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
+                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-2xl text-left transition-all
+                  ${seccion === s.id
+                    ? "bg-slate-800 text-white shadow-md"
+                    : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>
+                <span className="text-base leading-none">{s.icon}</span>
+                <span className="text-xs font-black uppercase tracking-widest leading-tight">{s.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Contenido principal */}
+          <div className="flex-1 min-w-0 space-y-0">
+
+            {/* Mobile nav: grilla 3 cols */}
+            <div className="grid grid-cols-3 gap-2 mb-5 md:hidden">
+              {SECCIONES.map(s => (
+                <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
+                  className={`flex flex-col items-center gap-1 px-1 py-3 rounded-2xl text-center transition-all
+                    ${seccion === s.id
+                      ? "bg-slate-800 text-white shadow-md"
+                      : "bg-white border-2 border-slate-100 text-slate-500 hover:border-slate-300"}`}>
+                  <span className="text-xl leading-none">{s.icon}</span>
+                  <span className="text-xs font-black uppercase tracking-widest leading-tight mt-0.5">{s.label}</span>
+                </button>
+              ))}
+            </div>
 
         {/* ══════════════════════════════════════════════════════════════
             STOCK HACIENDA
@@ -4992,6 +5013,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
         </div>
       )}
+
+          </div>{/* end flex-1 contenido */}
+        </div>{/* end flex sidebar+contenido */}
 
       {/* ══════════════════════════════════════════════════════════════
           MODAL VENTA DE LOTE
