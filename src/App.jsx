@@ -3272,11 +3272,18 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
-function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, ventasEjercicio = [], feedlotLotes = [], onVentaLote, onSalidaFeedlot }) {
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
   const [verHistorial, setVerHistorial] = useState(false);
-  const [anoViendo, setAnoViendo]   = useState(null); // null = actual
+  const [anoViendo, setAnoViendo]   = useState(null);
+  const [modalVenta,   setModalVenta]   = useState(null); // lote a vender
+  // Modal venta state
+  const [ventaModalidad,   setVentaModalidad]   = useState("invernada");
+  const [ventaPrecioKg,    setVentaPrecioKg]    = useState(2200);
+  const [ventaDiasFeedlot, setVentaDiasFeedlot] = useState(90);
+  const [ventaGdpFeedlot,  setVentaGdpFeedlot]  = useState(1.2);
+  const [ventaCostoFeedlot,setVentaCostoFeedlot] = useState(4500);
 
   // ── Cotizaciones globales ─────────────────────────────────────────────────
   const [dolar,   setDolar]   = useState(1420);
@@ -3553,6 +3560,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const SECCIONES = [
     { id: "stock",        label: "Stock hacienda",    icon: "🐄" },
     { id: "recria-lotes", label: "Estado recría",     icon: "📈" },
+    { id: "resultado",    label: "Resultado ejercicio", icon: "💹" },
     { id: "rendimiento",  label: "Rendimiento",        icon: "📊" },
     { id: "costos",       label: "Costos estructura",  icon: "💰" },
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
@@ -4484,24 +4492,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     {/* Botones acción */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                       <button
+                        onClick={() => setModalVenta(lote)}
+                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                        🐂 Vender / Mandar a feedlot
+                      </button>
+                      <button
                         onClick={() => onSincronizar({
                           target: "poder",
-                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · venta y reposición`,
+                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · simular reposición`,
                           venta: { cantidad: lote.cabezas, pesoPromedio: calc.pesoActual, precioKg: 2200 },
                         })}
                         className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
                         <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
-                        Vender {lote.cabezas} cab y simular reposición
-                      </button>
-                      <button
-                        onClick={() => onSincronizar({
-                          target: "invernada",
-                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg → campo vs feedlot`,
-                          base: { cantidad: lote.cabezas, pesoIngreso: calc.pesoActual, precioCompraKg: 1800 },
-                        })}
-                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
-                        <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
-                        Comparar campo vs feedlot
+                        Simular reposición
                       </button>
                     </div>
                   </div>
@@ -4711,6 +4714,239 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         )}
 
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          RESULTADO POR EJERCICIO
+      ══════════════════════════════════════════════════════════════ */}
+      {seccion === "resultado" && (
+        <div className="space-y-5 sim-zoom-enter">
+
+          {/* Feedlot activo */}
+          {feedlotLotes.length > 0 && (
+            <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
+              <div className="p-5 space-y-3">
+                <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
+                {feedlotLotes.map((fl,i)=>(
+                  <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                      <div>
+                        <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+                        <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
+                      </div>
+                      <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
+                        {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
+                      {[
+                        ["Entrada", `${fl.pesoEntrada} kg`],
+                        ["Salida est.", `${fl.pesoSalida} kg`],
+                        ["Días feedlot", `${fl.diasFeedlot}d`],
+                        ["Ingreso est.", fmtMoney(fl.ingreso)],
+                      ].map(([l,v])=>(
+                        <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
+                          <p className="text-xs text-slate-400">{l}</p>
+                          <p className="font-black text-slate-800 text-sm">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={()=>onSalidaFeedlot(fl)}
+                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                      ✅ Confirmar salida de feedlot → registrar venta
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ventas del ejercicio */}
+          <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
+                <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
+              </div>
+              {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
+                <div className="text-center py-8 text-slate-300">
+                  <p className="font-semibold">Sin ventas registradas este ejercicio</p>
+                  <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead><tr className="border-b-2 border-slate-100">
+                        {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad"].map(h=>(
+                          <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                            <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
+                            <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
+                            <td className="text-right py-2.5">
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* KPIs resultado */}
+                  {(() => {
+                    const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
+                    const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
+                    const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
+                    const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                          <p className="text-xs text-emerald-600">Ingreso total</p>
+                          <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                          <p className="text-xs text-slate-500">Cabezas vendidas</p>
+                          <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                          <p className="text-xs text-slate-500">kg vendidos</p>
+                          <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                          <p className="text-xs text-blue-600">kg/ha</p>
+                          <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Proyección año siguiente — feedlot que se pasa */}
+          {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
+              <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente — feedlot que se pasa</p>
+              {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
+                <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
+                  <div>
+                    <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+                    <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
+                    <p className="text-xs text-blue-600">{fl.ejercicio}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL VENTA DE LOTE
+      ══════════════════════════════════════════════════════════════ */}
+      {modalVenta && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{background:"rgba(0,0,0,0.5)"}}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden sim-zoom-enter">
+            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Venta / Destino</p>
+                  <p className="font-black text-slate-800 text-lg mt-0.5">{modalVenta.label}</p>
+                  <p className="text-xs text-slate-400">{modalVenta.cabezas} cab · {(() => { const d=Math.round((new Date()-new Date(modalVenta.fechaEntrada))/86400000); return Math.round(modalVenta.pesoEntrada+d*modalVenta.gdp); })()} kg/cab actuales</p>
+                </div>
+                <button onClick={()=>setModalVenta(null)} className="text-slate-400 hover:text-slate-700 text-xl font-black">✕</button>
+              </div>
+
+              {/* Modalidad */}
+              <div className="grid grid-cols-2 gap-3">
+                {[["invernada","🌿 Invernada directa","Venta desde recría al peso actual"],["feedlot","🏭 Pasar a feedlot","Terminar antes de vender"]].map(([id,label,desc])=>(
+                  <button key={id} onClick={()=>setVentaModalidad(id)}
+                    className={`rounded-2xl border-2 p-3 text-left transition-all ${ventaModalidad===id?"border-emerald-400 bg-emerald-50":"border-slate-200 hover:border-slate-300"}`}>
+                    <p className="font-black text-sm text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Precio de venta */}
+              <EditField label="Precio de venta ($/kg)" value={ventaPrecioKg} onChange={setVentaPrecioKg} step={50} prefix="$"/>
+
+              {/* Feedlot params */}
+              {ventaModalidad==="feedlot" && (
+                <div className="space-y-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <p className="text-xs font-black text-amber-700 uppercase tracking-widest">Parámetros feedlot</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <EditField label="Días en feedlot" value={ventaDiasFeedlot} onChange={setVentaDiasFeedlot} step={5} suffix=" días" minVal={1}/>
+                    <EditField label="GDP feedlot" value={ventaGdpFeedlot} onChange={v=>setVentaGdpFeedlot(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
+                    <EditField label="Costo/cab/día" value={ventaCostoFeedlot} onChange={setVentaCostoFeedlot} step={500} prefix="$"/>
+                  </div>
+                  {(() => {
+                    const pesoActualLote = (() => { const d=Math.round((new Date()-new Date(modalVenta.fechaEntrada))/86400000); return Math.round(modalVenta.pesoEntrada+d*modalVenta.gdp); })();
+                    const pesoSalidaFL = Math.round(pesoActualLote + ventaDiasFeedlot * ventaGdpFeedlot);
+                    const costoFL = modalVenta.cabezas * ventaCostoFeedlot * ventaDiasFeedlot;
+                    const ingresoFL = modalVenta.cabezas * pesoSalidaFL * ventaPrecioKg - costoFL;
+                    const añoInicio = parseInt(anoGanadero.split("/")[0]);
+                    const diasHastaJun = Math.round((new Date(añoInicio+1,5,30) - new Date()) / 86400000);
+                    const enAnoAct = ventaDiasFeedlot <= diasHastaJun;
+                    return (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
+                          <p className="text-xs text-amber-600">Peso salida</p>
+                          <p className="font-black text-amber-800">{pesoSalidaFL} kg/cab</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
+                          <p className="text-xs text-amber-600">Ingreso neto est.</p>
+                          <p className="font-black text-amber-800">{fmtMoney(ingresoFL)}</p>
+                        </div>
+                        <div className={`col-span-2 rounded-xl border p-2.5 text-center ${enAnoAct?"bg-emerald-50 border-emerald-200":"bg-blue-50 border-blue-200"}`}>
+                          <p className={`text-xs font-black ${enAnoAct?"text-emerald-700":"text-blue-700"}`}>
+                            {enAnoAct ? `✅ Sale dentro del año (${diasHastaJun-ventaDiasFeedlot} días de margen)` : `⏭ Se pasa al año siguiente (${ventaDiasFeedlot-diasHastaJun} días extra)`}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Botones */}
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={()=>setModalVenta(null)}
+                  className="py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 transition-all">
+                  Cancelar
+                </button>
+                <button onClick={()=>{
+                  onVentaLote(modalVenta, ventaModalidad, ventaPrecioKg, ventaDiasFeedlot, ventaGdpFeedlot, ventaCostoFeedlot);
+                  // Sacar de lotesRecria
+                  setLotesRecria(prev=>prev.filter(l=>l.id!==modalVenta.id));
+                  setModalVenta(null);
+                  setSeccion("resultado");
+                }}
+                  className="py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm transition-all active:scale-95">
+                  ✅ Confirmar venta
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -4853,6 +5089,68 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   // ── Año ganadero ──────────────────────────────────────────────────────────
   const [anoGanaderoActual, setAnoGanaderoActual] = useState(getAnoGanaderoActual());
   const [historialAnos, setHistorialAnos] = useState({});
+
+  // ── Resultado por ejercicio ──────────────────────────────────────────────
+  const [ventasEjercicio, setVentasEjercicio] = useState([]); // historial ventas año actual
+  const [feedlotLotes,    setFeedlotLotes]    = useState([]); // lotes en feedlot pendientes
+
+  // Registrar venta de un lote de recría
+  const handleVentaLote = (lote, modalidad, precioKg, diasFeedlot = 0, gdpFeedlot = 0, costoFeedlotDia = 0) => {
+    const hoy = new Date();
+    // Cierre del año actual: 30 de junio
+    const añoInicio = parseInt(anoGanaderoActual.split("/")[0]);
+    const cierreAno = new Date(añoInicio + 1, 5, 30); // 30/jun del año siguiente
+    const diasHastaCierre = Math.round((cierreAno - hoy) / 86400000);
+
+    if (modalidad === "invernada") {
+      // Venta directa desde recría — va al ejercicio actual
+      const pesoVenta = Math.round(lote.pesoEntrada + (Math.round((hoy - new Date(lote.fechaEntrada)) / 86400000)) * lote.gdp);
+      const ingreso   = lote.cabezas * pesoVenta * precioKg;
+      const venta = {
+        id: Date.now(), fecha: hoy.toLocaleDateString("es-AR"),
+        loteLabel: lote.label, categoria: lote.categoria,
+        cabezas: lote.cabezas, pesoVenta, precioKg, ingreso,
+        modalidad: "invernada", ejercicio: anoGanaderoActual,
+        kgTotales: lote.cabezas * pesoVenta,
+      };
+      setVentasEjercicio(p => [...p, venta]);
+      pushToast(`✅ Venta registrada: ${lote.cabezas} cab × ${pesoVenta}kg × $${fmt(precioKg)} = ${fmtMoney(ingreso)}`, "success");
+    } else {
+      // Feedlot — calcular si sale antes o después del cierre
+      const pesoEntradaFeedlot = Math.round(lote.pesoEntrada + (Math.round((hoy - new Date(lote.fechaEntrada)) / 86400000)) * lote.gdp);
+      const pesoSalidaFeedlot  = Math.round(pesoEntradaFeedlot + diasFeedlot * gdpFeedlot);
+      const saleFeedlot = diasFeedlot <= diasHastaCierre;
+      const ejercicioVenta = saleFeedlot ? anoGanaderoActual : `${añoInicio+1}/${añoInicio+2}`;
+      const costoTotal = lote.cabezas * costoFeedlotDia * diasFeedlot;
+      const ingreso    = lote.cabezas * pesoSalidaFeedlot * precioKg - costoTotal;
+      const loteFL = {
+        id: Date.now(), loteLabel: lote.label, cabezas: lote.cabezas,
+        pesoEntrada: pesoEntradaFeedlot, pesoSalida: pesoSalidaFeedlot,
+        diasFeedlot, gdpFeedlot, costoFeedlotDia, costoTotal,
+        precioKg, ingreso, ejercicio: ejercicioVenta,
+        fechaEntradaFeedlot: hoy.toLocaleDateString("es-AR"),
+        fechaSalidaEstimada: new Date(hoy.getTime() + diasFeedlot*86400000).toLocaleDateString("es-AR"),
+        enAnoActual: saleFeedlot,
+      };
+      setFeedlotLotes(p => [...p, loteFL]);
+      const txt = saleFeedlot ? `año actual (${anoGanaderoActual})` : `próximo año (${ejercicioVenta})`;
+      pushToast(`🏭 Lote a feedlot ${diasFeedlot}d — sale en ${txt}`, "success");
+    }
+  };
+
+  // Confirmar salida de feedlot → registrar como venta
+  const handleSalidaFeedlot = (fl) => {
+    const venta = {
+      id: Date.now(), fecha: new Date().toLocaleDateString("es-AR"),
+      loteLabel: fl.loteLabel + " (feedlot)", categoria: "novillos",
+      cabezas: fl.cabezas, pesoVenta: fl.pesoSalida, precioKg: fl.precioKg,
+      ingreso: fl.ingreso, modalidad: "feedlot", ejercicio: fl.ejercicio,
+      kgTotales: fl.cabezas * fl.pesoSalida,
+    };
+    setVentasEjercicio(p => [...p, venta]);
+    setFeedlotLotes(p => p.filter(f => f.id !== fl.id));
+    pushToast(`✅ Salida feedlot registrada — ${fl.cabezas} cab × ${fl.pesoSalida}kg`, "success");
+  };
 
   // ── Stock compartido con Mi Campo ─────────────────────────────────────────
   const [campoCria, setCampoCria] = useState({
@@ -5037,6 +5335,10 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           anoGanadero={anoGanaderoActual}
           historialAnos={historialAnos}
           onCerrarAno={handleCerrarAno}
+          ventasEjercicio={ventasEjercicio}
+          feedlotLotes={feedlotLotes}
+          onVentaLote={handleVentaLote}
+          onSalidaFeedlot={handleSalidaFeedlot}
         />
       </>
     );
