@@ -3568,10 +3568,22 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
   const EditField = ({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) => {
-    const decFn  = useCallback(() => onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)), [value, step, minVal, onChange]);
-    const incFn  = useCallback(() => onChange(Math.round((value + step) * 100) / 100), [value, step, onChange]);
-    const decLP  = useLongPress(decFn, 180);
-    const incLP  = useLongPress(incFn, 180);
+    const [inputStr, setInputStr] = useState(null);
+    const decFn = useCallback(() => { onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)); setInputStr(null); }, [value, step, minVal, onChange]);
+    const incFn = useCallback(() => { onChange(Math.round((value + step) * 100) / 100); setInputStr(null); }, [value, step, onChange]);
+    const decLP = useLongPress(decFn, 180);
+    const incLP = useLongPress(incFn, 180);
+    const handleChange = (e) => {
+      const raw = e.target.value;
+      setInputStr(raw);
+      if (raw === "" || raw === "-") return;
+      const n = parseFloat(raw);
+      if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100));
+    };
+    const handleBlur = () => {
+      if (inputStr === "" || inputStr === null) onChange(minVal);
+      setInputStr(null);
+    };
     return (
       <div className="space-y-1">
         <div className="flex items-center justify-between">
@@ -3579,7 +3591,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           <div className="flex items-center gap-1.5">
             {usdVal && <span className="text-xs text-emerald-600 font-semibold">{usdVal}</span>}
             {value !== minVal && (
-              <button onClick={() => onChange(minVal)}
+              <button onClick={() => { onChange(minVal); setInputStr(null); }}
                 className="text-xs text-slate-400 hover:text-red-500 font-black px-1.5 py-0.5 rounded-md hover:bg-red-50 transition-all"
                 title="Poner en 0">×0</button>
             )}
@@ -3588,10 +3600,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         <div className="flex items-center gap-1.5">
           <button {...decLP}
             className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">−</button>
-          <div className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-2 py-1.5 text-center">
-            <span className="text-xs text-slate-400">{prefix}</span>
-            <span className="font-mono font-black text-base text-slate-800">{fmt(value)}</span>
-            <span className="text-xs text-slate-400 ml-0.5">{suffix}</span>
+          <div className="flex-1 relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{prefix}</span>
+            <input
+              type="number" step={step} min={minVal}
+              value={inputStr !== null ? inputStr : value}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onFocus={e => { setInputStr(String(value)); e.target.select(); }}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-base text-slate-800 focus:outline-none focus:border-emerald-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{suffix}</span>
           </div>
           <button {...incLP}
             className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">+</button>
@@ -3824,50 +3843,72 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 })()}
                 {/* ── Botón Destetar ── */}
                 {(() => {
-                  const madres   = criaDatos.vacas + criaDatos.vaquillonas;
-                  const pren     = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
-                  const nacidos  = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
-                  const dest     = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
-                  const machos   = Math.round(dest * (criaDatos.pctMachos ?? 50) / 100);
-                  const hembras  = dest - machos;
-                  const yaDestetado = criaDatos.ternerosNoDestetados === 0 && (reciaDatos.ternerosLiquidaMachos > 0 || reciaDatos.ternerosLiquidaHembras > 0);
+                  const madres       = criaDatos.vacas + criaDatos.vaquillonas;
+                  const pren         = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
+                  const nacidos      = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
+                  const destTotal    = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
+                  const machos       = Math.round(destTotal * (criaDatos.pctMachos ?? 50) / 100);
+                  const hembras      = destTotal - machos;
+                  // Cuánto ya pasó a recría como marca líquida
+                  const yaEnRecria   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras;
+                  const pendiente    = Math.max(0, destTotal - yaEnRecria);
+                  const machosPend   = Math.round(pendiente * (criaDatos.pctMachos ?? 50) / 100);
+                  const hembrasPend  = pendiente - machosPend;
+                  const todoDestetado= pendiente === 0 && yaEnRecria > 0;
+
+                  if (todoDestetado) return (
+                    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">✅</span>
+                        <div>
+                          <p className="text-xs font-black text-emerald-700">Destete completo — {destTotal} terneros en Recría</p>
+                          <p className="text-xs text-emerald-600">{reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H como marca líquida</p>
+                        </div>
+                      </div>
+                      <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
+                        className="text-xs font-black text-slate-400 hover:text-red-500 border border-dashed border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-xl transition-all shrink-0">
+                        ↩ Deshacer
+                      </button>
+                    </div>
+                  );
+
                   return (
                     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
-                        {yaDestetado && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">✓ Ya destetado</span>}
+                        {yaEnRecria > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">{yaEnRecria} ya en recría</span>}
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-white rounded-xl border border-emerald-200 py-2">
-                          <p className="text-xs text-emerald-600">Total destete</p>
-                          <p className="font-black text-emerald-900 text-lg">{dest}</p>
+                          <p className="text-xs text-emerald-600">Pendiente</p>
+                          <p className="font-black text-emerald-900 text-lg">{pendiente}</p>
                         </div>
                         <div className="bg-white rounded-xl border border-blue-200 py-2">
-                          <p className="text-xs text-blue-600">Machos → recría</p>
-                          <p className="font-black text-blue-800 text-lg">{machos}</p>
+                          <p className="text-xs text-blue-600">Machos</p>
+                          <p className="font-black text-blue-800 text-lg">{machosPend}</p>
                         </div>
                         <div className="bg-white rounded-xl border border-rose-200 py-2">
-                          <p className="text-xs text-rose-600">Hembras → recría</p>
-                          <p className="font-black text-rose-700 text-lg">{hembras}</p>
+                          <p className="text-xs text-rose-600">Hembras</p>
+                          <p className="font-black text-rose-700 text-lg">{hembrasPend}</p>
                         </div>
                       </div>
-                      <button
-                        disabled={dest === 0}
-                        onClick={() => onSincronizar({
-                          _accion: "pasar-destete-recria",
-                          machos,
-                          hembras,
-                        })}
-                        className={`w-full flex items-center justify-center gap-2 font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group
-                          ${dest === 0
-                            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                            : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"}`}>
-                        <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                        Destetar {dest} terneros → Recría ({machos}M + {hembras}H)
-                      </button>
-                      <p className="text-xs text-emerald-600 text-center">
-                        Las vacas quedan libres · Los terneros pasan a Recría como marca líquida
-                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          disabled={pendiente === 0}
+                          onClick={() => onSincronizar({ _accion: "pasar-destete-recria", machos: machosPend, hembras: hembrasPend })}
+                          className={`flex items-center justify-center gap-2 font-black text-sm px-4 py-3 rounded-2xl transition-all active:scale-95
+                            ${pendiente === 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"}`}>
+                          <RefreshCw size={14}/>
+                          Destetar {pendiente} terneros
+                        </button>
+                        {yaEnRecria > 0 && (
+                          <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
+                            className="flex items-center justify-center gap-2 text-slate-500 font-black text-sm px-4 py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-red-300 hover:text-red-500 transition-all">
+                            ↩ Deshacer
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-emerald-600 text-center">Las vacas quedan libres · Los terneros pasan a Recría como marca líquida</p>
                     </div>
                   );
                 })()}
@@ -4460,7 +4501,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </>
                             )}
                             {/* Labels mes */}
-                            {puntos.filter((_,i)=>i%2===0).map((p,i)=>(
+                            {puntos.map((p,i)=>(
                               <text key={i} x={cx(p.m)} y={H-5} textAnchor="middle" fontSize="8" fill="#94a3b8">
                                 {mesStr[(entradaMes+p.m)%12]}
                               </text>
@@ -5272,9 +5313,17 @@ function EstrategiaComercial({ userEmail, onLogout }) {
         ternerosLiquidaMachos: p.ternerosLiquidaMachos + datos.machos,
         ternerosLiquidaHembras: p.ternerosLiquidaHembras + datos.hembras,
       }));
-      // Reset terneros no destetados en cría
       setCampoCria(p => ({ ...p, ternerosNoDestetados: 0 }));
       pushToast(`✅ ${datos.machos + datos.hembras} terneros pasados a Recría (${datos.machos}M + ${datos.hembras}H)`, "success");
+      return;
+    }
+    if (datos._accion === "deshacer-destete") {
+      setCampoRecria(p => ({
+        ...p,
+        ternerosLiquidaMachos: Math.max(0, p.ternerosLiquidaMachos - datos.machos),
+        ternerosLiquidaHembras: Math.max(0, p.ternerosLiquidaHembras - datos.hembras),
+      }));
+      pushToast(`↩ Destete deshecho — terneros removidos de Recría`, "warn");
       return;
     }
     setSyncData(datos);
