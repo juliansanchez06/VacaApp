@@ -3733,1292 +3733,1292 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               ))}
             </div>
 
-        {/* ══════════════════════════════════════════════════════════════
-            STOCK HACIENDA
-        ══════════════════════════════════════════════════════════════ */}
-        {seccion === "stock" && !subStock && (
-          <div className="space-y-4 sim-zoom-enter">
-
-            {/* ── CRÍA — vista fija ───────────────────────────────────────── */}
-            <div className="cat-enter bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.05s"}}>
-              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🐮</span>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
-                      <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
+          {/* ══════════════════════════════════════════════════════════════
+              STOCK HACIENDA
+          ══════════════════════════════════════════════════════════════ */}
+          {seccion === "stock" && !subStock && (
+            <div className="space-y-4 sim-zoom-enter">
+  
+              {/* ── CRÍA — vista fija ───────────────────────────────────────── */}
+              <div className="cat-enter bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.05s"}}>
+                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🐮</span>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
+                        <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
+                      </div>
                     </div>
+                    <button onClick={() => setSubStock("cria")}
+                      className="flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-all">
+                      ✏️ Editar
+                    </button>
                   </div>
-                  <button onClick={() => setSubStock("cria")}
-                    className="flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-all">
-                    ✏️ Editar
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { label:"Vacas",           val: criaDatos.vacas,                 color:"text-emerald-800" },
-                    { label:"Vaquillonas",     val: criaDatos.vaquillonas,           color:"text-emerald-700" },
-                    { label:"Toros",           val: criaDatos.toros,                 color:"text-slate-700"   },
-                    { label:"Vacías (desc.)",  val: criaDatos.vacias||0,             color:"text-rose-600"    },
-                    { label:"Tern. no dest.",  val: criaDatos.ternerosNoDestetados,  color:"text-blue-700"    },
-                    { label:"% Preñez",        val: `${criaDatos.pctPreniez??85}%`,  color:"text-emerald-700" },
-                    { label:"% Destete",       val: `${criaDatos.pctDestete??75}%`,  color:"text-emerald-700" },
-                    { label:"% Mort. cría",    val: `${criaDatos.pctMortandadCria??2}%`, color:"text-slate-500" },
-                  ].map(({label,val,color})=>(
-                    <div key={label} className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                      <p className="text-xs text-slate-400">{label}</p>
-                      <p className={`font-black text-base ${color}`}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-                  <span>Parición: <b className="text-slate-600">{["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][criaDatos.paricionMes??9]} {criaDatos.paricionAnio??new Date().getFullYear()}</b></span>
-                  <span>·</span>
-                  <span>Destete: <b className="text-slate-600">{criaDatos.mesesDestete??6} meses</b></span>
-                  <span>·</span>
-                  <span>Machos/Hembras: <b className="text-slate-600">{criaDatos.pctMachos??50}/{100-(criaDatos.pctMachos??50)}</b></span>
-                  <span>·</span>
-                  <span>Repos: <b className="text-slate-600">{criaDatos.pctReposicion??30}%</b></span>
-                </div>
-              </div>
-            </div>
-
-            {/* ── RECRÍA — vista fija ─────────────────────────────────────── */}
-            <div className="cat-enter bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.12s"}}>
-              <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400"/>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🐂</span>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
-                      <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} <span className="text-base font-bold text-slate-400">cab</span></p>
-                    </div>
-                  </div>
-                  <button onClick={() => setSubStock("recria")}
-                    className="flex items-center gap-1.5 text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all">
-                    ✏️ Editar
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { label:"Marca líq. machos",   val: reciaDatos.ternerosLiquidaMachos,  color:"text-blue-800"   },
-                    { label:"Marca líq. hembras",  val: reciaDatos.ternerosLiquidaHembras, color:"text-rose-600"   },
-                    { label:"Compra machos",        val: reciaDatos.ternerosCompraMachos,   color:"text-indigo-700" },
-                    { label:"Compra hembras",       val: reciaDatos.ternerosCompraHembras,  color:"text-pink-600"   },
-                    { label:"Novillos",             val: reciaDatos.novillos,               color:"text-slate-700"  },
-                    { label:"% Mort. recría",       val: `${reciaDatos.pctMortandadRecria??2}%`, color:"text-slate-500" },
-                  ].map(({label,val,color})=>(
-                    <div key={label} className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                      <p className="text-xs text-slate-400">{label}</p>
-                      <p className={`font-black text-base ${color}`}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-                {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) > 0 && (
-                  <div className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                    <span className="text-sm">✓</span>
-                    <p className="text-xs text-emerald-700 font-semibold">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría — {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── TERMINACIÓN — vista fija ────────────────────────────────── */}
-            <div className="cat-enter bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.19s"}}>
-              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🥩</span>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
-                      <p className="text-3xl font-black text-slate-800">{terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} <span className="text-base font-bold text-slate-400">cab</span></p>
-                    </div>
-                  </div>
-                  <button onClick={() => setSubStock("terminacion")}
-                    className="flex items-center gap-1.5 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-2 rounded-xl transition-all">
-                    ✏️ Editar
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { label:"Campo",          val: terminacionDatos.novillosCampo,              color:"text-amber-800"  },
-                    { label:"Feedlot",        val: terminacionDatos.novillosFeedlot,            color:"text-orange-700" },
-                    { label:"Peso prom.",     val: `${terminacionDatos.pesoPromedioKg} kg`,     color:"text-slate-700"  },
-                    { label:"% Mort. feedlot",val: `${terminacionDatos.pctMortandadFeedlot??2}%`, color:"text-slate-500" },
-                  ].map(({label,val,color})=>(
-                    <div key={label} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                      <p className="text-xs text-slate-400">{label}</p>
-                      <p className={`font-black text-base ${color}`}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* ── DETALLE CRÍA ─────────────────────────────────────────────── */}
-        {seccion === "stock" && subStock === "cria" && (
-          <div className="sim-zoom-enter space-y-4">
-            <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
-              <ArrowLeft size={14} /> Volver a stock
-            </button>
-            <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
-              <div className="p-5 md:p-6 space-y-6">
-                <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría — stock</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
-                  <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
-                  <EditField label="Vacas vacías (descarte)" value={criaDatos.vacias||0} onChange={v=>setCriaActiva(p=>({...p,vacias:v}))} hint="Van al rendimiento como descarte" />
-                  <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
-                  <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
-                </div>
-
-                {/* Preñez, destete y mortandad */}
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">% Productivos — sincronizados con Rendimiento</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <EditField label="% Preñez" value={criaDatos.pctPreniez??85} onChange={v=>setCriaActiva(p=>({...p,pctPreniez:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`${Math.round((criaDatos.vacas+criaDatos.vaquillonas)*(criaDatos.pctPreniez??85)/100)} madres preñadas`} />
-                    <EditField label="% Destete" value={criaDatos.pctDestete??75} onChange={v=>setCriaActiva(p=>({...p,pctDestete:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`Valor final para rendimiento`} />
-                    <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
-                  </div>
-                </div>
-
-                {/* Parición y destete */}
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Parición y destete</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <span className="text-xs text-slate-500 font-semibold">Mes de parición</span>
-                      <select value={criaDatos.paricionMes??9} onChange={e=>setCriaActiva(p=>({...p,paricionMes:Number(e.target.value)}))}
-                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
-                        {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m,i)=><option key={i} value={i}>{m}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs text-slate-500 font-semibold">Año de parición</span>
-                      <select value={criaDatos.paricionAnio??new Date().getFullYear()} onChange={e=>setCriaActiva(p=>({...p,paricionAnio:Number(e.target.value)}))}
-                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
-                        {[new Date().getFullYear()-1,new Date().getFullYear(),new Date().getFullYear()+1].map(y=><option key={y} value={y}>{y}</option>)}
-                      </select>
-                    </div>
-                    <EditField label="Meses al destete" value={criaDatos.mesesDestete??6} onChange={v=>setCriaActiva(p=>({...p,mesesDestete:v}))} step={1} suffix=" meses" hint={`Destete: ${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][((criaDatos.paricionMes??9)+(criaDatos.mesesDestete??6))%12]}`} minVal={1} />
-                  </div>
-                </div>
-
-                {/* Machos/hembras + reposición */}
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Distribución destete y reposición</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-blue-700">♂ Machos {criaDatos.pctMachos??50}%</span>
-                        <span className="text-rose-600">♀ Hembras {100-(criaDatos.pctMachos??50)}%</span>
-                      </div>
-                      <div className="h-5 rounded-full overflow-hidden flex">
-                        <div className="bg-blue-400 flex items-center justify-center text-white text-xs font-black transition-all" style={{width:`${criaDatos.pctMachos??50}%`}}>{criaDatos.pctMachos??50}%</div>
-                        <div className="bg-rose-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-(criaDatos.pctMachos??50)}%</div>
-                      </div>
-                      <input type="range" min="40" max="60" step="1" value={criaDatos.pctMachos??50}
-                        onChange={e=>setCriaActiva(p=>({...p,pctMachos:Number(e.target.value)}))}
-                        className="w-full accent-blue-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-emerald-700">🔄 Reposición {criaDatos.pctReposicion??30}%</span>
-                        <span className="text-amber-700">→ Venta {100-(criaDatos.pctReposicion??30)}%</span>
-                      </div>
-                      <div className="h-5 rounded-full overflow-hidden flex">
-                        <div className="bg-emerald-400 flex items-center justify-center text-white text-xs font-black transition-all" style={{width:`${criaDatos.pctReposicion??30}%`}}>{criaDatos.pctReposicion??30}%</div>
-                        <div className="bg-amber-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-(criaDatos.pctReposicion??30)}%</div>
-                      </div>
-                      <input type="range" min="0" max="100" step="5" value={criaDatos.pctReposicion??30}
-                        onChange={e=>setCriaActiva(p=>({...p,pctReposicion:Number(e.target.value)}))}
-                        className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resumen calculado */}
-                {(() => {
-                  const madres = criaDatos.vacas + criaDatos.vaquillonas;
-                  const pren   = Math.round(madres * (criaDatos.pctPreniez??85) / 100);
-                  const nacidos= Math.round(pren * (1 - (criaDatos.pctMortandadCria??2)/100));
-                  const dest   = Math.round(nacidos * (criaDatos.pctDestete??75) / 100);
-                  const machos = Math.round(dest * (criaDatos.pctMachos??50) / 100);
-                  const hembras= dest - machos;
-                  const repos  = Math.round(hembras * (criaDatos.pctReposicion??30) / 100);
-                  const venta  = hembras - repos;
-                  return (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                      <div><p className="text-xs text-emerald-600">Terneros nacidos</p><p className="font-black text-emerald-900 text-xl">{nacidos}</p></div>
-                      <div><p className="text-xs text-emerald-600">Total destete</p><p className="font-black text-emerald-900 text-xl">{dest}</p></div>
-                      <div><p className="text-xs text-blue-600">Machos → recría</p><p className="font-black text-blue-800 text-xl">{machos}</p></div>
-                      <div><p className="text-xs text-amber-600">Hembras → venta</p><p className="font-black text-amber-800 text-xl">{venta}</p></div>
-                    </div>
-                  );
-                })()}
-                {/* ── Botón Destetar ── */}
-                {(() => {
-                  const madres       = criaDatos.vacas + criaDatos.vaquillonas;
-                  const pren         = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
-                  const nacidos      = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
-                  const destTotal    = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
-                  const machos       = Math.round(destTotal * (criaDatos.pctMachos ?? 50) / 100);
-                  const hembras      = destTotal - machos;
-                  // Cuánto ya pasó a recría como marca líquida
-                  const yaEnRecria   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras;
-                  const pendiente    = Math.max(0, destTotal - yaEnRecria);
-                  const machosPend   = Math.round(pendiente * (criaDatos.pctMachos ?? 50) / 100);
-                  const hembrasPend  = pendiente - machosPend;
-                  const todoDestetado= pendiente === 0 && yaEnRecria > 0;
-
-                  if (todoDestetado) return (
-                    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">✅</span>
-                        <div>
-                          <p className="text-xs font-black text-emerald-700">Destete completo — {destTotal} terneros en Recría</p>
-                          <p className="text-xs text-emerald-600">{reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H como marca líquida</p>
-                        </div>
-                      </div>
-                      <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
-                        className="text-xs font-black text-slate-400 hover:text-red-500 border border-dashed border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-xl transition-all shrink-0">
-                        ↩ Deshacer
-                      </button>
-                    </div>
-                  );
-
-                  return (
-                    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
-                        {yaEnRecria > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">{yaEnRecria} ya en recría</span>}
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-white rounded-xl border border-emerald-200 py-2">
-                          <p className="text-xs text-emerald-600">Pendiente</p>
-                          <p className="font-black text-emerald-900 text-lg">{pendiente}</p>
-                        </div>
-                        <div className="bg-white rounded-xl border border-blue-200 py-2">
-                          <p className="text-xs text-blue-600">Machos</p>
-                          <p className="font-black text-blue-800 text-lg">{machosPend}</p>
-                        </div>
-                        <div className="bg-white rounded-xl border border-rose-200 py-2">
-                          <p className="text-xs text-rose-600">Hembras</p>
-                          <p className="font-black text-rose-700 text-lg">{hembrasPend}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          disabled={pendiente === 0}
-                          onClick={() => onSincronizar({ _accion: "pasar-destete-recria", machos: machosPend, hembras: hembrasPend })}
-                          className={`flex items-center justify-center gap-2 font-black text-sm px-4 py-3 rounded-2xl transition-all active:scale-95
-                            ${pendiente === 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"}`}>
-                          <RefreshCw size={14}/>
-                          Destetar {pendiente} terneros
-                        </button>
-                        {yaEnRecria > 0 && (
-                          <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
-                            className="flex items-center justify-center gap-2 text-slate-500 font-black text-sm px-4 py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-red-300 hover:text-red-500 transition-all">
-                            ↩ Deshacer
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-emerald-600 text-center">Las vacas quedan libres · Los terneros pasan a Recría como marca líquida</p>
-                    </div>
-                  );
-                })()}
-
-                <button
-                  onClick={() => onSincronizar({
-                    target: "vientres",
-                    descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
-                    inputs: {
-                      cantidad: criaDatos.vacas + criaDatos.vaquillonas,
-                      pesoCompra: 380,
-                      precioKgCompra: 1800,
-                      precioBulto: 350000,
-                      mesesRecriaPreServicio: 15,
-                      anosVidaUtil: 6,
-                      kgIatf: 8,
-                      pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
-                      pesoTerneroDestetado: 160,
-                      precioTerneroKg: 2000,
-                      pesoVacaDescarte: 380,
-                      precioDescarteSalidaKg: 1600,
-                      kgToros: 3,
-                      mesesSuplTerneras: [],
-                      costoSuplTernerasMes: 12000,
-                      mesesSuplVacas: [],
-                      costoSuplVacasMes: 15000,
-                      anosSuplementacion: 6,
-                      kreepOn: false,
-                      kreepMeses: 3,
-                      kreepCostoMes: 8000,
-                      kreepKgExtra: 15,
-                    }
-                  })}
-                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
-                  <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                  Simular ROI del rodeo en Proyecto Vientres
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── DETALLE RECRÍA ───────────────────────────────────────────── */}
-        {seccion === "stock" && subStock === "recria" && (
-          <div className="sim-zoom-enter space-y-4">
-            <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
-              <ArrowLeft size={14} /> Volver a stock
-            </button>
-            <div className="bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400" />
-              <div className="p-5 md:p-6">
-                <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-5">Recría — detalle</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <EditField label="Terneros marca líquida — machos" value={reciaDatos.ternerosLiquidaMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosLiquidaMachos:v}))} hint="Destetados de la cría propia" />
-                  <EditField label="Terneros marca líquida — hembras" value={reciaDatos.ternerosLiquidaHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosLiquidaHembras:v}))} hint="Candidatas a vaquillonas o venta" />
-                  <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
-                  <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
-                  <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
-                  <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
-                </div>
-                <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      ["Total recría", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos],
-                      ["Marca líquida", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras],
-                      ["Compra", reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras],
-                      ["Novillos", reciaDatos.novillos],
-                    ].map(([l,v]) => (
-                      <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
+                      { label:"Vacas",           val: criaDatos.vacas,                 color:"text-emerald-800" },
+                      { label:"Vaquillonas",     val: criaDatos.vaquillonas,           color:"text-emerald-700" },
+                      { label:"Toros",           val: criaDatos.toros,                 color:"text-slate-700"   },
+                      { label:"Vacías (desc.)",  val: criaDatos.vacias||0,             color:"text-rose-600"    },
+                      { label:"Tern. no dest.",  val: criaDatos.ternerosNoDestetados,  color:"text-blue-700"    },
+                      { label:"% Preñez",        val: `${criaDatos.pctPreniez??85}%`,  color:"text-emerald-700" },
+                      { label:"% Destete",       val: `${criaDatos.pctDestete??75}%`,  color:"text-emerald-700" },
+                      { label:"% Mort. cría",    val: `${criaDatos.pctMortandadCria??2}%`, color:"text-slate-500" },
+                    ].map(({label,val,color})=>(
+                      <div key={label} className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                        <p className="text-xs text-slate-400">{label}</p>
+                        <p className={`font-black text-base ${color}`}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                    <span>Parición: <b className="text-slate-600">{["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][criaDatos.paricionMes??9]} {criaDatos.paricionAnio??new Date().getFullYear()}</b></span>
+                    <span>·</span>
+                    <span>Destete: <b className="text-slate-600">{criaDatos.mesesDestete??6} meses</b></span>
+                    <span>·</span>
+                    <span>Machos/Hembras: <b className="text-slate-600">{criaDatos.pctMachos??50}/{100-(criaDatos.pctMachos??50)}</b></span>
+                    <span>·</span>
+                    <span>Repos: <b className="text-slate-600">{criaDatos.pctReposicion??30}%</b></span>
+                  </div>
+                </div>
+              </div>
+  
+              {/* ── RECRÍA — vista fija ─────────────────────────────────────── */}
+              <div className="cat-enter bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.12s"}}>
+                <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400"/>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🐂</span>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
+                        <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} <span className="text-base font-bold text-slate-400">cab</span></p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSubStock("recria")}
+                      className="flex items-center gap-1.5 text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all">
+                      ✏️ Editar
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {[
+                      { label:"Marca líq. machos",   val: reciaDatos.ternerosLiquidaMachos,  color:"text-blue-800"   },
+                      { label:"Marca líq. hembras",  val: reciaDatos.ternerosLiquidaHembras, color:"text-rose-600"   },
+                      { label:"Compra machos",        val: reciaDatos.ternerosCompraMachos,   color:"text-indigo-700" },
+                      { label:"Compra hembras",       val: reciaDatos.ternerosCompraHembras,  color:"text-pink-600"   },
+                      { label:"Novillos",             val: reciaDatos.novillos,               color:"text-slate-700"  },
+                      { label:"% Mort. recría",       val: `${reciaDatos.pctMortandadRecria??2}%`, color:"text-slate-500" },
+                    ].map(({label,val,color})=>(
+                      <div key={label} className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                        <p className="text-xs text-slate-400">{label}</p>
+                        <p className={`font-black text-base ${color}`}>{val}</p>
+                      </div>
                     ))}
                   </div>
                   {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) > 0 && (
-                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <div className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                       <span className="text-sm">✓</span>
-                      <p className="text-xs text-emerald-700 font-semibold">
-                        {reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría —
-                        {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H
-                      </p>
-                    </div>
-                  )}
-                  {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) === 0 && (
-                    <p className="text-xs text-slate-400 text-center">Sin marca líquida — destetá desde Cría para agregar terneros</p>
-                  )}
-                </div>
-                <button
-                    onClick={() => onSincronizar({
-                      target: "poder",
-                      descripcion: `${reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras > 0 ? reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+" terneros compra" : "nueva compra"} · simulando poder de compra`,
-                      venta: {
-                        cantidad: Math.max(1, reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras),
-                        pesoPromedio: 180,
-                        precioKg: 2200,
-                      }
-                    })}
-                    className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
-                    <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                    Simular compra en Poder de Compra
-                  </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── DETALLE TERMINACIÓN ──────────────────────────────────────── */}
-        {seccion === "stock" && subStock === "terminacion" && (
-          <div className="sim-zoom-enter space-y-4">
-            <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
-              <ArrowLeft size={14} /> Volver a stock
-            </button>
-            <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
-              <div className="p-5 md:p-6 space-y-5">
-                <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación — detalle</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <EditField label="Novillos en campo" value={terminacionDatos.novillosCampo} onChange={v=>setTermActiva(p=>({...p,novillosCampo:v}))} />
-                  <EditField label="Novillos en feedlot" value={terminacionDatos.novillosFeedlot} onChange={v=>setTermActiva(p=>({...p,novillosFeedlot:v}))} />
-                  <EditField label="Peso promedio (kg)" value={terminacionDatos.pesoPromedioKg} onChange={v=>setTermActiva(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
-                  <EditField label="Días para venta" value={terminacionDatos.diasRestantes} onChange={v=>setTermActiva(p=>({...p,diasRestantes:v}))} suffix=" días" />
-                  <EditField label="% Mortandad feedlot" value={terminacionDatos.pctMortandadFeedlot??2} onChange={v=>setTermActiva(p=>({...p,pctMortandadFeedlot:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
-                </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                  <button
-                    onClick={() => onSincronizar({
-                      target: "poder",
-                      descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos ${terminacionDatos.pesoPromedioKg} kg · ¿cuántos terneros puedo reponer?`,
-                      venta: {
-                        cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
-                        pesoPromedio: terminacionDatos.pesoPromedioKg,
-                        precioKg: 2200,
-                      }
-                    })}
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
-                    <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-                    ¿Cuántos terneros repongo?
-                  </button>
-                  <button
-                    onClick={() => onSincronizar({
-                      target: "invernada",
-                      descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos · ${terminacionDatos.pesoPromedioKg} kg · campo vs feedlot`,
-                      base: {
-                        cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
-                        pesoIngreso: terminacionDatos.pesoPromedioKg,
-                        precioCompraKg: 1800,
-                      }
-                    })}
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
-                    <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-                    Comparar campo vs feedlot
-                  </button>
-                </div>
-              {terminacionDatos.novillosFeedlot > 0 && (
-                  <div className="section-amber rounded-2xl border-2 p-4 space-y-4">
-                    <p className="text-xs font-black uppercase tracking-widest text-amber-700">Costos feedlot</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <EditField label="Comida / cab / día" value={terminacionDatos.costoComidaDia} onChange={v=>setTerminacion(p=>({...p,costoComidaDia:v}))} step={500} prefix="$" usdVal={usd(terminacionDatos.costoComidaDia)} />
-                      <EditField label="Hotelería / cab / día" value={terminacionDatos.costoHoteleriaDia} onChange={v=>setTerminacion(p=>({...p,costoHoteleriaDia:v}))} step={100} prefix="$" usdVal={usd(terminacionDatos.costoHoteleriaDia)} />
-                    </div>
-                    <div className="bg-white rounded-xl border border-amber-200 p-3 grid grid-cols-3 gap-3 text-center">
-                      <div><p className="text-xs text-amber-600">Costo/cab/día</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p></div>
-                      <div><p className="text-xs text-amber-600">Costo mensual total</p><p className="font-black text-amber-900">{fmtMoney(feedlotMes)}</p><p className="text-xs text-emerald-600">{usd(feedlotMes)}</p></div>
-                      <div><p className="text-xs text-amber-600">Hasta venta ({terminacionDatos.diasRestantes}d)</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════
-            COSTOS ESTRUCTURA
-        ══════════════════════════════════════════════════════════════ */}
-        {seccion === "rendimiento" && (
-          <div className="space-y-5 sim-zoom-enter">
-
-            {/* Info parición (viene de Cría — solo lectura aquí) */}
-            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <span className="text-lg">🔗</span>
-              <div className="flex-1">
-                <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Sincronizado desde Stock → Cría</p>
-                <p className="text-xs text-emerald-600 mt-0.5">
-                  Parición: <b>{MESES_ES[paricionMes]} {paricionAnio}</b> · Destete: <b>{meseDestete} meses</b> ({MESES_ES[(paricionMes+meseDestete)%12]}) · Peso: <b>{pesoDestete} kg</b> ·
-                  Destete: <b>{totalDestete} cab</b> · Mort. cría: <b>{criaDatos.pctMortandadCria??2}%</b>
-                </p>
-              </div>
-              <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
-                className="text-xs font-black text-emerald-600 border border-emerald-300 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors shrink-0">
-                Editar en Cría →
-              </button>
-            </div>
-
-            {/* Hectáreas + GDP */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚙️ Configuración rendimiento</p>
-              <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" minVal={1} />
-            </div>
-
-            {/* ── GDP por categoría ── */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚡ GDP por categoría (kg/día)</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label:"Ternero",          val:gdpTernero,     set:setGdpTernero,    color:"sky",    peso:pesoTerneroAlCierre },
-                  { label:"Novillo invernada", val:gdpNovilloInv,  set:setGdpNovilloInv, color:"violet", peso:pesoNovilloInvAlCierre },
-                  { label:"Novillo faena",     val:gdpNovilloFaena,set:setGdpNovilloFaena,color:"amber", peso:pesoNovilloFaenaAlCierre },
-                  { label:"Vaquillona desc.",  val:gdpVaquillonaDesc,set:setGdpVaquillonaDesc,color:"rose",peso:pesoVaquillonaAlCierre },
-                ].map(({label,val,set,color,peso},i)=>(
-                  <div key={i} className={`section-${color==="sky"?"teal":color==="violet"?"violet":color==="amber"?"amber":"sky"} rounded-2xl border-2 p-3 space-y-2`}>
-                    <p className={`text-xs font-black uppercase tracking-widest text-${color}-700`}>{label}</p>
-                    <div className="flex items-center gap-2">
-                      <button onClick={()=>set(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
-                        className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
-                      <div className="flex-1 text-center">
-                        <span className={`font-mono font-black text-xl text-${color}-800`}>{val.toFixed(1)}</span>
-                        <span className={`text-xs text-${color}-600 ml-1`}>kg/d</span>
-                      </div>
-                      <button onClick={()=>set(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
-                        className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
-                    </div>
-                    <input type="range" min="0" max="1.5" step="0.1" value={val}
-                      onChange={e=>set(Math.round(parseFloat(e.target.value)*10)/10)}
-                      className="w-full accent-emerald-500" />
-                    <p className={`text-xs text-${color}-600 text-center`}>Peso al cierre: <span className="font-black">{peso} kg</span></p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── KPIs ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label:"kg/ha año actual",  val:kgHaAct,               color:"text-emerald-700", bg:"bg-emerald-50 border-emerald-200", icon:"📦" },
-                { label:"kg/ha proyectado",  val:kgHaProx,              color:tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600", bg:tendencia==="sube"?"bg-blue-50 border-blue-200":tendencia==="baja"?"bg-red-50 border-red-200":"bg-slate-50 border-slate-100", icon:tendencia==="sube"?"📈":tendencia==="baja"?"📉":"➡️" },
-                { label:"kg totales año",    val:fmt(kgTotalAct)+" kg", color:"text-slate-800",   bg:"bg-white border-slate-100", icon:"🥩" },
-                { label:"Hectáreas campo",   val:fmt(hectareas)+" ha",  color:"text-amber-700",   bg:"bg-amber-50 border-amber-200", icon:"🌾" },
-              ].map((k,i)=>(
-                <div key={i} className={`kpi-pop border-2 ${k.bg} rounded-2xl p-4 space-y-1 card-hover`}>
-                  <span className="text-base">{k.icon}</span>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{k.label}</p>
-                  <p className={`font-mono font-black text-2xl ${k.color}`}>{k.val}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Gráfico ── */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Evolución kg/ha</p>
-                <div className="flex gap-4 text-xs text-slate-400">
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Real</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-400 opacity-75 inline-block"></span>Proyectado</span>
-                </div>
-              </div>
-              {(() => {
-                const data    = historialKgHa;
-                const maxVal  = Math.max(...data.map(d=>d.kgHa), 1);
-                const W=580; const H=200; const PL=44; const PT=16; const PB=36;
-                const cH=H-PT-PB; const slots=Math.max(data.length,1);
-                const sW=(W-PL)/slots; const bW=Math.min(52,sW-16);
-                const cx=i=>PL+sW*i+sW/2;
-                const cy=v=>PT+cH-Math.max(4,(v/maxVal)*cH);
-                return (
-                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{overflow:"visible"}}>
-                    {[0,25,50,75,100].map(p=>{
-                      const y=PT+cH-(p/100)*cH; const v=Math.round(maxVal*p/100);
-                      return <g key={p}><line x1={PL} x2={W} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1"/><text x={PL-6} y={y+4} textAnchor="end" fontSize="9" fill="#94a3b8">{v}</text></g>;
-                    })}
-                    {data.map((d,i)=>(
-                      <g key={i}>
-                        <rect x={cx(i)-bW/2} y={cy(d.kgHa)} width={bW} height={Math.max(4,(d.kgHa/maxVal)*cH)} rx="5"
-                          fill={d.tipo==="proyectado"?"#60a5fa":"#10b981"} opacity={d.tipo==="proyectado"?0.7:1}/>
-                        <text x={cx(i)} y={cy(d.kgHa)-5} textAnchor="middle" fontSize="10" fontWeight="700" fill={d.tipo==="proyectado"?"#3b82f6":"#059669"}>{d.kgHa}</text>
-                        <text x={cx(i)} y={H-6} textAnchor="middle" fontSize="9" fill="#64748b">{d.ano}</text>
-                      </g>
-                    ))}
-                    {data.length>1&&<polyline points={data.map((d,i)=>`${cx(i)},${cy(d.kgHa)}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,3"/>}
-                    {data.map((d,i)=><circle key={i} cx={cx(i)} cy={cy(d.kgHa)} r="4" fill="#f59e0b" stroke="white" strokeWidth="1.5"/>)}
-                  </svg>
-                );
-              })()}
-            </div>
-
-            {/* ── Tabla resumen año actual ── */}
-            <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-              <div className="p-5 space-y-4">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600">Tabla — año actual</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
-                    <thead><tr className="border-b-2 border-slate-100">
-                      {["Categoría","Cab","Peso venta","kg totales","kg/ha"].map(h=>(
-                        <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Categoría"?"text-left pr-4":"text-right pr-2"}`}>{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody>
-                      {[
-                        { cat:"Vacas descarte",     cab:cabVacasDescarte,  kg:kgVacasDescarte,  peso:pVacaDescarte,    color:"text-rose-700"   },
-                        { cat:"Terneros invernada", cab:cabTernerosInv,    kg:kgTernerosInv,    peso:pTerneroInvernada,color:"text-sky-700"    },
-                        { cat:"Novillos invernada", cab:cabNovillosInv,    kg:kgNovillosInv,    peso:pNovilloInvernada,color:"text-violet-700" },
-                        { cat:"Novillos faena",     cab:cabNovillosFaena,  kg:kgNovillosFaena,  peso:pNovilloFaena,    color:"text-amber-700" },
-                        { cat:"Vaquillonas desc.",  cab:cabVaquillonaDesc, kg:kgVaquillonaDesc, peso:pVaquillonaDesc,  color:"text-pink-700"  },
-                      ].map((r,i)=>(
-                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
-                          <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.cab)}</td>
-                          <td className="text-right py-2.5 pr-2 font-mono text-slate-500">{fmt(r.peso)} kg</td>
-                          <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
-                          <td className="text-right py-2.5 font-mono font-bold text-emerald-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"}</td>
-                        </tr>
-                      ))}
-                      <tr className="border-t-2 border-emerald-200 bg-emerald-50">
-                        <td className="py-3 pr-4 font-black text-emerald-800">TOTAL AÑO ACTUAL</td>
-                        <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(cabVacasDescarte+cabTernerosInv+cabNovillosInv+cabNovillosFaena+cabVaquillonaDesc)}</td>
-                        <td className="text-right py-3 pr-2 text-slate-400">—</td>
-                        <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(kgTotalAct)} kg</td>
-                        <td className="text-right py-3 font-black text-emerald-800 font-mono text-lg">{kgHaAct}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Proyección */}
-                <div className="border-t-2 border-slate-100 pt-4">
-                  <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">Proyección año siguiente</p>
-                  <table className="w-full text-sm border-collapse">
-                    <tbody>
-                      {[
-                        { cat:"Vacas descarte",    cab:vacasDescarteProx,  kg:kgVacasDescProx,    color:"text-rose-600"  },
-                        { cat:"Terneros invernada",cab:ternerosInvProx,    kg:kgTernerosInvProx,  color:"text-sky-600"   },
-                        { cat:"Novillos faena",    cab:novillosFaenaProx,  kg:kgNovillosFaenaProx,color:"text-amber-600" },
-                        { cat:"Vaquillonas desc.", cab:vaquillonaDescProx, kg:kgVaqDescProx,      color:"text-pink-600"  },
-                      ].map((r,i)=>(
-                        <tr key={i} className="border-b border-slate-50 hover:bg-blue-50">
-                          <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
-                          <td className="text-right py-2.5 pr-2 font-mono text-slate-600">{fmt(r.cab)} cab</td>
-                          <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
-                          <td className={`text-right py-2.5 font-mono text-blue-700`}>{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"} kg/ha</td>
-                        </tr>
-                      ))}
-                      <tr className="border-t-2 border-blue-200 bg-blue-50">
-                        <td className="py-3 pr-4 font-black text-blue-800">TOTAL PROYECTADO</td>
-                        <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(vacasDescarteProx+ternerosInvProx+novillosFaenaProx+vaquillonaDescProx)} cab</td>
-                        <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(kgTotalProx)} kg</td>
-                        <td className={`text-right py-3 font-black font-mono text-lg ${tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600"}`}>
-                          {kgHaProx} {tendencia==="sube"?"↑":tendencia==="baja"?"↓":"→"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Alertas */}
-                {tendencia==="baja"&&<div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-2xl p-3"><span>📉</span><p className="text-xs text-orange-700 font-semibold">La proyección baja de {kgHaAct} a {kgHaProx} kg/ha. Considerá agregar más madres o comprar terneros.</p></div>}
-                {tendencia==="sube"&&<div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3"><span>📈</span><p className="text-xs text-emerald-700 font-semibold">Buen ritmo — la proyección mejora de {kgHaAct} a {kgHaProx} kg/ha.</p></div>}
-
-                {/* Tabla mensual acumulación */}
-                {/* ── Parición escalonada oct-dic ── */}
-                <div className="border-t-2 border-slate-100 pt-4 space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">🐄 Kg acumulados por lote de parición</p>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span className="w-3 h-3 rounded-sm bg-sky-400 inline-block"></span>En gestación/cría
-                      <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block ml-2"></span>Destete
-                      <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block ml-2"></span>Post-destete
-                    </div>
-                  </div>
-
-                  {/* 3 lotes */}
-                  {lotesPacion.map((lote, li) => (
-                    <div key={li} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2.5 h-2.5 rounded-full ${li===0?"bg-sky-500":li===1?"bg-indigo-500":"bg-violet-500"}`}></span>
-                          <span className="text-xs font-black text-slate-700">
-                            Lote {li+1} — {MESES_ES[lote.mes]} {lote.anio}
-                          </span>
-                          <span className="text-xs text-slate-400">({lote.cabLote} cab)</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-slate-500">Al destete: <b className="text-emerald-700">{lote.kgAlDestete} kg/cab</b></span>
-                          <span className="text-slate-500">Al cierre: <b className="text-blue-700">{lote.kgAlCierre} kg/cab</b></span>
-                        </div>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead><tr className="border-b border-slate-200">
-                            <th className="text-left py-1.5 px-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
-                            <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-slate-400">Días</th>
-                            <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-sky-600">kg/cab</th>
-                            <th className="text-right py-1.5 px-3 font-black uppercase tracking-wider text-emerald-600">kg lote</th>
-                          </tr></thead>
-                          <tbody>
-                            {lote.acumMensual.map((r,i)=>(
-                              <tr key={i} className={`border-b border-slate-100 ${r.esMesDestete?"bg-emerald-50 font-bold":"hover:bg-white"}`}>
-                                <td className={`py-1.5 px-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>
-                                  {r.mes} {r.esMesDestete?"← destete":""}
-                                </td>
-                                <td className="text-right py-1.5 px-2 font-mono text-slate-500">{r.diasAcum}d</td>
-                                <td className={`text-right py-1.5 px-2 font-mono font-bold ${r.esMesDestete?"text-emerald-700":"text-sky-700"}`}>{r.kgPorCab} kg</td>
-                                <td className={`text-right py-1.5 px-3 font-mono font-bold ${r.esMesDestete?"text-emerald-800":"text-slate-700"}`}>{fmt(r.kgTotales)} kg</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Resumen 3 lotes + botón pasar a recría */}
-                  <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                      <div><p className="text-xs text-emerald-600">Total terneros</p><p className="font-black text-emerald-900 text-xl">{ternNacidosVivos}</p></div>
-                      <div><p className="text-xs text-emerald-600">Kg al destete</p><p className="font-black text-emerald-900 text-xl">{fmt(kgTernerosAlDestete)}</p></div>
-                      <div><p className="text-xs text-blue-600">Kg al cierre</p><p className="font-black text-blue-800 text-xl">{fmt(kgTernerosAlCierre)}</p></div>
-                      <div><p className="text-xs text-emerald-600">kg/ha terneros</p><p className="font-black text-emerald-900 text-xl">{hectareas>0?Math.round(kgTernerosAlCierre/hectareas):"-"}</p></div>
-                    </div>
-                    <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
-                      className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95">
-                      → Ir a Cría para destetar
-                    </button>
-                  </div>
-
-                  {/* Tabla comparativa kg/cab por mes */}
-                  {tablaAcumulacion.length > 0 && (
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Comparativo por categoría — kg/cab/mes</p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead><tr className="border-b border-slate-200">
-                            <th className="text-left py-1.5 pr-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
-                            <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-sky-500">Ternero</th>
-                            <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-violet-500">Nov. inv.</th>
-                            <th className="text-right py-1.5 font-black uppercase tracking-wider text-amber-500">Nov. faena</th>
-                          </tr></thead>
-                          <tbody>
-                            {tablaAcumulacion.map((r,i)=>(
-                              <tr key={i} className={`border-b border-slate-50 ${r.esMesDestete?"bg-emerald-50":""}`}>
-                                <td className={`py-1.5 pr-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>{r.mes}{r.esMesDestete?" ← destete":""}</td>
-                                <td className="text-right py-1.5 pr-3 font-mono font-bold text-sky-700">{r.kgTernero} kg</td>
-                                <td className="text-right py-1.5 pr-3 font-mono font-bold text-violet-700">{r.kgNovilloInv} kg</td>
-                                <td className="text-right py-1.5 font-mono font-bold text-amber-700">{r.kgNovFaena} kg</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      <p className="text-xs text-emerald-700 font-semibold">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría — {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H</p>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
-
-          </div>
-        )}
-
-        {seccion === "recria-lotes" && (
-          <div className="space-y-5 sim-zoom-enter">
-
-            {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Lotes activos en recría</p>
-                <p className="text-xs text-slate-400 mt-0.5">GDP y progreso hacia el peso/tiempo objetivo</p>
-              </div>
-              <button
-                onClick={() => setLotesRecria(prev => [...prev, {
-                  id: Date.now(), categoria: "compra", label: "Nuevo lote",
-                  cabezas: 50, pesoEntrada: 180, gdp: 0.6,
-                  fechaEntrada: fechaHoyStr, pesoObjetivo: 380, mesesObjetivo: 10, color: "blue",
-                }])}
-                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                + Agregar lote
-              </button>
-            </div>
-
-            {lotesRecria.length === 0 && (
-              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center">
-                <p className="text-slate-400 font-semibold text-sm">Sin lotes en recría</p>
-                <p className="text-xs text-slate-300 mt-1">Tocá "Agregar lote" para empezar</p>
-              </div>
-            )}
-
-            {/* Lotes */}
-            {lotesRecria.map((lote, li) => {
-              const calc = calcLote(lote);
-              const cat = CATS_RECRIA.find(c => c.id === lote.categoria) || CATS_RECRIA[2];
-              const setL = (k) => (v) => setLotesRecria(prev => prev.map((l,i) => i===li ? {...l,[k]:v} : l));
-              const colorMap = { emerald:"#10b981", blue:"#3b82f6", amber:"#f59e0b" };
-              const barColor = calc.listo ? "#10b981" : colorMap[cat.color] || "#94a3b8";
-
-              return (
-                <div key={lote.id} className={`bg-white border-2 ${calc.listo?"border-emerald-300":"border-slate-100"} rounded-3xl overflow-hidden shadow-lg`}>
-                  <div className={`h-1.5 ${calc.listo?"bg-gradient-to-r from-emerald-400 to-teal-400":"bg-gradient-to-r from-"+cat.color+"-400 to-"+cat.color+"-500"}`}
-                    style={{background: calc.listo ? "linear-gradient(90deg,#10b981,#14b8a6)" : `linear-gradient(90deg,${barColor}aa,${barColor})`}} />
-
-                  <div className="p-5 space-y-4">
-                    {/* Header lote */}
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{cat.icon}</span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <input value={lote.label} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,label:e.target.value}:l))}
-                              className="font-black text-slate-800 text-sm bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-emerald-400 w-40"/>
-                            {calc.listo && <span className="text-xs font-black text-white bg-emerald-500 px-2 py-0.5 rounded-full badge-pulse">✓ Listo para vender</span>}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {CATS_RECRIA.map(c=>(
-                              <button key={c.id} onClick={()=>setL("categoria")(c.id)}
-                                className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${lote.categoria===c.id?"bg-slate-800 text-white":"text-slate-400 hover:text-slate-600"}`}>
-                                {c.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <button onClick={()=>setLotesRecria(prev=>prev.filter((_,i)=>i!==li))}
-                        className="text-xs text-slate-300 hover:text-red-400 font-bold transition-colors px-2 py-1 rounded-lg hover:bg-red-50">✕</button>
-                    </div>
-
-                    {/* Barra de progreso */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500 font-semibold">Progreso</span>
-                        <span className="font-black" style={{color:barColor}}>{calc.pctProgreso}%</span>
-                      </div>
-                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700"
-                          style={{width:`${calc.pctProgreso}%`, background: barColor}}/>
-                      </div>
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>Peso: {calc.pctPeso}%</span>
-                        <span>Tiempo: {calc.pctTiempo}%</span>
-                      </div>
-                    </div>
-
-                    {/* KPIs del lote */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {[
-                        { label:"Peso actual",    val:`${calc.pesoActual} kg`,        color:"text-slate-800",   bg:"bg-slate-50"                     },
-                        { label:"Kg ganados",     val:`+${calc.kgGanados} kg`,         color:"text-emerald-700", bg:"bg-emerald-50"                   },
-                        { label:"Días en campo",  val:`${calc.diasTrans} días`,         color:"text-blue-700",    bg:"bg-blue-50"                      },
-                        { label:calc.listo?"Estado":"Sale estimado", val:calc.listo?"✓ Listo":calc.fechaSalidaStr, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
-                      ].map((k,i)=>(
-                        <div key={i} className={`${k.bg} rounded-xl p-2.5 text-center`}>
-                          <p className="text-xs text-slate-400">{k.label}</p>
-                          <p className={`font-black text-base ${k.color}`}>{k.val}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Mini gráfico SVG de acumulación */}
-                    {(() => {
-                      const meses = lote.mesesObjetivo;
-                      const puntos = Array.from({length: meses+1}, (_,i) => ({
-                        m: i,
-                        kg: Math.round(lote.pesoEntrada + i*30*lote.gdp),
-                        esHoy: Math.abs(i*30 - calc.diasTrans) < 20,
-                      }));
-                      const maxKg = puntos[puntos.length-1].kg;
-                      const minKg = lote.pesoEntrada;
-                      const W=400; const H=80; const PL=8; const PR=8; const PT=8; const PB=20;
-                      const cW=W-PL-PR; const cH=H-PT-PB;
-                      const cx=i=>(PL+cW*i/meses);
-                      const cy=kg=>(PT+cH*(1-(kg-minKg)/(maxKg-minKg)));
-                      const mesStr=["E","F","M","A","M","J","J","A","S","O","N","D"];
-                      const entradaMes=new Date(lote.fechaEntrada).getMonth();
-                      return (
-                        <div className="bg-slate-50 rounded-2xl p-3">
-                          <p className="text-xs text-slate-400 font-semibold mb-1">Evolución de peso kg/cab</p>
-                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-                            {/* Línea objetivo */}
-                            <line x1={PL} x2={W-PR} y1={cy(lote.pesoObjetivo)} y2={cy(lote.pesoObjetivo)}
-                              stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
-                            <text x={W-PR+2} y={cy(lote.pesoObjetivo)+4} fontSize="8" fill="#10b981">{lote.pesoObjetivo}</text>
-                            {/* Línea de crecimiento */}
-                            <polyline
-                              points={puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")}
-                              fill="none" stroke={barColor} strokeWidth="2"/>
-                            {/* Área rellena */}
-                            <polygon
-                              points={`${cx(0)},${cy(minKg)} ${puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")} ${cx(meses)},${cy(minKg)}`}
-                              fill={barColor} opacity="0.08"/>
-                            {/* Punto HOY */}
-                            {calc.diasTrans > 0 && calc.diasTrans < meses*30 && (
-                              <>
-                                <line x1={PL+cW*calc.diasTrans/(meses*30)} x2={PL+cW*calc.diasTrans/(meses*30)} y1={PT} y2={H-PB} stroke="#64748b" strokeWidth="1" strokeDasharray="3,2"/>
-                                <circle cx={PL+cW*calc.diasTrans/(meses*30)} cy={cy(calc.pesoActual)} r="5" fill={barColor} stroke="white" strokeWidth="1.5"/>
-                                <text x={PL+cW*calc.diasTrans/(meses*30)} y={cy(calc.pesoActual)-8} textAnchor="middle" fontSize="9" fontWeight="700" fill={barColor}>{calc.pesoActual}kg</text>
-                              </>
-                            )}
-                            {/* Labels mes */}
-                            {puntos.map((p,i)=>(
-                              <text key={i} x={cx(p.m)} y={H-5} textAnchor="middle" fontSize="8" fill="#94a3b8">
-                                {mesStr[(entradaMes+p.m)%12]}
-                              </text>
-                            ))}
-                          </svg>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Configuración del lote */}
-                    <details className="group">
-                      <summary className="text-xs font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600 transition-colors list-none flex items-center gap-1">
-                        <span className="group-open:rotate-90 transition-transform inline-block">▶</span> Editar parámetros del lote
-                      </summary>
-                      <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <EditField label="Cabezas" value={lote.cabezas} onChange={setL("cabezas")} step={1} minVal={1}/>
-                        <EditField label="Peso entrada (kg)" value={lote.pesoEntrada} onChange={setL("pesoEntrada")} step={5} suffix=" kg"/>
-                        <EditField label="GDP (kg/día)" value={lote.gdp} onChange={v=>setL("gdp")(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
-                        <EditField label="Peso objetivo (kg)" value={lote.pesoObjetivo} onChange={setL("pesoObjetivo")} step={5} suffix=" kg"/>
-                        <EditField label="Meses objetivo" value={lote.mesesObjetivo} onChange={setL("mesesObjetivo")} step={1} suffix=" m" minVal={1}/>
-                        <div className="space-y-1">
-                          <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
-                          <input type="date" value={lote.fechaEntrada} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,fechaEntrada:e.target.value}:l))}
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400"/>
-                        </div>
-                      </div>
-                    </details>
-
-                    {/* Botones acción */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      <button
-                        onClick={() => setModalVenta(lote)}
-                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                        🐂 Vender / Mandar a feedlot
-                      </button>
-                      <button
-                        onClick={() => onSincronizar({
-                          target: "poder",
-                          descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · simular reposición`,
-                          venta: { cantidad: lote.cabezas, pesoPromedio: calc.pesoActual, precioKg: 2200 },
-                        })}
-                        className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
-                        <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
-                        Simular reposición
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Resumen total */}
-            {lotesRecria.length > 0 && (
-              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Resumen total recría</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  {[
-                    { label:"Total animales", val:lotesRecria.reduce((a,l)=>a+l.cabezas,0)+" cab" },
-                    { label:"Listos para vender", val:lotesRecria.filter(l=>calcLote(l).listo).reduce((a,l)=>a+l.cabezas,0)+" cab" },
-                    { label:"Lotes activos", val:lotesRecria.length },
-                    { label:"Peso prom. actual", val: Math.round(lotesRecria.reduce((a,l)=>a+calcLote(l).pesoActual*l.cabezas,0)/Math.max(1,lotesRecria.reduce((a,l)=>a+l.cabezas,0)))+" kg" },
-                  ].map((k,i)=>(
-                    <div key={i} className="bg-slate-50 rounded-xl p-3">
-                      <p className="text-xs text-slate-400">{k.label}</p>
-                      <p className="font-black text-slate-800 text-xl">{k.val}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {seccion === "costos" && (
-          <div className="space-y-5 sim-zoom-enter">
-
-            {/* Empleados */}
-            <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-400" />
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-widest text-violet-700">👷 Empleados</p>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Total mes</p>
-                    <p className="font-black text-violet-800 text-lg">{fmtMoney(totalEmpleadosMes)}</p>
-                    <p className="text-xs text-emerald-600">{usd(totalEmpleadosMes)}</p>
-                  </div>
-                </div>
-                {empleados.map((emp, i) => (
-                  <div key={i} className="section-violet rounded-2xl border-2 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-black text-violet-800">{emp.rol}</p>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-400">Costo total/mes</p>
-                        <p className="font-mono font-black text-violet-700">{fmtMoney(costoMensualEmpleado(emp))}</p>
-                        <p className="text-xs text-emerald-600">{usd(costoMensualEmpleado(emp))}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <EditField label="Cantidad" value={emp.cantidad} onChange={setEmp(i,"cantidad")} minVal={1} />
-                      <EditField label="Sueldo base / mes" value={emp.sueldo} onChange={setEmp(i,"sueldo")} step={50000} prefix="$" usdVal={usd(emp.sueldo)} />
-                      <EditField label="Cargas sociales (%)" value={emp.cargasSociales} onChange={setEmp(i,"cargasSociales")} step={1} suffix="%" hint="30% a 65%" />
-                      <EditField label="Premio / mes" value={emp.premio} onChange={setEmp(i,"premio")} step={50000} prefix="$" usdVal={usd(emp.premio)} />
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={emp.aguinaldo} onChange={e=>setEmp(i,"aguinaldo")(e.target.checked)} />
-                      <span className="text-xs text-slate-600 font-semibold">Incluir aguinaldo (SAC)</span>
-                    </label>
-                  </div>
-                ))}
-                <button onClick={() => setEmpleados(p => [...p, { rol:"Nuevo empleado", cantidad:1, sueldo:900000, aguinaldo:true, cargasSociales:45, premio:0 }])}
-                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-violet-300 text-violet-500 text-xs font-black uppercase tracking-widest hover:bg-violet-50 transition-colors">
-                  + Agregar empleado
-                </button>
-              </div>
-            </div>
-
-            {/* Maquinaria */}
-            <div className="bg-white border-2 border-sky-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-sky-400 to-cyan-400" />
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-widest text-sky-700">🚜 Maquinaria</p>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Total mes</p>
-                    <p className="font-black text-sky-800 text-lg">{fmtMoney(costoMaqMes)}</p>
-                    <p className="text-xs text-emerald-600">{usd(costoMaqMes)}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <EditField label="Cantidad tractores" value={maquinaria.tractores} onChange={v=>setMaquinaria(p=>({...p,tractores:v}))} minVal={0} />
-                  <EditField label="Mantenimiento / tractor / mes" value={maquinaria.mantenimientoMes} onChange={v=>setMaquinaria(p=>({...p,mantenimientoMes:v}))} step={10000} prefix="$" usdVal={usd(maquinaria.mantenimientoMes)} />
-                </div>
-              </div>
-            </div>
-
-            {/* Rolados */}
-            <div className="bg-white border-2 border-green-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-green-400 to-emerald-400" />
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-widest text-green-700">🌾 Rolados y pastura</p>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Costo anual</p>
-                    <p className="font-black text-green-800 text-lg">{fmtMoney(costoRoladoAnual)}</p>
-                    <p className="text-xs text-emerald-600">{usd(costoRoladoAnual)}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <EditField label="Hectáreas roladas" value={roladoState.hectareas} onChange={v=>setRolado(p=>({...p,hectareas:v}))} step={10} suffix=" ha" />
-                  <EditField label="Litros gasoil / ha" value={roladoState.litrosGasoilHa} onChange={v=>setRolado(p=>({...p,litrosGasoilHa:v}))} step={5} suffix=" L/ha" hint="Entre 50 y 150 L/ha" />
-                  <EditField label="Has. siembra / resiembra" value={roladoState.siembraHa} onChange={v=>setRolado(p=>({...p,siembraHa:v}))} step={10} suffix=" ha" />
-                  <EditField label="Costo siembra / ha" value={roladoState.costoSiembraHa} onChange={v=>setRolado(p=>({...p,costoSiembraHa:v}))} step={1000} prefix="$" usdVal={usd(roladoState.costoSiembraHa)} />
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 grid grid-cols-3 gap-3 text-center">
-                  <div><p className="text-xs text-green-600">Litros totales</p><p className="font-black text-green-900">{fmt(roladoState.hectareas*roladoState.litrosGasoilHa)} L</p></div>
-                  <div><p className="text-xs text-green-600">Costo gasoil</p><p className="font-black text-green-900">{fmtMoney(costoGasoilRolado)}</p><p className="text-xs text-emerald-600">{usd(costoGasoilRolado)}</p></div>
-                  <div><p className="text-xs text-green-600">Costo siembra</p><p className="font-black text-green-900">{fmtMoney(costoSiembra)}</p><p className="text-xs text-emerald-600">{usd(costoSiembra)}</p></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Viajes */}
-            <div className="bg-white border-2 border-orange-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-orange-400 to-red-400" />
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-widest text-orange-700">🚗 Viajes al campo</p>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Total mes</p>
-                    <p className="font-black text-orange-800 text-lg">{fmtMoney(costoViajesMes)}</p>
-                    <p className="text-xs text-emerald-600">{usd(costoViajesMes)}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <EditField label="Viajes por mes" value={viajesState.viajesAlMes} onChange={v=>setViajes(p=>({...p,viajesAlMes:v}))} minVal={1} suffix=" v/mes" />
-                  <EditField label="Km por viaje" value={viajesState.kmPorViaje} onChange={v=>setViajes(p=>({...p,kmPorViaje:v}))} step={10} suffix=" km" />
-                  <EditField label="Consumo cada 100 km" value={viajesState.litrosCada100} onChange={v=>setViajes(p=>({...p,litrosCada100:v}))} step={1} suffix=" L" />
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 grid grid-cols-3 gap-3 text-center">
-                  <div><p className="text-xs text-orange-600">Km totales/mes</p><p className="font-black text-orange-900">{fmt(viajesState.viajesAlMes*viajesState.kmPorViaje)} km</p></div>
-                  <div><p className="text-xs text-orange-600">Litros/mes</p><p className="font-black text-orange-900">{fmt(Math.round(litrosTotalesMes))} L</p></div>
-                  <div><p className="text-xs text-orange-600">Costo gasoil/mes</p><p className="font-black text-orange-900">{fmtMoney(costoViajesMes)}</p><p className="text-xs text-emerald-600">{usd(costoViajesMes)}</p></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Resumen anual */}
-            <div className="bg-white border-2 border-emerald-300 rounded-3xl p-5 shadow-xl section-lime">
-              <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-4">Resumen costos anuales</p>
-              <div className="space-y-2 mb-4">
-                {[
-                  ["👷 Empleados",       totalEmpleadosMes*12, "violet"],
-                  ["🚜 Maquinaria",      costoMaqMes*12,       "sky"],
-                  ["🌾 Rolados/pastura", costoRoladoAnual,      "green"],
-                  ["🚗 Viajes",          costoViajesMes*12,    "orange"],
-                ].map(([l,v,c]) => (
-                  <div key={l} className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                    <span className="text-sm text-slate-600">{l}</span>
-                    <div className="text-right">
-                      <span className="font-mono font-black text-slate-800">{fmtMoney(v)}</span>
-                      <span className="text-xs text-emerald-600 ml-2">{usd(v)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm font-black text-emerald-800">Total anual</span>
-                <div className="text-right">
-                  <p className="font-black text-emerald-900 text-2xl">{fmtMoney((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
-                  <p className="text-sm text-emerald-700 font-bold">{usd((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl border border-emerald-200 p-3 text-center">
-                  <p className="text-xs text-slate-400">Costo / cab / mes</p>
-                  <p className="font-black text-slate-800 text-xl">${fmt(costoPorCabMes)}</p>
-                  <p className="text-xs text-emerald-600">{usd(costoPorCabMes)}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-emerald-200 p-3 text-center">
-                  <p className="text-xs text-slate-400">Costo / cab / año</p>
-                  <p className="font-black text-slate-800 text-xl">${fmt(costoPorCabMes*12)}</p>
-                  <p className="text-xs text-emerald-600">{usd(costoPorCabMes*12)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════
-            COTIZACIONES
-        ══════════════════════════════════════════════════════════════ */}
-        {seccion === "config" && (
-          <div className="sim-zoom-enter">
-            <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg max-w-lg">
-              <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
-              <div className="p-5 space-y-5">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600">Variables de referencia global</p>
-                <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Se usa para mostrar valores en dólares" />
-                <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ejemplo de conversiones</p>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">$1.000.000</span><span className="font-bold text-emerald-700">{usd(1000000)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">$5.000.000</span><span className="font-bold text-emerald-700">{usd(5000000)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">$10.000.000</span><span className="font-bold text-emerald-700">{usd(10000000)}</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
-
-        {/* ══════════════════════════════════════════════════════════════
-            RESULTADO POR EJERCICIO
-        ══════════════════════════════════════════════════════════════ */}
-        {seccion === "resultado" && (
-        <div className="space-y-5 sim-zoom-enter">
-
-          {/* Feedlot activo */}
-          {feedlotLotes.length > 0 && (
-            <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
-              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
-              <div className="p-5 space-y-3">
-                <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
-                {feedlotLotes.map((fl,i)=>(
-                  <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+  
+              {/* ── TERMINACIÓN — vista fija ────────────────────────────────── */}
+              <div className="cat-enter bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.19s"}}>
+                <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🥩</span>
                       <div>
-                        <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-                        <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
+                        <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
+                        <p className="text-3xl font-black text-slate-800">{terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
-                      <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
-                        {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
-                      </span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
-                      {[
-                        ["Entrada", `${fl.pesoEntrada} kg`],
-                        ["Salida est.", `${fl.pesoSalida} kg`],
-                        ["Días feedlot", `${fl.diasFeedlot}d`],
-                        ["Ingreso est.", fmtMoney(fl.ingreso)],
-                      ].map(([l,v])=>(
-                        <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
-                          <p className="text-xs text-slate-400">{l}</p>
-                          <p className="font-black text-slate-800 text-sm">{v}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={()=>onSalidaFeedlot(fl)}
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                      ✅ Confirmar salida de feedlot → registrar venta
+                    <button onClick={() => setSubStock("terminacion")}
+                      className="flex items-center gap-1.5 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-2 rounded-xl transition-all">
+                      ✏️ Editar
                     </button>
                   </div>
-                ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label:"Campo",          val: terminacionDatos.novillosCampo,              color:"text-amber-800"  },
+                      { label:"Feedlot",        val: terminacionDatos.novillosFeedlot,            color:"text-orange-700" },
+                      { label:"Peso prom.",     val: `${terminacionDatos.pesoPromedioKg} kg`,     color:"text-slate-700"  },
+                      { label:"% Mort. feedlot",val: `${terminacionDatos.pctMortandadFeedlot??2}%`, color:"text-slate-500" },
+                    ].map(({label,val,color})=>(
+                      <div key={label} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                        <p className="text-xs text-slate-400">{label}</p>
+                        <p className={`font-black text-base ${color}`}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+  
             </div>
           )}
-
-          {/* Ventas del ejercicio */}
-          <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
-                <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
-              </div>
-              {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
-                <div className="text-center py-8 text-slate-300">
-                  <p className="font-semibold">Sin ventas registradas este ejercicio</p>
-                  <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead><tr className="border-b-2 border-slate-100">
-                        {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad"].map(h=>(
-                          <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
-                        ))}
-                      </tr></thead>
-                      <tbody>
-                        {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
-                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                            <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
-                            <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
-                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
-                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
-                            <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
-                            <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
-                            <td className="text-right py-2.5">
-                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+  
+          {/* ── DETALLE CRÍA ─────────────────────────────────────────────── */}
+          {seccion === "stock" && subStock === "cria" && (
+            <div className="sim-zoom-enter space-y-4">
+              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+                <ArrowLeft size={14} /> Volver a stock
+              </button>
+              <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
+                <div className="p-5 md:p-6 space-y-6">
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría — stock</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
+                    <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
+                    <EditField label="Vacas vacías (descarte)" value={criaDatos.vacias||0} onChange={v=>setCriaActiva(p=>({...p,vacias:v}))} hint="Van al rendimiento como descarte" />
+                    <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
+                    <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
                   </div>
-
-                  {/* KPIs resultado */}
+  
+                  {/* Preñez, destete y mortandad */}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">% Productivos — sincronizados con Rendimiento</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <EditField label="% Preñez" value={criaDatos.pctPreniez??85} onChange={v=>setCriaActiva(p=>({...p,pctPreniez:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`${Math.round((criaDatos.vacas+criaDatos.vaquillonas)*(criaDatos.pctPreniez??85)/100)} madres preñadas`} />
+                      <EditField label="% Destete" value={criaDatos.pctDestete??75} onChange={v=>setCriaActiva(p=>({...p,pctDestete:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`Valor final para rendimiento`} />
+                      <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
+                    </div>
+                  </div>
+  
+                  {/* Parición y destete */}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Parición y destete</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-xs text-slate-500 font-semibold">Mes de parición</span>
+                        <select value={criaDatos.paricionMes??9} onChange={e=>setCriaActiva(p=>({...p,paricionMes:Number(e.target.value)}))}
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                          {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m,i)=><option key={i} value={i}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-slate-500 font-semibold">Año de parición</span>
+                        <select value={criaDatos.paricionAnio??new Date().getFullYear()} onChange={e=>setCriaActiva(p=>({...p,paricionAnio:Number(e.target.value)}))}
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                          {[new Date().getFullYear()-1,new Date().getFullYear(),new Date().getFullYear()+1].map(y=><option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                      <EditField label="Meses al destete" value={criaDatos.mesesDestete??6} onChange={v=>setCriaActiva(p=>({...p,mesesDestete:v}))} step={1} suffix=" meses" hint={`Destete: ${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][((criaDatos.paricionMes??9)+(criaDatos.mesesDestete??6))%12]}`} minVal={1} />
+                    </div>
+                  </div>
+  
+                  {/* Machos/hembras + reposición */}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Distribución destete y reposición</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-blue-700">♂ Machos {criaDatos.pctMachos??50}%</span>
+                          <span className="text-rose-600">♀ Hembras {100-(criaDatos.pctMachos??50)}%</span>
+                        </div>
+                        <div className="h-5 rounded-full overflow-hidden flex">
+                          <div className="bg-blue-400 flex items-center justify-center text-white text-xs font-black transition-all" style={{width:`${criaDatos.pctMachos??50}%`}}>{criaDatos.pctMachos??50}%</div>
+                          <div className="bg-rose-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-(criaDatos.pctMachos??50)}%</div>
+                        </div>
+                        <input type="range" min="40" max="60" step="1" value={criaDatos.pctMachos??50}
+                          onChange={e=>setCriaActiva(p=>({...p,pctMachos:Number(e.target.value)}))}
+                          className="w-full accent-blue-500" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-emerald-700">🔄 Reposición {criaDatos.pctReposicion??30}%</span>
+                          <span className="text-amber-700">→ Venta {100-(criaDatos.pctReposicion??30)}%</span>
+                        </div>
+                        <div className="h-5 rounded-full overflow-hidden flex">
+                          <div className="bg-emerald-400 flex items-center justify-center text-white text-xs font-black transition-all" style={{width:`${criaDatos.pctReposicion??30}%`}}>{criaDatos.pctReposicion??30}%</div>
+                          <div className="bg-amber-400 flex-1 flex items-center justify-center text-white text-xs font-black">{100-(criaDatos.pctReposicion??30)}%</div>
+                        </div>
+                        <input type="range" min="0" max="100" step="5" value={criaDatos.pctReposicion??30}
+                          onChange={e=>setCriaActiva(p=>({...p,pctReposicion:Number(e.target.value)}))}
+                          className="w-full accent-emerald-500" />
+                      </div>
+                    </div>
+                  </div>
+  
+                  {/* Resumen calculado */}
                   {(() => {
-                    const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
-                    const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
-                    const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
-                    const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
+                    const madres = criaDatos.vacas + criaDatos.vaquillonas;
+                    const pren   = Math.round(madres * (criaDatos.pctPreniez??85) / 100);
+                    const nacidos= Math.round(pren * (1 - (criaDatos.pctMortandadCria??2)/100));
+                    const dest   = Math.round(nacidos * (criaDatos.pctDestete??75) / 100);
+                    const machos = Math.round(dest * (criaDatos.pctMachos??50) / 100);
+                    const hembras= dest - machos;
+                    const repos  = Math.round(hembras * (criaDatos.pctReposicion??30) / 100);
+                    const venta  = hembras - repos;
                     return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                          <p className="text-xs text-emerald-600">Ingreso total</p>
-                          <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
-                        </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                          <p className="text-xs text-slate-500">Cabezas vendidas</p>
-                          <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
-                        </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                          <p className="text-xs text-slate-500">kg vendidos</p>
-                          <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
-                        </div>
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-                          <p className="text-xs text-blue-600">kg/ha</p>
-                          <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
-                        </div>
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div><p className="text-xs text-emerald-600">Terneros nacidos</p><p className="font-black text-emerald-900 text-xl">{nacidos}</p></div>
+                        <div><p className="text-xs text-emerald-600">Total destete</p><p className="font-black text-emerald-900 text-xl">{dest}</p></div>
+                        <div><p className="text-xs text-blue-600">Machos → recría</p><p className="font-black text-blue-800 text-xl">{machos}</p></div>
+                        <div><p className="text-xs text-amber-600">Hembras → venta</p><p className="font-black text-amber-800 text-xl">{venta}</p></div>
                       </div>
                     );
                   })()}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Proyección año siguiente — feedlot que se pasa */}
-          {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
-              <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente — feedlot que se pasa</p>
-              {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
-                <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
-                  <div>
-                    <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-                    <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
-                    <p className="text-xs text-blue-600">{fl.ejercicio}</p>
-                  </div>
+                  {/* ── Botón Destetar ── */}
+                  {(() => {
+                    const madres       = criaDatos.vacas + criaDatos.vaquillonas;
+                    const pren         = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
+                    const nacidos      = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
+                    const destTotal    = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
+                    const machos       = Math.round(destTotal * (criaDatos.pctMachos ?? 50) / 100);
+                    const hembras      = destTotal - machos;
+                    // Cuánto ya pasó a recría como marca líquida
+                    const yaEnRecria   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras;
+                    const pendiente    = Math.max(0, destTotal - yaEnRecria);
+                    const machosPend   = Math.round(pendiente * (criaDatos.pctMachos ?? 50) / 100);
+                    const hembrasPend  = pendiente - machosPend;
+                    const todoDestetado= pendiente === 0 && yaEnRecria > 0;
+  
+                    if (todoDestetado) return (
+                      <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">✅</span>
+                          <div>
+                            <p className="text-xs font-black text-emerald-700">Destete completo — {destTotal} terneros en Recría</p>
+                            <p className="text-xs text-emerald-600">{reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H como marca líquida</p>
+                          </div>
+                        </div>
+                        <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
+                          className="text-xs font-black text-slate-400 hover:text-red-500 border border-dashed border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-xl transition-all shrink-0">
+                          ↩ Deshacer
+                        </button>
+                      </div>
+                    );
+  
+                    return (
+                      <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
+                          {yaEnRecria > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">{yaEnRecria} ya en recría</span>}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-white rounded-xl border border-emerald-200 py-2">
+                            <p className="text-xs text-emerald-600">Pendiente</p>
+                            <p className="font-black text-emerald-900 text-lg">{pendiente}</p>
+                          </div>
+                          <div className="bg-white rounded-xl border border-blue-200 py-2">
+                            <p className="text-xs text-blue-600">Machos</p>
+                            <p className="font-black text-blue-800 text-lg">{machosPend}</p>
+                          </div>
+                          <div className="bg-white rounded-xl border border-rose-200 py-2">
+                            <p className="text-xs text-rose-600">Hembras</p>
+                            <p className="font-black text-rose-700 text-lg">{hembrasPend}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            disabled={pendiente === 0}
+                            onClick={() => onSincronizar({ _accion: "pasar-destete-recria", machos: machosPend, hembras: hembrasPend })}
+                            className={`flex items-center justify-center gap-2 font-black text-sm px-4 py-3 rounded-2xl transition-all active:scale-95
+                              ${pendiente === 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"}`}>
+                            <RefreshCw size={14}/>
+                            Destetar {pendiente} terneros
+                          </button>
+                          {yaEnRecria > 0 && (
+                            <button onClick={() => onSincronizar({ _accion: "deshacer-destete", machos: reciaDatos.ternerosLiquidaMachos, hembras: reciaDatos.ternerosLiquidaHembras })}
+                              className="flex items-center justify-center gap-2 text-slate-500 font-black text-sm px-4 py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-red-300 hover:text-red-500 transition-all">
+                              ↩ Deshacer
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-emerald-600 text-center">Las vacas quedan libres · Los terneros pasan a Recría como marca líquida</p>
+                      </div>
+                    );
+                  })()}
+  
+                  <button
+                    onClick={() => onSincronizar({
+                      target: "vientres",
+                      descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
+                      inputs: {
+                        cantidad: criaDatos.vacas + criaDatos.vaquillonas,
+                        pesoCompra: 380,
+                        precioKgCompra: 1800,
+                        precioBulto: 350000,
+                        mesesRecriaPreServicio: 15,
+                        anosVidaUtil: 6,
+                        kgIatf: 8,
+                        pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
+                        pesoTerneroDestetado: 160,
+                        precioTerneroKg: 2000,
+                        pesoVacaDescarte: 380,
+                        precioDescarteSalidaKg: 1600,
+                        kgToros: 3,
+                        mesesSuplTerneras: [],
+                        costoSuplTernerasMes: 12000,
+                        mesesSuplVacas: [],
+                        costoSuplVacasMes: 15000,
+                        anosSuplementacion: 6,
+                        kreepOn: false,
+                        kreepMeses: 3,
+                        kreepCostoMes: 8000,
+                        kreepKgExtra: 15,
+                      }
+                    })}
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                    <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                    Simular ROI del rodeo en Proyecto Vientres
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
           )}
-
+  
+          {/* ── DETALLE RECRÍA ───────────────────────────────────────────── */}
+          {seccion === "stock" && subStock === "recria" && (
+            <div className="sim-zoom-enter space-y-4">
+              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+                <ArrowLeft size={14} /> Volver a stock
+              </button>
+              <div className="bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400" />
+                <div className="p-5 md:p-6">
+                  <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-5">Recría — detalle</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <EditField label="Terneros marca líquida — machos" value={reciaDatos.ternerosLiquidaMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosLiquidaMachos:v}))} hint="Destetados de la cría propia" />
+                    <EditField label="Terneros marca líquida — hembras" value={reciaDatos.ternerosLiquidaHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosLiquidaHembras:v}))} hint="Candidatas a vaquillonas o venta" />
+                    <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
+                    <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
+                    <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
+                    <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
+                  </div>
+                  <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                      {[
+                        ["Total recría", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos],
+                        ["Marca líquida", reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras],
+                        ["Compra", reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras],
+                        ["Novillos", reciaDatos.novillos],
+                      ].map(([l,v]) => (
+                        <div key={l}><p className="text-xs text-blue-600">{l}</p><p className="font-black text-blue-900 text-xl">{v}</p></div>
+                      ))}
+                    </div>
+                    {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) > 0 && (
+                      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                        <span className="text-sm">✓</span>
+                        <p className="text-xs text-emerald-700 font-semibold">
+                          {reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras} terneros destetados en recría —
+                          {reciaDatos.ternerosLiquidaMachos}M + {reciaDatos.ternerosLiquidaHembras}H
+                        </p>
+                      </div>
+                    )}
+                    {(reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras) === 0 && (
+                      <p className="text-xs text-slate-400 text-center">Sin marca líquida — destetá desde Cría para agregar terneros</p>
+                    )}
+                  </div>
+                  <button
+                      onClick={() => onSincronizar({
+                        target: "poder",
+                        descripcion: `${reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras > 0 ? reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+" terneros compra" : "nueva compra"} · simulando poder de compra`,
+                        venta: {
+                          cantidad: Math.max(1, reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras),
+                          pesoPromedio: 180,
+                          precioKg: 2200,
+                        }
+                      })}
+                      className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                      <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                      Simular compra en Poder de Compra
+                    </button>
+                </div>
+              </div>
+            </div>
+          )}
+  
+          {/* ── DETALLE TERMINACIÓN ──────────────────────────────────────── */}
+          {seccion === "stock" && subStock === "terminacion" && (
+            <div className="sim-zoom-enter space-y-4">
+              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+                <ArrowLeft size={14} /> Volver a stock
+              </button>
+              <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
+                <div className="p-5 md:p-6 space-y-5">
+                  <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación — detalle</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <EditField label="Novillos en campo" value={terminacionDatos.novillosCampo} onChange={v=>setTermActiva(p=>({...p,novillosCampo:v}))} />
+                    <EditField label="Novillos en feedlot" value={terminacionDatos.novillosFeedlot} onChange={v=>setTermActiva(p=>({...p,novillosFeedlot:v}))} />
+                    <EditField label="Peso promedio (kg)" value={terminacionDatos.pesoPromedioKg} onChange={v=>setTermActiva(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
+                    <EditField label="Días para venta" value={terminacionDatos.diasRestantes} onChange={v=>setTermActiva(p=>({...p,diasRestantes:v}))} suffix=" días" />
+                    <EditField label="% Mortandad feedlot" value={terminacionDatos.pctMortandadFeedlot??2} onChange={v=>setTermActiva(p=>({...p,pctMortandadFeedlot:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
+                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                    <button
+                      onClick={() => onSincronizar({
+                        target: "poder",
+                        descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos ${terminacionDatos.pesoPromedioKg} kg · ¿cuántos terneros puedo reponer?`,
+                        venta: {
+                          cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
+                          pesoPromedio: terminacionDatos.pesoPromedioKg,
+                          precioKg: 2200,
+                        }
+                      })}
+                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                      <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                      ¿Cuántos terneros repongo?
+                    </button>
+                    <button
+                      onClick={() => onSincronizar({
+                        target: "invernada",
+                        descripcion: `${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} novillos · ${terminacionDatos.pesoPromedioKg} kg · campo vs feedlot`,
+                        base: {
+                          cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
+                          pesoIngreso: terminacionDatos.pesoPromedioKg,
+                          precioCompraKg: 1800,
+                        }
+                      })}
+                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
+                      <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                      Comparar campo vs feedlot
+                    </button>
+                  </div>
+                {terminacionDatos.novillosFeedlot > 0 && (
+                    <div className="section-amber rounded-2xl border-2 p-4 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-amber-700">Costos feedlot</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <EditField label="Comida / cab / día" value={terminacionDatos.costoComidaDia} onChange={v=>setTerminacion(p=>({...p,costoComidaDia:v}))} step={500} prefix="$" usdVal={usd(terminacionDatos.costoComidaDia)} />
+                        <EditField label="Hotelería / cab / día" value={terminacionDatos.costoHoteleriaDia} onChange={v=>setTerminacion(p=>({...p,costoHoteleriaDia:v}))} step={100} prefix="$" usdVal={usd(terminacionDatos.costoHoteleriaDia)} />
+                      </div>
+                      <div className="bg-white rounded-xl border border-amber-200 p-3 grid grid-cols-3 gap-3 text-center">
+                        <div><p className="text-xs text-amber-600">Costo/cab/día</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p></div>
+                        <div><p className="text-xs text-amber-600">Costo mensual total</p><p className="font-black text-amber-900">{fmtMoney(feedlotMes)}</p><p className="text-xs text-emerald-600">{usd(feedlotMes)}</p></div>
+                        <div><p className="text-xs text-amber-600">Hasta venta ({terminacionDatos.diasRestantes}d)</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.novillosFeedlot*(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)*terminacionDatos.diasRestantes)}</p></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+  
+          {/* ══════════════════════════════════════════════════════════════
+              COSTOS ESTRUCTURA
+          ══════════════════════════════════════════════════════════════ */}
+          {seccion === "rendimiento" && (
+            <div className="space-y-5 sim-zoom-enter">
+  
+              {/* Info parición (viene de Cría — solo lectura aquí) */}
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <span className="text-lg">🔗</span>
+                <div className="flex-1">
+                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Sincronizado desde Stock → Cría</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">
+                    Parición: <b>{MESES_ES[paricionMes]} {paricionAnio}</b> · Destete: <b>{meseDestete} meses</b> ({MESES_ES[(paricionMes+meseDestete)%12]}) · Peso: <b>{pesoDestete} kg</b> ·
+                    Destete: <b>{totalDestete} cab</b> · Mort. cría: <b>{criaDatos.pctMortandadCria??2}%</b>
+                  </p>
+                </div>
+                <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
+                  className="text-xs font-black text-emerald-600 border border-emerald-300 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors shrink-0">
+                  Editar en Cría →
+                </button>
+              </div>
+  
+              {/* Hectáreas + GDP */}
+              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚙️ Configuración rendimiento</p>
+                <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" minVal={1} />
+              </div>
+  
+              {/* ── GDP por categoría ── */}
+              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚡ GDP por categoría (kg/día)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label:"Ternero",          val:gdpTernero,     set:setGdpTernero,    color:"sky",    peso:pesoTerneroAlCierre },
+                    { label:"Novillo invernada", val:gdpNovilloInv,  set:setGdpNovilloInv, color:"violet", peso:pesoNovilloInvAlCierre },
+                    { label:"Novillo faena",     val:gdpNovilloFaena,set:setGdpNovilloFaena,color:"amber", peso:pesoNovilloFaenaAlCierre },
+                    { label:"Vaquillona desc.",  val:gdpVaquillonaDesc,set:setGdpVaquillonaDesc,color:"rose",peso:pesoVaquillonaAlCierre },
+                  ].map(({label,val,set,color,peso},i)=>(
+                    <div key={i} className={`section-${color==="sky"?"teal":color==="violet"?"violet":color==="amber"?"amber":"sky"} rounded-2xl border-2 p-3 space-y-2`}>
+                      <p className={`text-xs font-black uppercase tracking-widest text-${color}-700`}>{label}</p>
+                      <div className="flex items-center gap-2">
+                        <button onClick={()=>set(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
+                        <div className="flex-1 text-center">
+                          <span className={`font-mono font-black text-xl text-${color}-800`}>{val.toFixed(1)}</span>
+                          <span className={`text-xs text-${color}-600 ml-1`}>kg/d</span>
+                        </div>
+                        <button onClick={()=>set(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
+                      </div>
+                      <input type="range" min="0" max="1.5" step="0.1" value={val}
+                        onChange={e=>set(Math.round(parseFloat(e.target.value)*10)/10)}
+                        className="w-full accent-emerald-500" />
+                      <p className={`text-xs text-${color}-600 text-center`}>Peso al cierre: <span className="font-black">{peso} kg</span></p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+  
+              {/* ── KPIs ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:"kg/ha año actual",  val:kgHaAct,               color:"text-emerald-700", bg:"bg-emerald-50 border-emerald-200", icon:"📦" },
+                  { label:"kg/ha proyectado",  val:kgHaProx,              color:tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600", bg:tendencia==="sube"?"bg-blue-50 border-blue-200":tendencia==="baja"?"bg-red-50 border-red-200":"bg-slate-50 border-slate-100", icon:tendencia==="sube"?"📈":tendencia==="baja"?"📉":"➡️" },
+                  { label:"kg totales año",    val:fmt(kgTotalAct)+" kg", color:"text-slate-800",   bg:"bg-white border-slate-100", icon:"🥩" },
+                  { label:"Hectáreas campo",   val:fmt(hectareas)+" ha",  color:"text-amber-700",   bg:"bg-amber-50 border-amber-200", icon:"🌾" },
+                ].map((k,i)=>(
+                  <div key={i} className={`kpi-pop border-2 ${k.bg} rounded-2xl p-4 space-y-1 card-hover`}>
+                    <span className="text-base">{k.icon}</span>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{k.label}</p>
+                    <p className={`font-mono font-black text-2xl ${k.color}`}>{k.val}</p>
+                  </div>
+                ))}
+              </div>
+  
+              {/* ── Gráfico ── */}
+              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Evolución kg/ha</p>
+                  <div className="flex gap-4 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Real</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-400 opacity-75 inline-block"></span>Proyectado</span>
+                  </div>
+                </div>
+                {(() => {
+                  const data    = historialKgHa;
+                  const maxVal  = Math.max(...data.map(d=>d.kgHa), 1);
+                  const W=580; const H=200; const PL=44; const PT=16; const PB=36;
+                  const cH=H-PT-PB; const slots=Math.max(data.length,1);
+                  const sW=(W-PL)/slots; const bW=Math.min(52,sW-16);
+                  const cx=i=>PL+sW*i+sW/2;
+                  const cy=v=>PT+cH-Math.max(4,(v/maxVal)*cH);
+                  return (
+                    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{overflow:"visible"}}>
+                      {[0,25,50,75,100].map(p=>{
+                        const y=PT+cH-(p/100)*cH; const v=Math.round(maxVal*p/100);
+                        return <g key={p}><line x1={PL} x2={W} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1"/><text x={PL-6} y={y+4} textAnchor="end" fontSize="9" fill="#94a3b8">{v}</text></g>;
+                      })}
+                      {data.map((d,i)=>(
+                        <g key={i}>
+                          <rect x={cx(i)-bW/2} y={cy(d.kgHa)} width={bW} height={Math.max(4,(d.kgHa/maxVal)*cH)} rx="5"
+                            fill={d.tipo==="proyectado"?"#60a5fa":"#10b981"} opacity={d.tipo==="proyectado"?0.7:1}/>
+                          <text x={cx(i)} y={cy(d.kgHa)-5} textAnchor="middle" fontSize="10" fontWeight="700" fill={d.tipo==="proyectado"?"#3b82f6":"#059669"}>{d.kgHa}</text>
+                          <text x={cx(i)} y={H-6} textAnchor="middle" fontSize="9" fill="#64748b">{d.ano}</text>
+                        </g>
+                      ))}
+                      {data.length>1&&<polyline points={data.map((d,i)=>`${cx(i)},${cy(d.kgHa)}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,3"/>}
+                      {data.map((d,i)=><circle key={i} cx={cx(i)} cy={cy(d.kgHa)} r="4" fill="#f59e0b" stroke="white" strokeWidth="1.5"/>)}
+                    </svg>
+                  );
+                })()}
+              </div>
+  
+              {/* ── Tabla resumen año actual ── */}
+              <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+                <div className="p-5 space-y-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">Tabla — año actual</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead><tr className="border-b-2 border-slate-100">
+                        {["Categoría","Cab","Peso venta","kg totales","kg/ha"].map(h=>(
+                          <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Categoría"?"text-left pr-4":"text-right pr-2"}`}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {[
+                          { cat:"Vacas descarte",     cab:cabVacasDescarte,  kg:kgVacasDescarte,  peso:pVacaDescarte,    color:"text-rose-700"   },
+                          { cat:"Terneros invernada", cab:cabTernerosInv,    kg:kgTernerosInv,    peso:pTerneroInvernada,color:"text-sky-700"    },
+                          { cat:"Novillos invernada", cab:cabNovillosInv,    kg:kgNovillosInv,    peso:pNovilloInvernada,color:"text-violet-700" },
+                          { cat:"Novillos faena",     cab:cabNovillosFaena,  kg:kgNovillosFaena,  peso:pNovilloFaena,    color:"text-amber-700" },
+                          { cat:"Vaquillonas desc.",  cab:cabVaquillonaDesc, kg:kgVaquillonaDesc, peso:pVaquillonaDesc,  color:"text-pink-700"  },
+                        ].map((r,i)=>(
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                            <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.cab)}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-500">{fmt(r.peso)} kg</td>
+                            <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
+                            <td className="text-right py-2.5 font-mono font-bold text-emerald-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"}</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t-2 border-emerald-200 bg-emerald-50">
+                          <td className="py-3 pr-4 font-black text-emerald-800">TOTAL AÑO ACTUAL</td>
+                          <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(cabVacasDescarte+cabTernerosInv+cabNovillosInv+cabNovillosFaena+cabVaquillonaDesc)}</td>
+                          <td className="text-right py-3 pr-2 text-slate-400">—</td>
+                          <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(kgTotalAct)} kg</td>
+                          <td className="text-right py-3 font-black text-emerald-800 font-mono text-lg">{kgHaAct}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+  
+                  {/* Proyección */}
+                  <div className="border-t-2 border-slate-100 pt-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">Proyección año siguiente</p>
+                    <table className="w-full text-sm border-collapse">
+                      <tbody>
+                        {[
+                          { cat:"Vacas descarte",    cab:vacasDescarteProx,  kg:kgVacasDescProx,    color:"text-rose-600"  },
+                          { cat:"Terneros invernada",cab:ternerosInvProx,    kg:kgTernerosInvProx,  color:"text-sky-600"   },
+                          { cat:"Novillos faena",    cab:novillosFaenaProx,  kg:kgNovillosFaenaProx,color:"text-amber-600" },
+                          { cat:"Vaquillonas desc.", cab:vaquillonaDescProx, kg:kgVaqDescProx,      color:"text-pink-600"  },
+                        ].map((r,i)=>(
+                          <tr key={i} className="border-b border-slate-50 hover:bg-blue-50">
+                            <td className={`py-2.5 pr-4 font-semibold ${r.color}`}>{r.cat}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-600">{fmt(r.cab)} cab</td>
+                            <td className="text-right py-2.5 pr-2 font-mono font-bold text-slate-700">{fmt(r.kg)} kg</td>
+                            <td className={`text-right py-2.5 font-mono text-blue-700`}>{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"} kg/ha</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t-2 border-blue-200 bg-blue-50">
+                          <td className="py-3 pr-4 font-black text-blue-800">TOTAL PROYECTADO</td>
+                          <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(vacasDescarteProx+ternerosInvProx+novillosFaenaProx+vaquillonaDescProx)} cab</td>
+                          <td className="text-right py-3 pr-2 font-black text-blue-800 font-mono">{fmt(kgTotalProx)} kg</td>
+                          <td className={`text-right py-3 font-black font-mono text-lg ${tendencia==="sube"?"text-blue-700":tendencia==="baja"?"text-red-600":"text-slate-600"}`}>
+                            {kgHaProx} {tendencia==="sube"?"↑":tendencia==="baja"?"↓":"→"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+  
+                  {/* Alertas */}
+                  {tendencia==="baja"&&<div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-2xl p-3"><span>📉</span><p className="text-xs text-orange-700 font-semibold">La proyección baja de {kgHaAct} a {kgHaProx} kg/ha. Considerá agregar más madres o comprar terneros.</p></div>}
+                  {tendencia==="sube"&&<div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3"><span>📈</span><p className="text-xs text-emerald-700 font-semibold">Buen ritmo — la proyección mejora de {kgHaAct} a {kgHaProx} kg/ha.</p></div>}
+  
+                  {/* Tabla mensual acumulación */}
+                  {/* ── Parición escalonada oct-dic ── */}
+                  <div className="border-t-2 border-slate-100 pt-4 space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-600">🐄 Kg acumulados por lote de parición</p>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span className="w-3 h-3 rounded-sm bg-sky-400 inline-block"></span>En gestación/cría
+                        <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block ml-2"></span>Destete
+                        <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block ml-2"></span>Post-destete
+                      </div>
+                    </div>
+  
+                    {/* 3 lotes */}
+                    {lotesPacion.map((lote, li) => (
+                      <div key={li} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${li===0?"bg-sky-500":li===1?"bg-indigo-500":"bg-violet-500"}`}></span>
+                            <span className="text-xs font-black text-slate-700">
+                              Lote {li+1} — {MESES_ES[lote.mes]} {lote.anio}
+                            </span>
+                            <span className="text-xs text-slate-400">({lote.cabLote} cab)</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-slate-500">Al destete: <b className="text-emerald-700">{lote.kgAlDestete} kg/cab</b></span>
+                            <span className="text-slate-500">Al cierre: <b className="text-blue-700">{lote.kgAlCierre} kg/cab</b></span>
+                          </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border-collapse">
+                            <thead><tr className="border-b border-slate-200">
+                              <th className="text-left py-1.5 px-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
+                              <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-slate-400">Días</th>
+                              <th className="text-right py-1.5 px-2 font-black uppercase tracking-wider text-sky-600">kg/cab</th>
+                              <th className="text-right py-1.5 px-3 font-black uppercase tracking-wider text-emerald-600">kg lote</th>
+                            </tr></thead>
+                            <tbody>
+                              {lote.acumMensual.map((r,i)=>(
+                                <tr key={i} className={`border-b border-slate-100 ${r.esMesDestete?"bg-emerald-50 font-bold":"hover:bg-white"}`}>
+                                  <td className={`py-1.5 px-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>
+                                    {r.mes} {r.esMesDestete?"← destete":""}
+                                  </td>
+                                  <td className="text-right py-1.5 px-2 font-mono text-slate-500">{r.diasAcum}d</td>
+                                  <td className={`text-right py-1.5 px-2 font-mono font-bold ${r.esMesDestete?"text-emerald-700":"text-sky-700"}`}>{r.kgPorCab} kg</td>
+                                  <td className={`text-right py-1.5 px-3 font-mono font-bold ${r.esMesDestete?"text-emerald-800":"text-slate-700"}`}>{fmt(r.kgTotales)} kg</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+  
+                    {/* Resumen 3 lotes + botón pasar a recría */}
+                    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div><p className="text-xs text-emerald-600">Total terneros</p><p className="font-black text-emerald-900 text-xl">{ternNacidosVivos}</p></div>
+                        <div><p className="text-xs text-emerald-600">Kg al destete</p><p className="font-black text-emerald-900 text-xl">{fmt(kgTernerosAlDestete)}</p></div>
+                        <div><p className="text-xs text-blue-600">Kg al cierre</p><p className="font-black text-blue-800 text-xl">{fmt(kgTernerosAlCierre)}</p></div>
+                        <div><p className="text-xs text-emerald-600">kg/ha terneros</p><p className="font-black text-emerald-900 text-xl">{hectareas>0?Math.round(kgTernerosAlCierre/hectareas):"-"}</p></div>
+                      </div>
+                      <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
+                        className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95">
+                        → Ir a Cría para destetar
+                      </button>
+                    </div>
+  
+                    {/* Tabla comparativa kg/cab por mes */}
+                    {tablaAcumulacion.length > 0 && (
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Comparativo por categoría — kg/cab/mes</p>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border-collapse">
+                            <thead><tr className="border-b border-slate-200">
+                              <th className="text-left py-1.5 pr-3 font-black uppercase tracking-wider text-slate-400">Mes</th>
+                              <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-sky-500">Ternero</th>
+                              <th className="text-right py-1.5 pr-3 font-black uppercase tracking-wider text-violet-500">Nov. inv.</th>
+                              <th className="text-right py-1.5 font-black uppercase tracking-wider text-amber-500">Nov. faena</th>
+                            </tr></thead>
+                            <tbody>
+                              {tablaAcumulacion.map((r,i)=>(
+                                <tr key={i} className={`border-b border-slate-50 ${r.esMesDestete?"bg-emerald-50":""}`}>
+                                  <td className={`py-1.5 pr-3 font-semibold ${r.esMesDestete?"text-emerald-700":"text-slate-600"}`}>{r.mes}{r.esMesDestete?" ← destete":""}</td>
+                                  <td className="text-right py-1.5 pr-3 font-mono font-bold text-sky-700">{r.kgTernero} kg</td>
+                                  <td className="text-right py-1.5 pr-3 font-mono font-bold text-violet-700">{r.kgNovilloInv} kg</td>
+                                  <td className="text-right py-1.5 font-mono font-bold text-amber-700">{r.kgNovFaena} kg</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+  
+            </div>
+          )}
+  
+          {seccion === "recria-lotes" && (
+            <div className="space-y-5 sim-zoom-enter">
+  
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Lotes activos en recría</p>
+                  <p className="text-xs text-slate-400 mt-0.5">GDP y progreso hacia el peso/tiempo objetivo</p>
+                </div>
+                <button
+                  onClick={() => setLotesRecria(prev => [...prev, {
+                    id: Date.now(), categoria: "compra", label: "Nuevo lote",
+                    cabezas: 50, pesoEntrada: 180, gdp: 0.6,
+                    fechaEntrada: fechaHoyStr, pesoObjetivo: 380, mesesObjetivo: 10, color: "blue",
+                  }])}
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                  + Agregar lote
+                </button>
+              </div>
+  
+              {lotesRecria.length === 0 && (
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center">
+                  <p className="text-slate-400 font-semibold text-sm">Sin lotes en recría</p>
+                  <p className="text-xs text-slate-300 mt-1">Tocá "Agregar lote" para empezar</p>
+                </div>
+              )}
+  
+              {/* Lotes */}
+              {lotesRecria.map((lote, li) => {
+                const calc = calcLote(lote);
+                const cat = CATS_RECRIA.find(c => c.id === lote.categoria) || CATS_RECRIA[2];
+                const setL = (k) => (v) => setLotesRecria(prev => prev.map((l,i) => i===li ? {...l,[k]:v} : l));
+                const colorMap = { emerald:"#10b981", blue:"#3b82f6", amber:"#f59e0b" };
+                const barColor = calc.listo ? "#10b981" : colorMap[cat.color] || "#94a3b8";
+  
+                return (
+                  <div key={lote.id} className={`bg-white border-2 ${calc.listo?"border-emerald-300":"border-slate-100"} rounded-3xl overflow-hidden shadow-lg`}>
+                    <div className={`h-1.5 ${calc.listo?"bg-gradient-to-r from-emerald-400 to-teal-400":"bg-gradient-to-r from-"+cat.color+"-400 to-"+cat.color+"-500"}`}
+                      style={{background: calc.listo ? "linear-gradient(90deg,#10b981,#14b8a6)" : `linear-gradient(90deg,${barColor}aa,${barColor})`}} />
+  
+                    <div className="p-5 space-y-4">
+                      {/* Header lote */}
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{cat.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <input value={lote.label} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,label:e.target.value}:l))}
+                                className="font-black text-slate-800 text-sm bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-emerald-400 w-40"/>
+                              {calc.listo && <span className="text-xs font-black text-white bg-emerald-500 px-2 py-0.5 rounded-full badge-pulse">✓ Listo para vender</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              {CATS_RECRIA.map(c=>(
+                                <button key={c.id} onClick={()=>setL("categoria")(c.id)}
+                                  className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${lote.categoria===c.id?"bg-slate-800 text-white":"text-slate-400 hover:text-slate-600"}`}>
+                                  {c.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={()=>setLotesRecria(prev=>prev.filter((_,i)=>i!==li))}
+                          className="text-xs text-slate-300 hover:text-red-400 font-bold transition-colors px-2 py-1 rounded-lg hover:bg-red-50">✕</button>
+                      </div>
+  
+                      {/* Barra de progreso */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-500 font-semibold">Progreso</span>
+                          <span className="font-black" style={{color:barColor}}>{calc.pctProgreso}%</span>
+                        </div>
+                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-700"
+                            style={{width:`${calc.pctProgreso}%`, background: barColor}}/>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400">
+                          <span>Peso: {calc.pctPeso}%</span>
+                          <span>Tiempo: {calc.pctTiempo}%</span>
+                        </div>
+                      </div>
+  
+                      {/* KPIs del lote */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { label:"Peso actual",    val:`${calc.pesoActual} kg`,        color:"text-slate-800",   bg:"bg-slate-50"                     },
+                          { label:"Kg ganados",     val:`+${calc.kgGanados} kg`,         color:"text-emerald-700", bg:"bg-emerald-50"                   },
+                          { label:"Días en campo",  val:`${calc.diasTrans} días`,         color:"text-blue-700",    bg:"bg-blue-50"                      },
+                          { label:calc.listo?"Estado":"Sale estimado", val:calc.listo?"✓ Listo":calc.fechaSalidaStr, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
+                        ].map((k,i)=>(
+                          <div key={i} className={`${k.bg} rounded-xl p-2.5 text-center`}>
+                            <p className="text-xs text-slate-400">{k.label}</p>
+                            <p className={`font-black text-base ${k.color}`}>{k.val}</p>
+                          </div>
+                        ))}
+                      </div>
+  
+                      {/* Mini gráfico SVG de acumulación */}
+                      {(() => {
+                        const meses = lote.mesesObjetivo;
+                        const puntos = Array.from({length: meses+1}, (_,i) => ({
+                          m: i,
+                          kg: Math.round(lote.pesoEntrada + i*30*lote.gdp),
+                          esHoy: Math.abs(i*30 - calc.diasTrans) < 20,
+                        }));
+                        const maxKg = puntos[puntos.length-1].kg;
+                        const minKg = lote.pesoEntrada;
+                        const W=400; const H=80; const PL=8; const PR=8; const PT=8; const PB=20;
+                        const cW=W-PL-PR; const cH=H-PT-PB;
+                        const cx=i=>(PL+cW*i/meses);
+                        const cy=kg=>(PT+cH*(1-(kg-minKg)/(maxKg-minKg)));
+                        const mesStr=["E","F","M","A","M","J","J","A","S","O","N","D"];
+                        const entradaMes=new Date(lote.fechaEntrada).getMonth();
+                        return (
+                          <div className="bg-slate-50 rounded-2xl p-3">
+                            <p className="text-xs text-slate-400 font-semibold mb-1">Evolución de peso kg/cab</p>
+                            <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+                              {/* Línea objetivo */}
+                              <line x1={PL} x2={W-PR} y1={cy(lote.pesoObjetivo)} y2={cy(lote.pesoObjetivo)}
+                                stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
+                              <text x={W-PR+2} y={cy(lote.pesoObjetivo)+4} fontSize="8" fill="#10b981">{lote.pesoObjetivo}</text>
+                              {/* Línea de crecimiento */}
+                              <polyline
+                                points={puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")}
+                                fill="none" stroke={barColor} strokeWidth="2"/>
+                              {/* Área rellena */}
+                              <polygon
+                                points={`${cx(0)},${cy(minKg)} ${puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")} ${cx(meses)},${cy(minKg)}`}
+                                fill={barColor} opacity="0.08"/>
+                              {/* Punto HOY */}
+                              {calc.diasTrans > 0 && calc.diasTrans < meses*30 && (
+                                <>
+                                  <line x1={PL+cW*calc.diasTrans/(meses*30)} x2={PL+cW*calc.diasTrans/(meses*30)} y1={PT} y2={H-PB} stroke="#64748b" strokeWidth="1" strokeDasharray="3,2"/>
+                                  <circle cx={PL+cW*calc.diasTrans/(meses*30)} cy={cy(calc.pesoActual)} r="5" fill={barColor} stroke="white" strokeWidth="1.5"/>
+                                  <text x={PL+cW*calc.diasTrans/(meses*30)} y={cy(calc.pesoActual)-8} textAnchor="middle" fontSize="9" fontWeight="700" fill={barColor}>{calc.pesoActual}kg</text>
+                                </>
+                              )}
+                              {/* Labels mes */}
+                              {puntos.map((p,i)=>(
+                                <text key={i} x={cx(p.m)} y={H-5} textAnchor="middle" fontSize="8" fill="#94a3b8">
+                                  {mesStr[(entradaMes+p.m)%12]}
+                                </text>
+                              ))}
+                            </svg>
+                          </div>
+                        );
+                      })()}
+  
+                      {/* Configuración del lote */}
+                      <details className="group">
+                        <summary className="text-xs font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600 transition-colors list-none flex items-center gap-1">
+                          <span className="group-open:rotate-90 transition-transform inline-block">▶</span> Editar parámetros del lote
+                        </summary>
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <EditField label="Cabezas" value={lote.cabezas} onChange={setL("cabezas")} step={1} minVal={1}/>
+                          <EditField label="Peso entrada (kg)" value={lote.pesoEntrada} onChange={setL("pesoEntrada")} step={5} suffix=" kg"/>
+                          <EditField label="GDP (kg/día)" value={lote.gdp} onChange={v=>setL("gdp")(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
+                          <EditField label="Peso objetivo (kg)" value={lote.pesoObjetivo} onChange={setL("pesoObjetivo")} step={5} suffix=" kg"/>
+                          <EditField label="Meses objetivo" value={lote.mesesObjetivo} onChange={setL("mesesObjetivo")} step={1} suffix=" m" minVal={1}/>
+                          <div className="space-y-1">
+                            <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
+                            <input type="date" value={lote.fechaEntrada} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,fechaEntrada:e.target.value}:l))}
+                              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400"/>
+                          </div>
+                        </div>
+                      </details>
+  
+                      {/* Botones acción */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        <button
+                          onClick={() => setModalVenta(lote)}
+                          className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                          🐂 Vender / Mandar a feedlot
+                        </button>
+                        <button
+                          onClick={() => onSincronizar({
+                            target: "poder",
+                            descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · simular reposición`,
+                            venta: { cantidad: lote.cabezas, pesoPromedio: calc.pesoActual, precioKg: 2200 },
+                          })}
+                          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
+                          <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
+                          Simular reposición
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+  
+              {/* Resumen total */}
+              {lotesRecria.length > 0 && (
+                <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Resumen total recría</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    {[
+                      { label:"Total animales", val:lotesRecria.reduce((a,l)=>a+l.cabezas,0)+" cab" },
+                      { label:"Listos para vender", val:lotesRecria.filter(l=>calcLote(l).listo).reduce((a,l)=>a+l.cabezas,0)+" cab" },
+                      { label:"Lotes activos", val:lotesRecria.length },
+                      { label:"Peso prom. actual", val: Math.round(lotesRecria.reduce((a,l)=>a+calcLote(l).pesoActual*l.cabezas,0)/Math.max(1,lotesRecria.reduce((a,l)=>a+l.cabezas,0)))+" kg" },
+                    ].map((k,i)=>(
+                      <div key={i} className="bg-slate-50 rounded-xl p-3">
+                        <p className="text-xs text-slate-400">{k.label}</p>
+                        <p className="font-black text-slate-800 text-xl">{k.val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+  
+            </div>
+          )}
+  
+          {seccion === "costos" && (
+            <div className="space-y-5 sim-zoom-enter">
+  
+              {/* Empleados */}
+              <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-violet-700">👷 Empleados</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Total mes</p>
+                      <p className="font-black text-violet-800 text-lg">{fmtMoney(totalEmpleadosMes)}</p>
+                      <p className="text-xs text-emerald-600">{usd(totalEmpleadosMes)}</p>
+                    </div>
+                  </div>
+                  {empleados.map((emp, i) => (
+                    <div key={i} className="section-violet rounded-2xl border-2 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-black text-violet-800">{emp.rol}</p>
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400">Costo total/mes</p>
+                          <p className="font-mono font-black text-violet-700">{fmtMoney(costoMensualEmpleado(emp))}</p>
+                          <p className="text-xs text-emerald-600">{usd(costoMensualEmpleado(emp))}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <EditField label="Cantidad" value={emp.cantidad} onChange={setEmp(i,"cantidad")} minVal={1} />
+                        <EditField label="Sueldo base / mes" value={emp.sueldo} onChange={setEmp(i,"sueldo")} step={50000} prefix="$" usdVal={usd(emp.sueldo)} />
+                        <EditField label="Cargas sociales (%)" value={emp.cargasSociales} onChange={setEmp(i,"cargasSociales")} step={1} suffix="%" hint="30% a 65%" />
+                        <EditField label="Premio / mes" value={emp.premio} onChange={setEmp(i,"premio")} step={50000} prefix="$" usdVal={usd(emp.premio)} />
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={emp.aguinaldo} onChange={e=>setEmp(i,"aguinaldo")(e.target.checked)} />
+                        <span className="text-xs text-slate-600 font-semibold">Incluir aguinaldo (SAC)</span>
+                      </label>
+                    </div>
+                  ))}
+                  <button onClick={() => setEmpleados(p => [...p, { rol:"Nuevo empleado", cantidad:1, sueldo:900000, aguinaldo:true, cargasSociales:45, premio:0 }])}
+                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-violet-300 text-violet-500 text-xs font-black uppercase tracking-widest hover:bg-violet-50 transition-colors">
+                    + Agregar empleado
+                  </button>
+                </div>
+              </div>
+  
+              {/* Maquinaria */}
+              <div className="bg-white border-2 border-sky-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-sky-400 to-cyan-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-sky-700">🚜 Maquinaria</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Total mes</p>
+                      <p className="font-black text-sky-800 text-lg">{fmtMoney(costoMaqMes)}</p>
+                      <p className="text-xs text-emerald-600">{usd(costoMaqMes)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <EditField label="Cantidad tractores" value={maquinaria.tractores} onChange={v=>setMaquinaria(p=>({...p,tractores:v}))} minVal={0} />
+                    <EditField label="Mantenimiento / tractor / mes" value={maquinaria.mantenimientoMes} onChange={v=>setMaquinaria(p=>({...p,mantenimientoMes:v}))} step={10000} prefix="$" usdVal={usd(maquinaria.mantenimientoMes)} />
+                  </div>
+                </div>
+              </div>
+  
+              {/* Rolados */}
+              <div className="bg-white border-2 border-green-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-green-400 to-emerald-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-green-700">🌾 Rolados y pastura</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Costo anual</p>
+                      <p className="font-black text-green-800 text-lg">{fmtMoney(costoRoladoAnual)}</p>
+                      <p className="text-xs text-emerald-600">{usd(costoRoladoAnual)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <EditField label="Hectáreas roladas" value={roladoState.hectareas} onChange={v=>setRolado(p=>({...p,hectareas:v}))} step={10} suffix=" ha" />
+                    <EditField label="Litros gasoil / ha" value={roladoState.litrosGasoilHa} onChange={v=>setRolado(p=>({...p,litrosGasoilHa:v}))} step={5} suffix=" L/ha" hint="Entre 50 y 150 L/ha" />
+                    <EditField label="Has. siembra / resiembra" value={roladoState.siembraHa} onChange={v=>setRolado(p=>({...p,siembraHa:v}))} step={10} suffix=" ha" />
+                    <EditField label="Costo siembra / ha" value={roladoState.costoSiembraHa} onChange={v=>setRolado(p=>({...p,costoSiembraHa:v}))} step={1000} prefix="$" usdVal={usd(roladoState.costoSiembraHa)} />
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-xs text-green-600">Litros totales</p><p className="font-black text-green-900">{fmt(roladoState.hectareas*roladoState.litrosGasoilHa)} L</p></div>
+                    <div><p className="text-xs text-green-600">Costo gasoil</p><p className="font-black text-green-900">{fmtMoney(costoGasoilRolado)}</p><p className="text-xs text-emerald-600">{usd(costoGasoilRolado)}</p></div>
+                    <div><p className="text-xs text-green-600">Costo siembra</p><p className="font-black text-green-900">{fmtMoney(costoSiembra)}</p><p className="text-xs text-emerald-600">{usd(costoSiembra)}</p></div>
+                  </div>
+                </div>
+              </div>
+  
+              {/* Viajes */}
+              <div className="bg-white border-2 border-orange-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-orange-400 to-red-400" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-orange-700">🚗 Viajes al campo</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Total mes</p>
+                      <p className="font-black text-orange-800 text-lg">{fmtMoney(costoViajesMes)}</p>
+                      <p className="text-xs text-emerald-600">{usd(costoViajesMes)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <EditField label="Viajes por mes" value={viajesState.viajesAlMes} onChange={v=>setViajes(p=>({...p,viajesAlMes:v}))} minVal={1} suffix=" v/mes" />
+                    <EditField label="Km por viaje" value={viajesState.kmPorViaje} onChange={v=>setViajes(p=>({...p,kmPorViaje:v}))} step={10} suffix=" km" />
+                    <EditField label="Consumo cada 100 km" value={viajesState.litrosCada100} onChange={v=>setViajes(p=>({...p,litrosCada100:v}))} step={1} suffix=" L" />
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-xs text-orange-600">Km totales/mes</p><p className="font-black text-orange-900">{fmt(viajesState.viajesAlMes*viajesState.kmPorViaje)} km</p></div>
+                    <div><p className="text-xs text-orange-600">Litros/mes</p><p className="font-black text-orange-900">{fmt(Math.round(litrosTotalesMes))} L</p></div>
+                    <div><p className="text-xs text-orange-600">Costo gasoil/mes</p><p className="font-black text-orange-900">{fmtMoney(costoViajesMes)}</p><p className="text-xs text-emerald-600">{usd(costoViajesMes)}</p></div>
+                  </div>
+                </div>
+              </div>
+  
+              {/* Resumen anual */}
+              <div className="bg-white border-2 border-emerald-300 rounded-3xl p-5 shadow-xl section-lime">
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-4">Resumen costos anuales</p>
+                <div className="space-y-2 mb-4">
+                  {[
+                    ["👷 Empleados",       totalEmpleadosMes*12, "violet"],
+                    ["🚜 Maquinaria",      costoMaqMes*12,       "sky"],
+                    ["🌾 Rolados/pastura", costoRoladoAnual,      "green"],
+                    ["🚗 Viajes",          costoViajesMes*12,    "orange"],
+                  ].map(([l,v,c]) => (
+                    <div key={l} className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                      <span className="text-sm text-slate-600">{l}</span>
+                      <div className="text-right">
+                        <span className="font-mono font-black text-slate-800">{fmtMoney(v)}</span>
+                        <span className="text-xs text-emerald-600 ml-2">{usd(v)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-sm font-black text-emerald-800">Total anual</span>
+                  <div className="text-right">
+                    <p className="font-black text-emerald-900 text-2xl">{fmtMoney((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
+                    <p className="text-sm text-emerald-700 font-bold">{usd((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-xl border border-emerald-200 p-3 text-center">
+                    <p className="text-xs text-slate-400">Costo / cab / mes</p>
+                    <p className="font-black text-slate-800 text-xl">${fmt(costoPorCabMes)}</p>
+                    <p className="text-xs text-emerald-600">{usd(costoPorCabMes)}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-emerald-200 p-3 text-center">
+                    <p className="text-xs text-slate-400">Costo / cab / año</p>
+                    <p className="font-black text-slate-800 text-xl">${fmt(costoPorCabMes*12)}</p>
+                    <p className="text-xs text-emerald-600">{usd(costoPorCabMes*12)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+  
+          {/* ══════════════════════════════════════════════════════════════
+              COTIZACIONES
+          ══════════════════════════════════════════════════════════════ */}
+          {seccion === "config" && (
+            <div className="sim-zoom-enter">
+              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg max-w-lg">
+                <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+                <div className="p-5 space-y-5">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">Variables de referencia global</p>
+                  <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Se usa para mostrar valores en dólares" />
+                  <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ejemplo de conversiones</p>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">$1.000.000</span><span className="font-bold text-emerald-700">{usd(1000000)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">$5.000.000</span><span className="font-bold text-emerald-700">{usd(5000000)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">$10.000.000</span><span className="font-bold text-emerald-700">{usd(10000000)}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+  
         </div>
-      )}
-
+  
+          {/* ══════════════════════════════════════════════════════════════
+              RESULTADO POR EJERCICIO
+          ══════════════════════════════════════════════════════════════ */}
+          {seccion === "resultado" && (
+          <div className="space-y-5 sim-zoom-enter">
+  
+            {/* Feedlot activo */}
+            {feedlotLotes.length > 0 && (
+              <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
+                <div className="p-5 space-y-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
+                  {feedlotLotes.map((fl,i)=>(
+                    <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                        <div>
+                          <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+                          <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
+                        </div>
+                        <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
+                          {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
+                        {[
+                          ["Entrada", `${fl.pesoEntrada} kg`],
+                          ["Salida est.", `${fl.pesoSalida} kg`],
+                          ["Días feedlot", `${fl.diasFeedlot}d`],
+                          ["Ingreso est.", fmtMoney(fl.ingreso)],
+                        ].map(([l,v])=>(
+                          <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
+                            <p className="text-xs text-slate-400">{l}</p>
+                            <p className="font-black text-slate-800 text-sm">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={()=>onSalidaFeedlot(fl)}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                        ✅ Confirmar salida de feedlot → registrar venta
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+  
+            {/* Ventas del ejercicio */}
+            <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
+                  <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
+                </div>
+                {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
+                  <div className="text-center py-8 text-slate-300">
+                    <p className="font-semibold">Sin ventas registradas este ejercicio</p>
+                    <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead><tr className="border-b-2 border-slate-100">
+                          {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad"].map(h=>(
+                            <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
+                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                              <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
+                              <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
+                              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
+                              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
+                              <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
+                              <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
+                              <td className="text-right py-2.5">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+  
+                    {/* KPIs resultado */}
+                    {(() => {
+                      const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
+                      const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
+                      const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
+                      const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                            <p className="text-xs text-emerald-600">Ingreso total</p>
+                            <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500">Cabezas vendidas</p>
+                            <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500">kg vendidos</p>
+                            <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
+                          </div>
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                            <p className="text-xs text-blue-600">kg/ha</p>
+                            <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            </div>
+  
+            {/* Proyección año siguiente — feedlot que se pasa */}
+            {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
+                <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente — feedlot que se pasa</p>
+                {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
+                  <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
+                    <div>
+                      <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
+                      <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
+                      <p className="text-xs text-blue-600">{fl.ejercicio}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+  
+          </div>
+        )}
+  
           </div>{/* end main content */}
         </div>{/* end layout flex */}
 
