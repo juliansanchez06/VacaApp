@@ -4591,6 +4591,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         }));
                         const maxKg = puntos[puntos.length-1].kg;
                         const minKg = lote.pesoEntrada;
+                        const pf = maxKg; // peso final = último punto (meses completos)
                         const W=400; const H=80; const PL=8; const PR=8; const PT=8; const PB=20;
                         const cW=W-PL-PR; const cH=H-PT-PB;
                         const cx=i=>(PL+cW*i/meses);
@@ -4602,7 +4603,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             <p className="text-xs text-slate-400 font-semibold mb-1">Evolución de peso kg/cab</p>
                             <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
                               {/* Línea objetivo */}
-                              <line x1={PL} x2={W-PR} y1={cy(lote.pesoObjetivo)} y2={cy(lote.pesoObjetivo)}
+                              <line x1={PL} x2={W-PR} y1={cy(pf)} y2={cy(pf)}
                                 stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
                               <text x={W-PR+2} y={cy(pf)+4} fontSize="8" fill="#10b981">{pf}kg</text>
                               {/* Línea de crecimiento */}
