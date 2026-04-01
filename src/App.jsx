@@ -3229,7 +3229,7 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
           Elegí el simulador
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="dash-card">
             <MenuCard
               title="Poder de Compra"
@@ -4995,7 +4995,7 @@ function getAnoGanaderoActual() {
 // ═══════════════════════════════════════════════════════════════════════════
 function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) {
   const { useState, useCallback } = React;
-  const dolar = global?.inmagVientres || 1420;
+  const dolar = global?.dolar || 1420;
   const gasoil = global?.precioGasoilL || 1100;
 
   const hoyStr = new Date().toISOString().slice(0, 10);
@@ -5196,7 +5196,7 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
               <EF label="Cabezas" value={lote.cabezas} onChange={setL(loteActivo,"cabezas")} step={1} minVal={1}/>
               <EF label="Peso entrada" value={lote.pesoEntradaKg} onChange={setL(loteActivo,"pesoEntradaKg")} step={5} suffix=" kg"/>
               <EF label="Precio compra" value={lote.precioCompraKg} onChange={setL(loteActivo,"precioCompraKg")} step={50} prefix="$" suffix="/kg"/>
-              <EF label="Meses de recría" value={lote.mesesRecria} onChange={setL(loteActivo,"mesesRecria")} step={1} suffix=" m" minVal={1}/>
+
               <EF label="GDP (kg/día)" value={lote.gdp} onChange={setL(loteActivo,"gdp")} step={0.1} suffix=" kg/d" minVal={0.1}/>
               <div className="space-y-1">
                 <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
@@ -5240,55 +5240,32 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
             </div>
           </div>
 
-          {/* Venta */}
-          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-4">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">🐂 Destino al salir</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[["invernada","🌿 Invernada directa"],["feedlot","🏭 Feedlot"]].map(([v,lb]) => (
-                <button key={v} onClick={() => setL(loteActivo,"modalidadVenta")(v)}
-                  className={`py-2.5 rounded-xl text-xs font-black border-2 transition-all ${lote.modalidadVenta === v ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}>
-                  {lb}
-                </button>
-              ))}
-            </div>
-            <EF label="Precio de venta ($/kg)" value={lote.precioVentaKg} onChange={setL(loteActivo,"precioVentaKg")} step={50} prefix="$" suffix="/kg"/>
-            {lote.modalidadVenta === "feedlot" && (
-              <div className="grid grid-cols-2 gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-3">
-                <EF label="Días en feedlot" value={lote.diasFeedlot} onChange={setL(loteActivo,"diasFeedlot")} step={5} suffix=" días" minVal={1}/>
-                <EF label="GDP feedlot (kg/d)" value={lote.gdpFeedlot} onChange={setL(loteActivo,"gdpFeedlot")} step={0.1} suffix=" kg/d" minVal={0.1}/>
-                <EF label="Costo feedlot ($/cab/día)" value={lote.costoFeedlotCab} onChange={setL(loteActivo,"costoFeedlotCab")} step={500} prefix="$"/>
-                <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
-                  <p className="text-xs text-amber-600">Peso final feedlot</p>
-                  <p className="font-black text-amber-800">{calc.pesoVenta} kg/cab</p>
-                </div>
-              </div>
-            )}
-          </div>
+
         </div>
 
         {/* ── Col derecha: resultado ── */}
         <div className="space-y-4">
 
-          {/* KPIs principales */}
-          <div className={`rounded-3xl p-5 space-y-3 ${calc.margen >= 0 ? "bg-emerald-600" : "bg-red-600"}`}>
-            <p className="text-xs font-black uppercase tracking-widest text-white/70">Resultado — {lote.nombre}</p>
+          {/* Costo total */}
+          <div className="bg-slate-800 rounded-3xl p-5 space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/70">Inversión total — {lote.nombre}</p>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-4xl font-black text-white">{fmtM(calc.margen)}</p>
-                <p className="text-sm text-white/70 mt-0.5">margen total · {fmtM(calc.margenPorCab)}/cab</p>
+                <p className="text-4xl font-black text-white">{fmtM(calc.costoTotal)}</p>
+                <p className="text-sm text-white/70 mt-0.5">{fmtM(Math.round(calc.costoTotal/lote.cabezas))}/cab</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-white">{usd(calc.margen)}</p>
+                <p className="text-2xl font-black text-white">{usd(calc.costoTotal)}</p>
                 <p className="text-xs text-white/70">en dólares</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                ["ROI", `${calc.roi.toFixed(1)}%`],
-                ["P. equilibrio", `$${fmt(calc.peqKg)}/kg`],
+                ["Costo compra", fmtM(calc.costoCompra)],
                 ["Costo kg ganado", `$${fmt(calc.eficienciaKg)}`],
+                ["Sale estimado", calc.fechaSalidaStr],
               ].map(([l,v]) => (
-                <div key={l} className="bg-white/20 rounded-xl p-2 text-center">
+                <div key={l} className="bg-white/10 rounded-xl p-2 text-center">
                   <p className="text-xs text-white/70">{l}</p>
                   <p className="font-black text-white text-sm">{v}</p>
                 </div>
@@ -5321,13 +5298,13 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
                   <td className="py-2 font-black text-slate-700">Costo total</td>
                   <td className="text-right py-2 font-mono font-black text-slate-800">{fmtM(calc.costoTotal)}</td>
                 </tr>
-                <tr>
-                  <td className="py-1.5 font-black text-emerald-700">Ingreso venta</td>
-                  <td className="text-right py-1.5 font-mono font-black text-emerald-700">{fmtM(calc.ingresoVenta)}</td>
+                <tr className="border-t-2 border-slate-300 bg-slate-50">
+                  <td className="py-2 font-black text-slate-800">COSTO TOTAL</td>
+                  <td className="text-right py-2 font-mono font-black text-slate-800 text-lg">{fmtM(calc.costoTotal)}</td>
                 </tr>
-                <tr className={`border-t-2 ${calc.margen >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                  <td className={`py-2 font-black ${calc.margen >= 0 ? "text-emerald-700" : "text-red-600"}`}>Margen neto</td>
-                  <td className={`text-right py-2 font-mono font-black text-lg ${calc.margen >= 0 ? "text-emerald-700" : "text-red-600"}`}>{fmtM(calc.margen)}</td>
+                <tr>
+                  <td className="py-1.5 text-slate-400 text-xs">En dólares</td>
+                  <td className="text-right py-1.5 font-mono text-slate-500">{usd(calc.costoTotal)}</td>
                 </tr>
               </tbody>
             </table>
@@ -5354,7 +5331,7 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">📋 Resumen todos los lotes</p>
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-slate-200">
-                  {["Lote","Cab","Margen","ROI"].map(h => (
+                  {["Lote","Cab","Inversión","USD"].map(h => (
                     <th key={h} className={`py-1.5 text-xs font-black text-slate-400 uppercase ${h==="Lote"?"text-left":"text-right"}`}>{h}</th>
                   ))}
                 </tr></thead>
@@ -5366,18 +5343,16 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
                         onClick={() => setLoteActivo(i)}>
                         <td className="py-2 text-slate-700">{l.categoria==="machos"?"♂":"♀"} {l.nombre}</td>
                         <td className="text-right py-2 font-mono text-slate-600">{l.cabezas}</td>
-                        <td className={`text-right py-2 font-mono font-bold ${c.margen>=0?"text-emerald-700":"text-red-600"}`}>{fmtM(c.margen)}</td>
-                        <td className={`text-right py-2 font-mono ${c.roi>=0?"text-emerald-600":"text-red-500"}`}>{c.roi.toFixed(1)}%</td>
+                        <td className="text-right py-2 font-mono font-bold text-slate-700">{fmtM(c.costoTotal)}</td>
+                        <td className="text-right py-2 font-mono text-slate-500">{usd(c.costoTotal)}</td>
                       </tr>
                     );
                   })}
                   <tr className="border-t-2 border-slate-300 bg-white">
                     <td className="py-2.5 font-black text-slate-800">TOTAL</td>
                     <td className="text-right py-2.5 font-mono font-black text-slate-800">{totales.cabezas}</td>
-                    <td className={`text-right py-2.5 font-mono font-black text-lg ${totales.margen>=0?"text-emerald-700":"text-red-600"}`}>{fmtM(totales.margen)}</td>
-                    <td className={`text-right py-2.5 font-mono font-black ${totales.margen>=0?"text-emerald-600":"text-red-500"}`}>
-                      {totales.costoTotal > 0 ? (totales.margen / totales.costoTotal * 100).toFixed(1) : 0}%
-                    </td>
+                    <td className="text-right py-2.5 font-mono font-black text-slate-800 text-lg">{fmtM(totales.costoTotal)}</td>
+                    <td className="text-right py-2.5 font-mono font-black text-slate-500">{usd(totales.costoTotal)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -5496,6 +5471,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     inmagInvernada: 8,
     precioNovilloInmag: 1800,
     inflacionMensual: 4,
+    dolar: 1420,
   });
 
   const [gastos, setGastos] = useState({
