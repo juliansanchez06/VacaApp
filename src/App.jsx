@@ -3804,7 +3804,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       { label:"Marca líq. hembras",  val: reciaDatos.ternerosLiquidaHembras, color:"text-rose-600"   },
                       { label:"Compra machos",        val: reciaDatos.ternerosCompraMachos,   color:"text-indigo-700" },
                       { label:"Compra hembras",       val: reciaDatos.ternerosCompraHembras,  color:"text-pink-600"   },
-                      { label:"Novillos",             val: reciaDatos.novillos,               color:"text-slate-700"  },
+                      { label:"Novillos (para vender)", val: reciaDatos.novillos,             color:"text-amber-700"  },
                       { label:"% Mort. recría",       val: `${reciaDatos.pctMortandadRecria??2}%`, color:"text-slate-500" },
                     ].map(({label,val,color})=>(
                       <div key={label} className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
@@ -4895,32 +4895,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
           {/* Resultado ejercicio */}
           {seccion === "resultado" && (
-            <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
-
-              {/* Sidebar resultado — solo desktop */}
-              <div className="campo-sidebar">
-                {SECCIONES.map(s => (
-                  <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                    style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
-                    <span style={{fontSize:"16px", lineHeight:1}}>{s.icon}</span>
-                    <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Contenido resultado */}
-              <div style={{flex:1, minWidth:0}} className="space-y-5 sim-zoom-enter">
-
-                {/* Mobile nav */}
-                <div className="campo-mobile-nav">
-                  {SECCIONES.map(s => (
-                    <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
-                      style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
-                      <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
-                      <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="space-y-5 sim-zoom-enter">
 
               {/* Feedlot activo */}
               {feedlotLotes.length > 0 && (
@@ -5051,7 +5026,108 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               )}
 
-              </div>
+              {/* ── Historial de ejercicios anteriores ── */}
+              {Object.keys(historialAnos).length > 0 && (
+                <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600"/>
+                  <div className="p-5 space-y-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">📋 Historial de ejercicios</p>
+
+                    {/* Gráfico barras comparativo */}
+                    {(() => {
+                      const años = Object.entries(historialAnos).sort(([a],[b]) => a.localeCompare(b));
+                      const ventasActual = ventasEjercicio.filter(v => v.ejercicio === anoGanadero);
+                      const ingresoActual = ventasActual.reduce((a,v) => a + v.ingreso, 0);
+                      const kgActual = ventasActual.reduce((a,v) => a + (v.kgTotales||0), 0);
+                      const cabActual = ventasActual.reduce((a,v) => a + v.cabezas, 0);
+                      const allData = [
+                        ...años.map(([ano, snap]) => ({
+                          ano: ano.slice(0,4)+"/"+ano.slice(5,7),
+                          ingreso: snap.resumen?.ingresoTotal || 0,
+                          kg: snap.resumen?.kgTotales || 0,
+                          cab: snap.resumen?.cabVendidas || 0,
+                          tipo: "cerrado",
+                        })),
+                        { ano: anoGanadero.slice(0,4)+"/"+anoGanadero.slice(5,7), ingreso: ingresoActual, kg: kgActual, cab: cabActual, tipo: "actual" },
+                      ];
+                      const maxIngreso = Math.max(...allData.map(d => d.ingreso), 1);
+                      const W = 560; const H = 160; const PL = 8; const PB = 28; const PT = 12;
+                      const cH = H - PT - PB;
+                      const slotW = (W - PL*2) / Math.max(allData.length, 1);
+                      const barW  = Math.min(60, slotW - 12);
+                      const cx = i => PL + slotW * i + slotW / 2;
+                      const cy = v => PT + cH - Math.max(4, (v / maxIngreso) * cH);
+                      return allData.length > 0 ? (
+                        <div className="bg-slate-50 rounded-2xl p-3">
+                          <p className="text-xs text-slate-400 mb-2 font-semibold">Ingreso por ejercicio</p>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+                            {allData.map((d,i) => (
+                              <g key={i}>
+                                <rect x={cx(i)-barW/2} y={cy(d.ingreso)} width={barW}
+                                  height={Math.max(4,(d.ingreso/maxIngreso)*cH)} rx="5"
+                                  fill={d.tipo==="actual" ? "#10b981" : "#64748b"} opacity={d.tipo==="actual"?1:0.7}/>
+                                <text x={cx(i)} y={cy(d.ingreso)-4} textAnchor="middle" fontSize="8" fontWeight="700"
+                                  fill={d.tipo==="actual"?"#059669":"#475569"}>
+                                  {d.ingreso > 0 ? (d.ingreso/1000000).toFixed(1)+"M" : "-"}
+                                </text>
+                                <text x={cx(i)} y={H-8} textAnchor="middle" fontSize="8" fill="#94a3b8">{d.ano}</text>
+                              </g>
+                            ))}
+                          </svg>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Tabla comparativa */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead><tr className="border-b-2 border-slate-100">
+                          {["Ejercicio","Cab vendidas","kg vendidos","Ingreso total","Estado"].map(h=>(
+                            <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Ejercicio"?"text-left":"text-right pr-3"}`}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {/* Años cerrados */}
+                          {Object.entries(historialAnos).sort(([a],[b])=>b.localeCompare(a)).map(([ano, snap])=>{
+                            const res = snap.resumen || {};
+                            return (
+                              <tr key={ano} className="border-b border-slate-50 hover:bg-slate-50">
+                                <td className="py-2.5 font-semibold text-slate-700">{ano}</td>
+                                <td className="text-right py-2.5 pr-3 font-mono text-slate-600">{fmt(res.cabVendidas||0)}</td>
+                                <td className="text-right py-2.5 pr-3 font-mono text-slate-600">{fmt(res.kgTotales||0)} kg</td>
+                                <td className="text-right py-2.5 pr-3 font-mono font-black text-slate-800">{fmtMoney(res.ingresoTotal||0)}</td>
+                                <td className="text-right py-2.5 pr-3">
+                                  <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Cerrado</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {/* Año actual */}
+                          {(() => {
+                            const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
+                            const ingreso = ventas.reduce((a,v)=>a+v.ingreso,0);
+                            const kg = ventas.reduce((a,v)=>a+(v.kgTotales||0),0);
+                            const cab = ventas.reduce((a,v)=>a+v.cabezas,0);
+                            return (
+                              <tr className="border-t-2 border-emerald-200 bg-emerald-50">
+                                <td className="py-3 font-black text-emerald-800">{anoGanadero} <span className="text-xs font-semibold text-emerald-600">← actual</span></td>
+                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800">{fmt(cab)}</td>
+                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800">{fmt(kg)} kg</td>
+                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800 text-base">{fmtMoney(ingreso)}</td>
+                                <td className="text-right py-3 pr-3">
+                                  <span className="text-xs bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">En curso</span>
+                                </td>
+                              </tr>
+                            );
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
             </div>
           )}
           </div>
@@ -5434,20 +5510,24 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 
   // ── Cerrar año ganadero ───────────────────────────────────────────────────
   const handleCerrarAno = () => {
+    const ventasDelAno = ventasEjercicio.filter(v => v.ejercicio === anoGanaderoActual);
+    const ingresoTotal = ventasDelAno.reduce((a,v) => a + v.ingreso, 0);
+    const kgTotales    = ventasDelAno.reduce((a,v) => a + (v.kgTotales||0), 0);
+    const cabVendidas  = ventasDelAno.reduce((a,v) => a + v.cabezas, 0);
     const snapshot = {
       ano: anoGanaderoActual,
       cria: { ...campoCria },
       recria: { ...campoRecria },
       terminacion: { ...campoTerminacion },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
+      ventas: ventasDelAno,
+      resumen: { ingresoTotal, kgTotales, cabVendidas },
     };
     setHistorialAnos(p => ({ ...p, [anoGanaderoActual]: snapshot }));
-    // Calcular nuevo año
     const [añoInicio] = anoGanaderoActual.split("/").map(Number);
     const nuevoAno = `${añoInicio+1}/${añoInicio+2}`;
     setAnoGanaderoActual(nuevoAno);
-    // El stock se mantiene (carry-over natural)
-    pushToast(`Año ${anoGanaderoActual} cerrado. Abriendo ${nuevoAno} ✓`, "success");
+    pushToast(`Año ${anoGanaderoActual} cerrado — ${cabVendidas} cab · ${fmtMoney(ingresoTotal)}`, "success");
   };
 
   const CATEGORIAS = {
