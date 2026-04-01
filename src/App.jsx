@@ -3272,18 +3272,12 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
-function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, ventasEjercicio = [], feedlotLotes = [], onVentaLote, onSalidaFeedlot, onDeshacerVenta }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno }) {
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
   const [verHistorial, setVerHistorial] = useState(false);
   const [anoViendo, setAnoViendo]   = useState(null);
-  const [modalVenta,   setModalVenta]   = useState(null); // lote a vender
   // Modal venta state
-  const [ventaModalidad,   setVentaModalidad]   = useState("invernada");
-  const [ventaPrecioKg,    setVentaPrecioKg]    = useState(2200);
-  const [ventaDiasFeedlot, setVentaDiasFeedlot] = useState(90);
-  const [ventaGdpFeedlot,  setVentaGdpFeedlot]  = useState(1.2);
-  const [ventaCostoFeedlot,setVentaCostoFeedlot] = useState(4500);
 
   // ── Cotizaciones globales ─────────────────────────────────────────────────
   const [dolar,   setDolar]   = useState(1420);
@@ -3518,47 +3512,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     { ano: "Proy.",                 tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx },
   ];
 
-  // ── Lotes de recría ─────────────────────────────────────────────────────────
-  const hoyFecha = new Date();
-  const fechaHoyStr = hoyFecha.toISOString().slice(0,10);
-
-  const [lotesRecria, setLotesRecria] = useState([
-    {
-      id: 1, categoria: "novillos", label: "Novillos en recría",
-      cabezas: 114, pesoEntrada: 220, gdp: 0.6,
-      fechaEntrada: "2024-09-01", mesesRecria: 10,
-      color: "amber",
-    },
-  ]);
-
-  const calcLote = (lote) => {
-    const entrada  = new Date(lote.fechaEntrada);
-    const diasTrans= Math.max(0, Math.round((hoyFecha - entrada) / 86400000));
-    const mesesRecria = lote.mesesRecria ?? lote.mesesObjetivo ?? 10;
-    const diasTotales  = mesesRecria * 30;
-    const diasRestantes= Math.max(0, diasTotales - diasTrans);
-    const pesoActual   = Math.round(lote.pesoEntrada + diasTrans * lote.gdp);
-    const pesoFinal    = Math.round(lote.pesoEntrada + diasTotales * lote.gdp);
-    const pctTiempo    = Math.min(100, Math.round(diasTrans / diasTotales * 100));
-    const listo        = diasTrans >= diasTotales;
-    const kgGanados    = Math.round(diasTrans * lote.gdp);
-    const kgPorGanar   = Math.round(diasRestantes * lote.gdp);
-    const fechaSalida  = new Date(hoyFecha.getTime() + diasRestantes * 86400000);
-    const mesStr = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    const fechaSalidaStr = listo ? "Listo para vender" : `${mesStr[fechaSalida.getMonth()]} ${fechaSalida.getFullYear()}`;
-    return { diasTrans, pesoActual, pesoFinal, diasTotales, diasRestantes, pctTiempo, listo, kgGanados, kgPorGanar, fechaSalidaStr, mesesRecria };
-  };
-
-  const CATS_RECRIA = [
-    { id:"marca-liquida", label:"Marca líquida", icon:"🐮", color:"emerald" },
-    { id:"compra",        label:"Compra",         icon:"🛒", color:"blue"    },
-    { id:"novillos",      label:"Novillos",       icon:"🐂", color:"amber"   },
-  ];
-
   const SECCIONES = [
     { id: "stock",        label: "Stock hacienda",    icon: "🐄" },
-    { id: "recria-lotes", label: "Estado recría",     icon: "📈" },
-    { id: "resultado",    label: "Resultado ejercicio", icon: "💹" },
     { id: "rendimiento",  label: "Rendimiento",        icon: "📊" },
     { id: "costos",       label: "Costos estructura",  icon: "💰" },
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
@@ -3705,7 +3660,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         <div style={{display:"flex", gap:"1.5rem", alignItems:"flex-start"}}>
 
           {/* Sidebar desktop — no se renderiza en resultado */}
-          {seccion !== "resultado" && <div className="campo-sidebar">
+          <div className="campo-sidebar">
             {SECCIONES.map(s => (
               <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
                 style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
@@ -3713,7 +3668,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
               </button>
             ))}
-          </div>}
+          </div>
 
           {/* Main content */}
           <div style={{flex:1, minWidth:0}}>
@@ -4483,231 +4438,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             </div>
           )}
   
-          {seccion === "recria-lotes" && (
-            <div className="space-y-5 sim-zoom-enter">
-  
-              {/* Header */}
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Lotes activos en recría</p>
-                  <p className="text-xs text-slate-400 mt-0.5">GDP y progreso hacia el peso/tiempo objetivo</p>
-                </div>
-                <button
-                  onClick={() => setLotesRecria(prev => [...prev, {
-                    id: Date.now(), categoria: "compra", label: "Nuevo lote",
-                    cabezas: 50, pesoEntrada: 180, gdp: 0.6,
-                    fechaEntrada: fechaHoyStr, mesesRecria: 10, color: "blue",
-                  }])}
-                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                  + Agregar lote
-                </button>
-              </div>
-  
-              {lotesRecria.length === 0 && (
-                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center">
-                  <p className="text-slate-400 font-semibold text-sm">Sin lotes en recría</p>
-                  <p className="text-xs text-slate-300 mt-1">Tocá "Agregar lote" para empezar</p>
-                </div>
-              )}
-  
-              {/* Lotes */}
-              {lotesRecria.map((lote, li) => {
-                const calc = calcLote(lote);
-                const cat = CATS_RECRIA.find(c => c.id === lote.categoria) || CATS_RECRIA[2];
-                const setL = (k) => (v) => setLotesRecria(prev => prev.map((l,i) => i===li ? {...l,[k]:v} : l));
-                const colorMap = { emerald:"#10b981", blue:"#3b82f6", amber:"#f59e0b" };
-                const barColor = calc.listo ? "#10b981" : colorMap[cat.color] || "#94a3b8";
-  
-                return (
-                  <div key={lote.id} className={`bg-white border-2 ${calc.listo?"border-emerald-300":"border-slate-100"} rounded-3xl overflow-hidden shadow-lg`}>
-                    <div className={`h-1.5 ${calc.listo?"bg-gradient-to-r from-emerald-400 to-teal-400":"bg-gradient-to-r from-"+cat.color+"-400 to-"+cat.color+"-500"}`}
-                      style={{background: calc.listo ? "linear-gradient(90deg,#10b981,#14b8a6)" : `linear-gradient(90deg,${barColor}aa,${barColor})`}} />
-  
-                    <div className="p-5 space-y-4">
-                      {/* Header lote */}
-                      <div className="flex items-start justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{cat.icon}</span>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <input value={lote.label} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,label:e.target.value}:l))}
-                                className="font-black text-slate-800 text-sm bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-emerald-400 w-40"/>
-                              {calc.listo && <span className="text-xs font-black text-white bg-emerald-500 px-2 py-0.5 rounded-full badge-pulse">✓ Listo para vender</span>}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              {CATS_RECRIA.map(c=>(
-                                <button key={c.id} onClick={()=>setL("categoria")(c.id)}
-                                  className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${lote.categoria===c.id?"bg-slate-800 text-white":"text-slate-400 hover:text-slate-600"}`}>
-                                  {c.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <button onClick={()=>setLotesRecria(prev=>prev.filter((_,i)=>i!==li))}
-                          className="text-xs text-slate-300 hover:text-red-400 font-bold transition-colors px-2 py-1 rounded-lg hover:bg-red-50">✕</button>
-                      </div>
-  
-                      {/* Barra de progreso */}
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500 font-semibold">Progreso</span>
-                          <span className="font-black" style={{color:barColor}}>{calc.pctTiempo}%</span>
-                        </div>
-                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-700"
-                            style={{width:`${calc.pctTiempo}%`, background: barColor}}/>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-400">
-                          <span>{calc.diasTrans}d de {calc.mesesRecria*30}d totales</span>
-                          <span>{calc.pctTiempo}% completado</span>
-                        </div>
-                      </div>
-  
-                      {/* Peso final — prominente */}
-                      <div style={{borderRadius:"16px", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", background: calc.listo ? "#10b981" : "#1e293b"}}>
-                        <div>
-                          <p style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", color:"rgba(255,255,255,0.65)"}}>Peso final estimado</p>
-                          <p style={{fontSize:"36px", fontWeight:900, color:"white", lineHeight:1.1, marginTop:"2px"}}>{calc.pesoFinal} <span style={{fontSize:"18px", color:"rgba(255,255,255,0.65)"}}>kg/cab</span></p>
-                          <p style={{fontSize:"10px", color:"rgba(255,255,255,0.55)", marginTop:"4px"}}>{lote.mesesRecria ?? 10} meses · GDP {lote.gdp} kg/d · entrada {lote.pesoEntrada} kg</p>
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <p style={{fontSize:"10px", color:"rgba(255,255,255,0.65)", fontWeight:700}}>Total lote</p>
-                          <p style={{fontSize:"22px", fontWeight:900, color:"white"}}>{fmt(lote.cabezas * calc.pesoFinal)} kg</p>
-                          <p style={{fontSize:"10px", color:"rgba(255,255,255,0.55)"}}>{lote.cabezas} cab</p>
-                        </div>
-                      </div>
-
-                      {/* KPIs del lote */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {[
-                          { label:"Peso actual",      val:`${calc.pesoActual} kg`,   color:"text-slate-700", bg:"bg-slate-50"    },
-                          { label:"Kg ganados",       val:`+${calc.kgGanados} kg`,  color:"text-emerald-700", bg:"bg-emerald-50"  },
-                          { label:calc.listo?"Estado":"Días restantes", val:calc.listo?"✓ Listo":`${calc.diasRestantes}d`, color:calc.listo?"text-emerald-700":"text-amber-700", bg:calc.listo?"bg-emerald-50":"bg-amber-50" },
-                        ].map((k,i)=>(
-                          <div key={i} className={`${k.bg} rounded-xl p-2.5 text-center`}>
-                            <p className="text-xs text-slate-400">{k.label}</p>
-                            <p className={`font-black text-base ${k.color}`}>{k.val}</p>
-                          </div>
-                        ))}
-                      </div>
-  
-                      {/* Mini gráfico SVG de acumulación */}
-                      {(() => {
-                        const meses = lote.mesesRecria ?? lote.mesesObjetivo ?? 10;
-                        const puntos = Array.from({length: meses+1}, (_,i) => ({
-                          m: i,
-                          kg: Math.round(lote.pesoEntrada + i*30*lote.gdp),
-                          esHoy: Math.abs(i*30 - calc.diasTrans) < 20,
-                        }));
-                        const maxKg = puntos[puntos.length-1].kg;
-                        const minKg = lote.pesoEntrada;
-                        const pf = maxKg; // peso final = último punto (meses completos)
-                        const W=400; const H=80; const PL=8; const PR=8; const PT=8; const PB=20;
-                        const cW=W-PL-PR; const cH=H-PT-PB;
-                        const cx=i=>(PL+cW*i/meses);
-                        const cy=kg=>(PT+cH*(1-(kg-minKg)/(maxKg-minKg)));
-                        const mesStr=["E","F","M","A","M","J","J","A","S","O","N","D"];
-                        const entradaMes=new Date(lote.fechaEntrada).getMonth();
-                        return (
-                          <div className="bg-slate-50 rounded-2xl p-3">
-                            <p className="text-xs text-slate-400 font-semibold mb-1">Evolución de peso kg/cab</p>
-                            <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-                              {/* Línea objetivo */}
-                              <line x1={PL} x2={W-PR} y1={cy(pf)} y2={cy(pf)}
-                                stroke="#10b981" strokeWidth="1" strokeDasharray="4,3" opacity="0.5"/>
-                              <text x={W-PR+2} y={cy(pf)+4} fontSize="8" fill="#10b981">{pf}kg</text>
-                              {/* Línea de crecimiento */}
-                              <polyline
-                                points={puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")}
-                                fill="none" stroke={barColor} strokeWidth="2"/>
-                              {/* Área rellena */}
-                              <polygon
-                                points={`${cx(0)},${cy(minKg)} ${puntos.map(p=>`${cx(p.m)},${cy(p.kg)}`).join(" ")} ${cx(meses)},${cy(minKg)}`}
-                                fill={barColor} opacity="0.08"/>
-                              {/* Punto HOY */}
-                              {calc.diasTrans > 0 && calc.diasTrans < meses*30 && (
-                                <>
-                                  <line x1={PL+cW*calc.diasTrans/(meses*30)} x2={PL+cW*calc.diasTrans/(meses*30)} y1={PT} y2={H-PB} stroke="#64748b" strokeWidth="1" strokeDasharray="3,2"/>
-                                  <circle cx={PL+cW*calc.diasTrans/(meses*30)} cy={cy(calc.pesoActual)} r="5" fill={barColor} stroke="white" strokeWidth="1.5"/>
-                                  <text x={PL+cW*calc.diasTrans/(meses*30)} y={cy(calc.pesoActual)-8} textAnchor="middle" fontSize="9" fontWeight="700" fill={barColor}>{calc.pesoActual}kg</text>
-                                </>
-                              )}
-                              {/* Labels mes */}
-                              {puntos.map((p,i)=>(
-                                <text key={i} x={cx(p.m)} y={H-5} textAnchor="middle" fontSize="8" fill="#94a3b8">
-                                  {mesStr[(entradaMes+p.m)%12]}
-                                </text>
-                              ))}
-                            </svg>
-                          </div>
-                        );
-                      })()}
-  
-                      {/* Configuración del lote */}
-                      <details className="group">
-                        <summary className="text-xs font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-slate-600 transition-colors list-none flex items-center gap-1">
-                          <span className="group-open:rotate-90 transition-transform inline-block">▶</span> Editar parámetros del lote
-                        </summary>
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          <EditField label="Cabezas" value={lote.cabezas} onChange={setL("cabezas")} step={1} minVal={1}/>
-                          <EditField label="Peso entrada (kg)" value={lote.pesoEntrada} onChange={setL("pesoEntrada")} step={5} suffix=" kg"/>
-                          <EditField label="GDP (kg/día)" value={lote.gdp} onChange={v=>setL("gdp")(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
-                          <EditField label="Meses de recría" value={lote.mesesRecria ?? lote.mesesObjetivo ?? 10} onChange={setL("mesesRecria")} step={1} suffix=" m" minVal={1} hint={`Peso final: ${Math.round(lote.pesoEntrada + (lote.mesesRecria??10)*30*lote.gdp)} kg`}/>
-                          <div className="space-y-1">
-                            <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
-                            <input type="date" value={lote.fechaEntrada} onChange={e=>setLotesRecria(prev=>prev.map((l,i)=>i===li?{...l,fechaEntrada:e.target.value}:l))}
-                              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400"/>
-                          </div>
-                        </div>
-                      </details>
-  
-                      {/* Botones acción */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                        <button
-                          onClick={() => setModalVenta(lote)}
-                          className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                          🐂 Vender / Mandar a feedlot
-                        </button>
-                        <button
-                          onClick={() => onSincronizar({
-                            target: "poder",
-                            descripcion: `${lote.cabezas} ${lote.label} · ${calc.pesoActual} kg · simular reposición`,
-                            venta: { cantidad: lote.cabezas, pesoPromedio: calc.pesoActual, precioKg: 2200 },
-                          })}
-                          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95 group">
-                          <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500"/>
-                          Simular reposición
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-  
-              {/* Resumen total */}
-              {lotesRecria.length > 0 && (
-                <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Resumen total recría</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    {[
-                      { label:"Total animales", val:lotesRecria.reduce((a,l)=>a+l.cabezas,0)+" cab" },
-                      { label:"Listos para vender", val:lotesRecria.filter(l=>calcLote(l).listo).reduce((a,l)=>a+l.cabezas,0)+" cab" },
-                      { label:"Lotes activos", val:lotesRecria.length },
-                      { label:"Peso prom. actual", val: Math.round(lotesRecria.reduce((a,l)=>a+calcLote(l).pesoActual*l.cabezas,0)/Math.max(1,lotesRecria.reduce((a,l)=>a+l.cabezas,0)))+" kg" },
-                    ].map((k,i)=>(
-                      <div key={i} className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-xs text-slate-400">{k.label}</p>
-                        <p className="font-black text-slate-800 text-xl">{k.val}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-  
-            </div>
-          )}
-  
           {seccion === "costos" && (
             <div className="space-y-5 sim-zoom-enter">
   
@@ -4894,241 +4624,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
 
           {/* Resultado ejercicio */}
-          {seccion === "resultado" && (
-            <div className="space-y-5 sim-zoom-enter">
-
-              {/* Feedlot activo */}
-              {feedlotLotes.length > 0 && (
-                <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
-                  <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
-                  <div className="p-5 space-y-3">
-                    <p className="text-xs font-black uppercase tracking-widest text-amber-700">🏭 Lotes en feedlot</p>
-                    {feedlotLotes.map((fl,i)=>(
-                      <div key={i} className={`rounded-2xl border-2 p-4 ${fl.enAnoActual?"border-emerald-200 bg-emerald-50":"border-blue-200 bg-blue-50"}`}>
-                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                          <div>
-                            <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-                            <p className="text-xs text-slate-500">{fl.cabezas} cab · Entrada: {fl.fechaEntradaFeedlot} · Salida est.: {fl.fechaSalidaEstimada}</p>
-                          </div>
-                          <span className={`text-xs font-black px-2 py-1 rounded-full ${fl.enAnoActual?"bg-emerald-500 text-white":"bg-blue-500 text-white"}`}>
-                            {fl.enAnoActual ? `Año actual (${fl.ejercicio})` : `Año siguiente (${fl.ejercicio})`}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-3">
-                          {[["Entrada",`${fl.pesoEntrada} kg`],["Salida est.",`${fl.pesoSalida} kg`],["Días feedlot",`${fl.diasFeedlot}d`],["Ingreso est.",fmtMoney(fl.ingreso)]].map(([l,v])=>(
-                            <div key={l} className="bg-white rounded-xl border border-slate-100 py-2">
-                              <p className="text-xs text-slate-400">{l}</p>
-                              <p className="font-black text-slate-800 text-sm">{v}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <button onClick={()=>onSalidaFeedlot(fl)}
-                          className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
-                          ✅ Confirmar salida de feedlot → registrar venta
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Ventas del ejercicio */}
-              <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
-                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-                <div className="p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">💹 Ventas — ejercicio {anoGanadero}</p>
-                    <span className="text-xs text-slate-400">{ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length} operaciones</span>
-                  </div>
-                  {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).length === 0 ? (
-                    <div className="text-center py-8 text-slate-300">
-                      <p className="font-semibold">Sin ventas registradas este ejercicio</p>
-                      <p className="text-xs mt-1">Vendé un lote desde Estado recría</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                          <thead><tr className="border-b-2 border-slate-100">
-                            {["Fecha","Lote","Cab","Peso","$/kg","Ingreso","Modalidad",""].map(h=>(
-                              <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Fecha"||h==="Lote"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
-                            ))}
-                          </tr></thead>
-                          <tbody>
-                            {ventasEjercicio.filter(v=>v.ejercicio===anoGanadero).map((v,i)=>(
-                              <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                                <td className="py-2.5 pr-3 text-xs text-slate-500">{v.fecha}</td>
-                                <td className="py-2.5 pr-3 font-semibold text-slate-700">{v.loteLabel}</td>
-                                <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.cabezas}</td>
-                                <td className="text-right py-2.5 pr-2 font-mono text-slate-700">{v.pesoVenta} kg</td>
-                                <td className="text-right py-2.5 pr-2 font-mono text-slate-700">${fmt(v.precioKg)}</td>
-                                <td className="text-right py-2.5 pr-2 font-mono font-black text-emerald-700">{fmtMoney(v.ingreso)}</td>
-                                <td className="text-right py-2.5 pr-2">
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.modalidad==="feedlot"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>{v.modalidad}</span>
-                                </td>
-                                <td className="text-right py-2.5 pl-1">
-                                  <button onClick={()=>onDeshacerVenta(v)}
-                                    className="text-xs text-slate-300 hover:text-red-500 font-black w-7 h-7 rounded-lg hover:bg-red-50 transition-all flex items-center justify-center"
-                                    title="Eliminar del registro">↩</button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      {(() => {
-                        const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
-                        const ingresoTotal = ventas.reduce((a,v)=>a+v.ingreso, 0);
-                        const kgTotales    = ventas.reduce((a,v)=>a+(v.kgTotales||0), 0);
-                        const cabTotales   = ventas.reduce((a,v)=>a+v.cabezas, 0);
-                        return (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t-2 border-slate-100">
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                              <p className="text-xs text-emerald-600">Ingreso total</p>
-                              <p className="font-black text-emerald-800 text-lg">{fmtMoney(ingresoTotal)}</p>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                              <p className="text-xs text-slate-500">Cabezas vendidas</p>
-                              <p className="font-black text-slate-800 text-lg">{cabTotales}</p>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                              <p className="text-xs text-slate-500">kg vendidos</p>
-                              <p className="font-black text-slate-800 text-lg">{fmt(kgTotales)}</p>
-                            </div>
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-                              <p className="text-xs text-blue-600">kg/ha</p>
-                              <p className="font-black text-blue-800 text-lg">{hectareas>0?Math.round(kgTotales/hectareas):"-"}</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Proyección año siguiente — feedlot que se pasa */}
-              {feedlotLotes.filter(fl=>!fl.enAnoActual).length > 0 && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-5">
-                  <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-3">📅 Proyección año siguiente</p>
-                  {feedlotLotes.filter(fl=>!fl.enAnoActual).map((fl,i)=>(
-                    <div key={i} className="flex items-center justify-between bg-white rounded-2xl border border-blue-100 px-4 py-3 mb-2">
-                      <div>
-                        <p className="font-black text-slate-800 text-sm">{fl.loteLabel}</p>
-                        <p className="text-xs text-slate-500">{fl.cabezas} cab · Sale {fl.fechaSalidaEstimada} · {fl.pesoSalida} kg/cab</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-blue-800">{fmtMoney(fl.ingreso)}</p>
-                        <p className="text-xs text-blue-600">{fl.ejercicio}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Historial de ejercicios anteriores ── */}
-              {Object.keys(historialAnos).length > 0 ? (
-                <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
-                  <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600"/>
-                  <div className="p-5 space-y-4">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">📋 Historial de ejercicios</p>
-
-                    {/* Gráfico barras comparativo */}
-                    {(() => {
-                      const años = Object.entries(historialAnos).sort(([a],[b]) => a.localeCompare(b));
-                      const ventasActual = ventasEjercicio.filter(v => v.ejercicio === anoGanadero);
-                      const ingresoActual = ventasActual.reduce((a,v) => a + v.ingreso, 0);
-                      const kgActual = ventasActual.reduce((a,v) => a + (v.kgTotales||0), 0);
-                      const cabActual = ventasActual.reduce((a,v) => a + v.cabezas, 0);
-                      const allData = [
-                        ...años.map(([ano, snap]) => ({
-                          ano: ano.slice(0,4)+"/"+ano.slice(5,7),
-                          ingreso: snap.resumen?.ingresoTotal || 0,
-                          kg: snap.resumen?.kgTotales || 0,
-                          cab: snap.resumen?.cabVendidas || 0,
-                          tipo: "cerrado",
-                        })),
-                        { ano: anoGanadero.slice(0,4)+"/"+anoGanadero.slice(5,7), ingreso: ingresoActual, kg: kgActual, cab: cabActual, tipo: "actual" },
-                      ];
-                      const maxIngreso = Math.max(...allData.map(d => d.ingreso), 1);
-                      const W = 560; const H = 160; const PL = 8; const PB = 28; const PT = 12;
-                      const cH = H - PT - PB;
-                      const slotW = (W - PL*2) / Math.max(allData.length, 1);
-                      const barW  = Math.min(60, slotW - 12);
-                      const cx = i => PL + slotW * i + slotW / 2;
-                      const cy = v => PT + cH - Math.max(4, (v / maxIngreso) * cH);
-                      return allData.length > 0 ? (
-                        <div className="bg-slate-50 rounded-2xl p-3">
-                          <p className="text-xs text-slate-400 mb-2 font-semibold">Ingreso por ejercicio</p>
-                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-                            {allData.map((d,i) => (
-                              <g key={i}>
-                                <rect x={cx(i)-barW/2} y={cy(d.ingreso)} width={barW}
-                                  height={Math.max(4,(d.ingreso/maxIngreso)*cH)} rx="5"
-                                  fill={d.tipo==="actual" ? "#10b981" : "#64748b"} opacity={d.tipo==="actual"?1:0.7}/>
-                                <text x={cx(i)} y={cy(d.ingreso)-4} textAnchor="middle" fontSize="8" fontWeight="700"
-                                  fill={d.tipo==="actual"?"#059669":"#475569"}>
-                                  {d.ingreso > 0 ? (d.ingreso/1000000).toFixed(1)+"M" : "-"}
-                                </text>
-                                <text x={cx(i)} y={H-8} textAnchor="middle" fontSize="8" fill="#94a3b8">{d.ano}</text>
-                              </g>
-                            ))}
-                          </svg>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* Tabla comparativa */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border-collapse">
-                        <thead><tr className="border-b-2 border-slate-100">
-                          {["Ejercicio","Cab vendidas","kg vendidos","Ingreso total","Estado"].map(h=>(
-                            <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Ejercicio"?"text-left":"text-right pr-3"}`}>{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>
-                          {/* Años cerrados */}
-                          {Object.entries(historialAnos).sort(([a],[b])=>b.localeCompare(a)).map(([ano, snap])=>{
-                            const res = snap.resumen || {};
-                            return (
-                              <tr key={ano} className="border-b border-slate-50 hover:bg-slate-50">
-                                <td className="py-2.5 font-semibold text-slate-700">{ano}</td>
-                                <td className="text-right py-2.5 pr-3 font-mono text-slate-600">{fmt(res.cabVendidas||0)}</td>
-                                <td className="text-right py-2.5 pr-3 font-mono text-slate-600">{fmt(res.kgTotales||0)} kg</td>
-                                <td className="text-right py-2.5 pr-3 font-mono font-black text-slate-800">{fmtMoney(res.ingresoTotal||0)}</td>
-                                <td className="text-right py-2.5 pr-3">
-                                  <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Cerrado</span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* Año actual */}
-                          {(() => {
-                            const ventas = ventasEjercicio.filter(v=>v.ejercicio===anoGanadero);
-                            const ingreso = ventas.reduce((a,v)=>a+v.ingreso,0);
-                            const kg = ventas.reduce((a,v)=>a+(v.kgTotales||0),0);
-                            const cab = ventas.reduce((a,v)=>a+v.cabezas,0);
-                            return (
-                              <tr className="border-t-2 border-emerald-200 bg-emerald-50">
-                                <td className="py-3 font-black text-emerald-800">{anoGanadero} <span className="text-xs font-semibold text-emerald-600">← actual</span></td>
-                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800">{fmt(cab)}</td>
-                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800">{fmt(kg)} kg</td>
-                                <td className="text-right py-3 pr-3 font-mono font-black text-emerald-800 text-base">{fmtMoney(ingreso)}</td>
-                                <td className="text-right py-3 pr-3">
-                                  <span className="text-xs bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">En curso</span>
-                                </td>
-                              </tr>
-                            );
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-            </div>
-          )}
           </div>
         </div>
 
@@ -5136,123 +4631,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
       {/* ══════════════════════════════════════════════════════════════
           MODAL VENTA DE LOTE
       ══════════════════════════════════════════════════════════════ */}
-      {modalVenta && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-          style={{background:"rgba(0,0,0,0.5)"}}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden sim-zoom-enter">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
-            <div className="p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Venta / Destino</p>
-                  <p className="font-black text-slate-800 text-lg mt-0.5">{modalVenta.label}</p>
-                  <p className="text-xs text-slate-400">{modalVenta.cabezas} cab · {(() => { const d=Math.round((new Date()-new Date(modalVenta.fechaEntrada))/86400000); return Math.round(modalVenta.pesoEntrada+d*modalVenta.gdp); })()} kg/cab actuales</p>
-                </div>
-                <button onClick={()=>setModalVenta(null)} className="text-slate-400 hover:text-slate-700 text-xl font-black">✕</button>
-              </div>
-
-              {/* Modalidad */}
-              <div className="grid grid-cols-2 gap-3">
-                {[["invernada","🌿 Invernada directa","Venta desde recría al peso actual"],["feedlot","🏭 Pasar a feedlot","Terminar antes de vender"]].map(([id,label,desc])=>(
-                  <button key={id} onClick={()=>setVentaModalidad(id)}
-                    className={`rounded-2xl border-2 p-3 text-left transition-all ${ventaModalidad===id?"border-emerald-400 bg-emerald-50":"border-slate-200 hover:border-slate-300"}`}>
-                    <p className="font-black text-sm text-slate-800">{label}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* Precio de venta */}
-              <div className="space-y-1">
-                <span className="text-xs text-slate-500 font-semibold">Precio de venta ($/kg)</span>
-                <div className="flex items-center gap-1.5">
-                  <button onPointerDown={()=>setVentaPrecioKg(v=>Math.max(0,v-50))}
-                    className="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95">−</button>
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">$</span>
-                    <input type="number" min="0" step="50"
-                      value={ventaPrecioKg}
-                      onChange={e=>{ const n=parseFloat(e.target.value); if(!isNaN(n)) setVentaPrecioKg(n); }}
-                      onFocus={e=>e.target.select()}
-                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-6 pr-3 py-2 text-center font-mono font-black text-base text-slate-800 focus:outline-none focus:border-emerald-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
-                  </div>
-                  <button onPointerDown={()=>setVentaPrecioKg(v=>v+50)}
-                    className="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95">+</button>
-                </div>
-              </div>
-
-              {/* Feedlot params */}
-              {ventaModalidad==="feedlot" && (
-                <div className="space-y-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                  <p className="text-xs font-black text-amber-700 uppercase tracking-widest">Parámetros feedlot</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <EditField label="Días en feedlot" value={ventaDiasFeedlot} onChange={setVentaDiasFeedlot} step={5} suffix=" días" minVal={1}/>
-                    <EditField label="GDP feedlot" value={ventaGdpFeedlot} onChange={v=>setVentaGdpFeedlot(Math.round(v*10)/10)} step={0.1} suffix=" kg/d" minVal={0.1}/>
-                    <EditField label="Costo/cab/día" value={ventaCostoFeedlot} onChange={setVentaCostoFeedlot} step={500} prefix="$"/>
-                  </div>
-                  {(() => {
-                    const pesoActualLote = (() => { const d=Math.round((new Date()-new Date(modalVenta.fechaEntrada))/86400000); return Math.round(modalVenta.pesoEntrada+d*modalVenta.gdp); })();
-                    const pesoSalidaFL = Math.round(pesoActualLote + ventaDiasFeedlot * ventaGdpFeedlot);
-                    const costoFL = modalVenta.cabezas * ventaCostoFeedlot * ventaDiasFeedlot;
-                    const ingresoFL = modalVenta.cabezas * pesoSalidaFL * ventaPrecioKg - costoFL;
-                    const añoInicio = parseInt(anoGanadero.split("/")[0]);
-                    const diasHastaJun = Math.round((new Date(añoInicio+1,5,30) - new Date()) / 86400000);
-                    const enAnoAct = ventaDiasFeedlot <= diasHastaJun;
-                    return (
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
-                          <p className="text-xs text-amber-600">Peso salida</p>
-                          <p className="font-black text-amber-800">{pesoSalidaFL} kg/cab</p>
-                        </div>
-                        <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
-                          <p className="text-xs text-amber-600">Ingreso neto est.</p>
-                          <p className="font-black text-amber-800">{fmtMoney(ingresoFL)}</p>
-                        </div>
-                        <div className={`col-span-2 rounded-xl border p-2.5 text-center ${enAnoAct?"bg-emerald-50 border-emerald-200":"bg-blue-50 border-blue-200"}`}>
-                          <p className={`text-xs font-black ${enAnoAct?"text-emerald-700":"text-blue-700"}`}>
-                            {enAnoAct ? `✅ Sale dentro del año (${diasHastaJun-ventaDiasFeedlot} días de margen)` : `⏭ Se pasa al año siguiente (${ventaDiasFeedlot-diasHastaJun} días extra)`}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Botones */}
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={()=>setModalVenta(null)}
-                  className="py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 transition-all">
-                  Cancelar
-                </button>
-                <button onClick={()=>{
-                  onVentaLote(modalVenta, ventaModalidad, ventaPrecioKg, ventaDiasFeedlot, ventaGdpFeedlot, ventaCostoFeedlot);
-                  // Sacar de lotesRecria
-                  setLotesRecria(prev=>prev.filter(l=>l.id!==modalVenta.id));
-                  // Sacar del stock permanentemente según categoría del lote
-                  const catLote = modalVenta.categoria;
-                  if (catLote === "marca-liquida") {
-                    const mitad = Math.ceil(modalVenta.cabezas / 2);
-                    setRecria(p => ({ ...p,
-                      ternerosLiquidaMachos: Math.max(0, p.ternerosLiquidaMachos - mitad),
-                      ternerosLiquidaHembras: Math.max(0, p.ternerosLiquidaHembras - (modalVenta.cabezas - mitad)),
-                    }));
-                  } else if (catLote === "compra") {
-                    setRecria(p => ({ ...p, ternerosCompraMachos: Math.max(0, p.ternerosCompraMachos - modalVenta.cabezas) }));
-                  } else {
-                    setRecria(p => ({ ...p, novillos: Math.max(0, p.novillos - modalVenta.cabezas) }));
-                  }
-                  setModalVenta(null);
-                  setSeccion("resultado");
-                }}
-                  className="py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm transition-all active:scale-95">
-                  ✅ Confirmar venta
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
@@ -5397,74 +4775,6 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [anoGanaderoActual, setAnoGanaderoActual] = useState(getAnoGanaderoActual());
   const [historialAnos, setHistorialAnos] = useState({});
 
-  // ── Resultado por ejercicio ──────────────────────────────────────────────
-  const [ventasEjercicio, setVentasEjercicio] = useState([]); // historial ventas año actual
-  const [feedlotLotes,    setFeedlotLotes]    = useState([]); // lotes en feedlot pendientes
-
-  // Registrar venta de un lote de recría
-  const handleVentaLote = (lote, modalidad, precioKg, diasFeedlot = 0, gdpFeedlot = 0, costoFeedlotDia = 0) => {
-    const hoy = new Date();
-    // Cierre del año actual: 30 de junio
-    const añoInicio = parseInt(anoGanaderoActual.split("/")[0]);
-    const cierreAno = new Date(añoInicio + 1, 5, 30); // 30/jun del año siguiente
-    const diasHastaCierre = Math.round((cierreAno - hoy) / 86400000);
-
-    if (modalidad === "invernada") {
-      // Venta directa desde recría — va al ejercicio actual
-      const pesoVenta = Math.round(lote.pesoEntrada + (Math.round((hoy - new Date(lote.fechaEntrada)) / 86400000)) * lote.gdp);
-      const ingreso   = lote.cabezas * pesoVenta * precioKg;
-      const venta = {
-        id: Date.now(), fecha: hoy.toLocaleDateString("es-AR"),
-        loteLabel: lote.label, categoria: lote.categoria,
-        cabezas: lote.cabezas, pesoVenta, precioKg, ingreso,
-        modalidad: "invernada", ejercicio: anoGanaderoActual,
-        kgTotales: lote.cabezas * pesoVenta,
-      };
-      setVentasEjercicio(p => [...p, venta]);
-      pushToast(`✅ Venta registrada: ${lote.cabezas} cab × ${pesoVenta}kg × $${fmt(precioKg)} = ${fmtMoney(ingreso)}`, "success");
-    } else {
-      // Feedlot — calcular si sale antes o después del cierre
-      const pesoEntradaFeedlot = Math.round(lote.pesoEntrada + (Math.round((hoy - new Date(lote.fechaEntrada)) / 86400000)) * lote.gdp);
-      const pesoSalidaFeedlot  = Math.round(pesoEntradaFeedlot + diasFeedlot * gdpFeedlot);
-      const saleFeedlot = diasFeedlot <= diasHastaCierre;
-      const ejercicioVenta = saleFeedlot ? anoGanaderoActual : `${añoInicio+1}/${añoInicio+2}`;
-      const costoTotal = lote.cabezas * costoFeedlotDia * diasFeedlot;
-      const ingreso    = lote.cabezas * pesoSalidaFeedlot * precioKg - costoTotal;
-      const loteFL = {
-        id: Date.now(), loteLabel: lote.label, cabezas: lote.cabezas,
-        pesoEntrada: pesoEntradaFeedlot, pesoSalida: pesoSalidaFeedlot,
-        diasFeedlot, gdpFeedlot, costoFeedlotDia, costoTotal,
-        precioKg, ingreso, ejercicio: ejercicioVenta,
-        fechaEntradaFeedlot: hoy.toLocaleDateString("es-AR"),
-        fechaSalidaEstimada: new Date(hoy.getTime() + diasFeedlot*86400000).toLocaleDateString("es-AR"),
-        enAnoActual: saleFeedlot,
-      };
-      setFeedlotLotes(p => [...p, loteFL]);
-      const txt = saleFeedlot ? `año actual (${anoGanaderoActual})` : `próximo año (${ejercicioVenta})`;
-      pushToast(`🏭 Lote a feedlot ${diasFeedlot}d — sale en ${txt}`, "success");
-    }
-  };
-
-  // Confirmar salida de feedlot → registrar como venta
-  const handleSalidaFeedlot = (fl) => {
-    const venta = {
-      id: Date.now(), fecha: new Date().toLocaleDateString("es-AR"),
-      loteLabel: fl.loteLabel + " (feedlot)", categoria: "novillos",
-      cabezas: fl.cabezas, pesoVenta: fl.pesoSalida, precioKg: fl.precioKg,
-      ingreso: fl.ingreso, modalidad: "feedlot", ejercicio: fl.ejercicio,
-      kgTotales: fl.cabezas * fl.pesoSalida,
-    };
-    setVentasEjercicio(p => [...p, venta]);
-    setFeedlotLotes(p => p.filter(f => f.id !== fl.id));
-    pushToast(`✅ Salida feedlot registrada — ${fl.cabezas} cab × ${fl.pesoSalida}kg`, "success");
-  };
-
-  // Deshacer venta → restaurar lote en recría
-  const handleDeshacerVenta = (venta) => {
-    setVentasEjercicio(p => p.filter(v => v.id !== venta.id));
-    pushToast(`↩ Venta eliminada del registro — los animales ya salieron del campo`, "warn");
-  };
-
   // ── Stock compartido con Mi Campo ─────────────────────────────────────────
   const [campoCria, setCampoCria] = useState({
     vacas: 54, vaquillonas: 21, ternerosNoDestetados: 0, toros: 2, vacias: 8,
@@ -5509,24 +4819,18 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 
   // ── Cerrar año ganadero ───────────────────────────────────────────────────
   const handleCerrarAno = () => {
-    const ventasDelAno = ventasEjercicio.filter(v => v.ejercicio === anoGanaderoActual);
-    const ingresoTotal = ventasDelAno.reduce((a,v) => a + v.ingreso, 0);
-    const kgTotales    = ventasDelAno.reduce((a,v) => a + (v.kgTotales||0), 0);
-    const cabVendidas  = ventasDelAno.reduce((a,v) => a + v.cabezas, 0);
     const snapshot = {
       ano: anoGanaderoActual,
       cria: { ...campoCria },
       recria: { ...campoRecria },
       terminacion: { ...campoTerminacion },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
-      ventas: ventasDelAno,
-      resumen: { ingresoTotal, kgTotales, cabVendidas },
     };
     setHistorialAnos(p => ({ ...p, [anoGanaderoActual]: snapshot }));
     const [añoInicio] = anoGanaderoActual.split("/").map(Number);
     const nuevoAno = `${añoInicio+1}/${añoInicio+2}`;
     setAnoGanaderoActual(nuevoAno);
-    pushToast(`Año ${anoGanaderoActual} cerrado — ${cabVendidas} cab · ${fmtMoney(ingresoTotal)}`, "success");
+    pushToast(`Año ${anoGanaderoActual} cerrado. Abriendo ${nuevoAno} ✓`, "success");
   };
 
   const CATEGORIAS = {
@@ -5660,11 +4964,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           anoGanadero={anoGanaderoActual}
           historialAnos={historialAnos}
           onCerrarAno={handleCerrarAno}
-          ventasEjercicio={ventasEjercicio}
-          feedlotLotes={feedlotLotes}
-          onVentaLote={handleVentaLote}
-          onSalidaFeedlot={handleSalidaFeedlot}
-          onDeshacerVenta={handleDeshacerVenta}
+
         />
       </>
     );
@@ -5871,3 +5171,4 @@ export default function App() {
     />
   );
 }
+
