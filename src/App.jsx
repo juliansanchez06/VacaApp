@@ -4994,7 +4994,7 @@ function getAnoGanaderoActual() {
 // COMPRA DE RECRÍA — Simulador de compra de terneros por lotes
 // ═══════════════════════════════════════════════════════════════════════════
 function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) {
-  const { useState, useCallback } = React;
+  const { useState, useCallback, useRef, useEffect } = React;
   const dolar = global?.dolar || 1420;
   const gasoil = global?.precioGasoilL || 1100;
 
@@ -5059,16 +5059,17 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
 
     // Costos
     const costoCompra       = l.pesoEntradaKg * l.precioCompraKg * l.cabezas;
-    const costoFleteEntrada = l.fleteEntrada * l.cabezas;
-    const costoComisionC    = costoCompra * l.comisionCompra / 100;
-    const costoSanidad      = l.sanidad * l.cabezas;
-    const costoSuplemento   = l.suplementoMes * l.cabezas * l.mesesRecria;
-    const costoPastaje      = l.pastajeMes * l.cabezas * l.mesesRecria;
+    const on = (key) => l[key + "On"] !== false; // default true unless explicitly false
+    const costoFleteEntrada = on("fleteEntrada") ? l.fleteEntrada * l.cabezas : 0;
+    const costoComisionC    = on("comisionCompra") ? costoCompra * l.comisionCompra / 100 : 0;
+    const costoSanidad      = on("sanidad") ? l.sanidad * l.cabezas : 0;
+    const costoSuplemento   = on("suplementoMes") ? l.suplementoMes * l.cabezas * l.mesesRecria : 0;
+    const costoPastaje      = on("pastajeMes") ? l.pastajeMes * l.cabezas * l.mesesRecria : 0;
     const costoFeedlot      = l.modalidadVenta === "feedlot" ? l.costoFeedlotCab * l.cabezas * l.diasFeedlot : 0;
 
     const ingresoVenta      = pesoVenta * l.precioVentaKg * l.cabezas;
-    const costoFleteSalida  = l.fleteSalida * l.cabezas;
-    const costoComisionV    = ingresoVenta * l.comisionVenta / 100;
+    const costoFleteSalida  = on("fleteSalida") ? l.fleteSalida * l.cabezas : 0;
+    const costoComisionV    = on("comisionVenta") ? ingresoVenta * l.comisionVenta / 100 : 0;
 
     const costoTotal        = costoCompra + costoFleteEntrada + costoComisionC + costoSanidad
                             + costoSuplemento + costoPastaje + costoFeedlot + costoFleteSalida + costoComisionV;
@@ -5110,26 +5111,41 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
   }, { cabezas: 0, costoTotal: 0, ingreso: 0, margen: 0 });
 
   // ── Mini EditField ─────────────────────────────────────────────────────────
-  const EF = ({ label, value, onChange, step = 1, suffix = "", prefix = "", hint = "", minVal = 0 }) => {
-    const [str, setStr] = useState(null);
+  const EF = ({ label, value, onChange, step = 1, suffix = "", prefix = "", hint = "", minVal = 0, disabled = false }) => {
+    const [editing, setEditing] = useState(false);
+    const [raw, setRaw] = useState("");
+    const decFn = useCallback(() => onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)), [value, step, minVal, onChange]);
+    const incFn = useCallback(() => onChange(Math.round((value + step) * 100) / 100), [value, step, onChange]);
+    const decLP = useLongPress(decFn, 180);
+    const incLP = useLongPress(incFn, 180);
     return (
-      <div className="space-y-1">
+      <div className={`space-y-1 ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
         <span className="text-xs text-slate-500 font-semibold">{label}</span>
         <div className="flex items-center gap-1">
-          <button onPointerDown={() => onChange(Math.max(minVal, Math.round((value - step) * 100) / 100))}
-            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+          <button {...decLP}
+            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95 touch-manipulation select-none">−</button>
           <div className="flex-1 relative">
-            {prefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{prefix}</span>}
-            <input type="number" step={step} min={minVal}
-              value={str !== null ? str : value}
-              onChange={e => { setStr(e.target.value); const n = parseFloat(e.target.value); if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100)); }}
-              onBlur={() => setStr(null)}
-              onFocus={e => { setStr(String(value)); e.target.select(); }}
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-sm text-slate-800 focus:outline-none focus:border-blue-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
-            {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>}
+            {prefix && !editing && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{prefix}</span>}
+            <input
+              type={editing ? "number" : "text"}
+              inputMode="numeric"
+              value={editing ? raw : (prefix ? value.toLocaleString("es-AR") : value.toLocaleString("es-AR") + (suffix ? "" : ""))}
+              readOnly={!editing}
+              onFocus={e => { setEditing(true); setRaw(String(value)); setTimeout(() => e.target.select(), 0); }}
+              onChange={e => setRaw(e.target.value)}
+              onBlur={() => {
+                setEditing(false);
+                const n = parseFloat(raw.replace(",", "."));
+                if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100));
+                setRaw("");
+              }}
+              onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-sm text-slate-800 focus:outline-none focus:border-blue-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none cursor-text"
+            />
+            {suffix && !editing && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{suffix}</span>}
           </div>
-          <button onPointerDown={() => onChange(Math.round((value + step) * 100) / 100)}
-            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
+          <button {...incLP}
+            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95 touch-manipulation select-none">+</button>
         </div>
         {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
       </div>
@@ -5197,7 +5213,7 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
               <EF label="Peso entrada" value={lote.pesoEntradaKg} onChange={setL(loteActivo,"pesoEntradaKg")} step={5} suffix=" kg"/>
               <EF label="Precio compra" value={lote.precioCompraKg} onChange={setL(loteActivo,"precioCompraKg")} step={50} prefix="$" suffix="/kg"/>
 
-              <EF label="GDP (kg/día)" value={lote.gdp} onChange={setL(loteActivo,"gdp")} step={0.1} suffix=" kg/d" minVal={0.1}/>
+
               <div className="space-y-1">
                 <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
                 <input type="date" value={lote.fechaEntrada}
@@ -5206,37 +5222,50 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
               </div>
             </div>
 
-            {/* Info calculada */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                ["Peso salida", `${calc.pesoSalida} kg`, "text-blue-700"],
-                ["Kg ganados/cab", `+${calc.kgGanados} kg`, "text-emerald-700"],
-                ["Sale estimado", calc.fechaSalidaStr, "text-slate-700"],
-              ].map(([l,v,c]) => (
-                <div key={l} className="bg-slate-50 border border-slate-100 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">{l}</p>
-                  <p className={`font-black text-sm ${c}`}>{v}</p>
-                </div>
-              ))}
-            </div>
-            {calc.pasaAnoSiguiente && (
-              <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-                ⏭ Este lote sale en el <b>ejercicio siguiente</b> (supera el 30/jun)
-              </p>
-            )}
+
           </div>
 
-          {/* Costos */}
+          {/* Costos con on/off */}
           <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-4">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">💰 Costos del lote</p>
-            <div className="grid grid-cols-2 gap-3">
-              <EF label="Flete entrada ($/cab)" value={lote.fleteEntrada} onChange={setL(loteActivo,"fleteEntrada")} step={500} prefix="$"/>
-              <EF label="Comisión compra (%)" value={lote.comisionCompra} onChange={setL(loteActivo,"comisionCompra")} step={0.5} suffix="%" minVal={0}/>
-              <EF label="Sanidad ($/cab)" value={lote.sanidad} onChange={setL(loteActivo,"sanidad")} step={500} prefix="$" hint="Vacunas + sanidad inicial"/>
-              <EF label="Suplemento ($/cab/mes)" value={lote.suplementoMes} onChange={setL(loteActivo,"suplementoMes")} step={500} prefix="$" hint={`Total: ${fmtM(lote.suplementoMes * lote.mesesRecria * lote.cabezas)}`}/>
-              <EF label="Pastaje ($/cab/mes)" value={lote.pastajeMes} onChange={setL(loteActivo,"pastajeMes")} step={500} prefix="$" hint="0 si es campo propio"/>
-              <EF label="Flete salida ($/cab)" value={lote.fleteSalida} onChange={setL(loteActivo,"fleteSalida")} step={500} prefix="$"/>
-              <EF label="Comisión venta (%)" value={lote.comisionVenta} onChange={setL(loteActivo,"comisionVenta")} step={0.5} suffix="%" minVal={0}/>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">💰 Gastos comerciales</p>
+            <div className="space-y-3">
+              {[
+                { key:"fleteEntrada",  label:"Flete entrada",    suffix:"$/cab",   step:500,  isOn: lote.fleteEntradaOn  ?? true  },
+                { key:"comisionCompra",label:"Comisión compra",  suffix:"%",       step:0.5,  isOn: lote.comisionCompraOn ?? true  },
+                { key:"sanidad",       label:"Sanidad / vacunas",suffix:"$/cab",   step:500,  isOn: lote.sanidadOn       ?? true  },
+                { key:"suplementoMes", label:"Suplemento/mes",   suffix:"$/cab/m", step:500,  isOn: lote.suplementoMesOn ?? false,
+                  hint: lote.suplementoMesOn !== false ? `Total: ${fmtM(lote.suplementoMes * lote.mesesRecria * lote.cabezas)}` : "" },
+                { key:"pastajeMes",    label:"Pastaje/mes",      suffix:"$/cab/m", step:500,  isOn: lote.pastajeMesOn    ?? false,
+                  hint: "0 si es campo propio" },
+                { key:"fleteSalida",   label:"Flete salida",     suffix:"$/cab",   step:500,  isOn: lote.fleteSalidaOn   ?? true  },
+                { key:"comisionVenta", label:"Comisión venta",   suffix:"%",       step:0.5,  isOn: lote.comisionVentaOn ?? true  },
+              ].map(({ key, label, suffix: sfx, step, isOn, hint }) => (
+                <div key={key} className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${isOn ? "bg-slate-50" : "bg-white"}`}>
+                  {/* Toggle */}
+                  <button onClick={() => setL(loteActivo, key + "On")(!isOn)}
+                    className={`w-11 h-6 rounded-full transition-all shrink-0 relative ${isOn ? "bg-blue-500" : "bg-slate-200"}`}>
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isOn ? "left-5" : "left-0.5"}`}/>
+                  </button>
+                  {/* Field */}
+                  <div className="flex-1">
+                    <EF label={label} value={lote[key]} onChange={setL(loteActivo, key)}
+                      step={step} suffix={` ${sfx}`} minVal={0} hint={hint || ""} disabled={!isOn}/>
+                  </div>
+                  {/* Monto activo */}
+                  {isOn && (
+                    <div className="text-right shrink-0 min-w-[72px]">
+                      <p className="text-xs font-black text-blue-700">
+                        {sfx === "%" 
+                          ? fmtM(lote[key] / 100 * lote.precioCompraKg * lote.pesoEntradaKg * lote.cabezas)
+                          : sfx === "$/cab/m"
+                          ? fmtM(lote[key] * lote.cabezas * lote.mesesRecria)
+                          : fmtM(lote[key] * lote.cabezas)}
+                      </p>
+                      <p className="text-xs text-slate-400">total</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
