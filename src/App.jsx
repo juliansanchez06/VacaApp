@@ -5027,7 +5027,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               )}
 
               {/* ── Historial de ejercicios anteriores ── */}
-              {Object.keys(historialAnos).length > 0 && (
+              {Object.keys(historialAnos).length > 0 ? (
                 <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
                   <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600"/>
                   <div className="p-5 space-y-4">
@@ -5125,9 +5125,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     </div>
                   </div>
                 </div>
-              )}
+              ) : null}
 
-            </div>
             </div>
           )}
           </div>
