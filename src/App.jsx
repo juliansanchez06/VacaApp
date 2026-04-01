@@ -3412,7 +3412,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const cabNovillosInv     = Math.round(reciaDatos.novillos * (1 - mortRecria));
   // Novillos faena con mortandad feedlot
   const cabNovillosFaena   = Math.round(terminacionDatos.novillosCampo * (1 - mortRecria)) + Math.round(terminacionDatos.novillosFeedlot * (1 - mortFeedlot));
-  const cabVaquillonaDesc  = Math.round((hembrasVenta + reciaDatos.ternerosLiquidaHembras) * (1 - mortRecria));
+  // Vaquillonas descarte = solo las hembras de ESTE destete que no van a reposición
+  // (ternerosLiquidaHembras son animales ya en recría de años anteriores, no se mezclan)
+  const cabVaquillonaDesc  = Math.round(hembrasVenta * (1 - mortRecria));
 
   // Pesos de venta calculados (GDP × meses)
   const pVacaDescarte      = 380;
@@ -3724,15 +3726,26 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-                    <span>Parición: <b className="text-slate-600">{["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][criaDatos.paricionMes??9]} {criaDatos.paricionAnio??new Date().getFullYear()}</b></span>
-                    <span>·</span>
-                    <span>Destete: <b className="text-slate-600">{criaDatos.mesesDestete??6} meses</b></span>
-                    <span>·</span>
-                    <span>Machos/Hembras: <b className="text-slate-600">{criaDatos.pctMachos??50}/{100-(criaDatos.pctMachos??50)}</b></span>
-                    <span>·</span>
-                    <span>Repos: <b className="text-slate-600">{criaDatos.pctReposicion??30}%</b></span>
-                  </div>
+                  {(() => {
+                    const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                    const pMes = criaDatos.paricionMes ?? 9;
+                    const pAnio = criaDatos.paricionAnio ?? new Date().getFullYear();
+                    const mDest = criaDatos.mesesDestete ?? 6;
+                    const destMes = (pMes + mDest) % 12;
+                    const destAnio = (pMes + mDest) >= 12 ? pAnio + 1 : pAnio;
+                    const diasParaDest = Math.round((new Date(destAnio, destMes, 1) - new Date()) / 86400000);
+                    return (
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-slate-400">Parición: <b className="text-slate-600">{MESES_C[pMes]} {pAnio}</b></span>
+                        <span className="text-xs text-slate-300">·</span>
+                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black ${diasParaDest < 0 ? "bg-emerald-100 text-emerald-700" : diasParaDest < 30 ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}>
+                          {diasParaDest < 0 ? "✅ Destete alcanzado" : `🗓 Destete: ${MESES_C[destMes]} ${destAnio} (${diasParaDest}d)`}
+                        </div>
+                        <span className="text-xs text-slate-400">Repos: <b className="text-slate-600">{criaDatos.pctReposicion??30}%</b></span>
+                        <span className="text-xs text-slate-400">M/H: <b className="text-slate-600">{criaDatos.pctMachos??50}/{100-(criaDatos.pctMachos??50)}</b></span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
   
@@ -3965,6 +3978,22 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
+                      {(() => {
+                        const pMes = criaDatos.paricionMes ?? 9;
+                        const pAnio = criaDatos.paricionAnio ?? new Date().getFullYear();
+                        const mDest = criaDatos.mesesDestete ?? 6;
+                        const destMes = (pMes + mDest) % 12;
+                        const destAnio = (pMes + mDest) >= 12 ? pAnio + 1 : pAnio;
+                        const diasParaDest = Math.round((new Date(destAnio, destMes, 1) - new Date()) / 86400000);
+                        const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                        return diasParaDest > 0 ? (
+                          <p className="text-xs text-blue-600 font-semibold">
+                            🗓 Fecha estimada de destete: <b>{MESES_C[destMes]} {destAnio}</b> — faltan {diasParaDest} días
+                          </p>
+                        ) : (
+                          <p className="text-xs text-emerald-600 font-semibold">✅ Mes de destete alcanzado — podés destetar ahora</p>
+                        );
+                      })()}
                           {yaEnRecria > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">{yaEnRecria} ya en recría</span>}
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
