@@ -3353,11 +3353,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const hoy = new Date();
 
-  // GDP por categoría (kg/día) — solo esto vive en Rendimiento
-  const [gdpTernero,       setGdpTernero]       = useState(0.5);
-  const [gdpNovilloInv,    setGdpNovilloInv]     = useState(0.6);
-  const [gdpNovilloFaena,  setGdpNovilloFaena]   = useState(0.8);
-  const [gdpVaquillonaDesc,setGdpVaquillonaDesc] = useState(0.5);
+  // GDP por categoría (kg/día) — compartido entre Cría, Recría, Terminación y Rendimiento
+  const [gdpTernero,       setGdpTernero]       = useState(1.0);   // nacimiento → destete
+  const [gdpNovilloInv,    setGdpNovilloInv]     = useState(0.5);   // recría campo
+  const [gdpNovilloFaena,  setGdpNovilloFaena]   = useState(1.1);   // feedlot
+  const [gdpVaquillonaDesc,setGdpVaquillonaDesc] = useState(0.5);   // recría hembras
 
   // Todo lo demás viene de criaDatos (sincronizado con Stock → Cría)
   const paricionMes  = criaDatos.paricionMes  ?? 9;
@@ -3839,6 +3839,21 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <EditField label="% Destete" value={criaDatos.pctDestete??75} onChange={v=>setCriaActiva(p=>({...p,pctDestete:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`Valor final para rendimiento`} />
                       <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
                     </div>
+                    {/* GDP Ternero */}
+                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                      <p className="text-xs font-black text-emerald-700 mb-2">⚡ GDP Ternero — nacimiento → destete</p>
+                      <div className="flex items-center gap-3">
+                        <button onClick={()=>setGdpTernero(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                          className="w-8 h-8 rounded-lg bg-emerald-700 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
+                        <input type="range" min="0" max="1.5" step="0.1" value={gdpTernero}
+                          onChange={e=>setGdpTernero(Math.round(parseFloat(e.target.value)*10)/10)}
+                          className="flex-1 accent-emerald-500"/>
+                        <button onClick={()=>setGdpTernero(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                          className="w-8 h-8 rounded-lg bg-emerald-700 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
+                        <span className="font-mono font-black text-emerald-800 text-lg w-16 text-right">{gdpTernero.toFixed(1)} kg/d</span>
+                        <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">→ destete: <b>{pesoDestete} kg</b></span>
+                      </div>
+                    </div>
                   </div>
   
                   {/* Parición y destete */}
@@ -4041,7 +4056,43 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
                     <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
                     <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
-                    <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
+                    <div className="sm:col-span-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <p className="text-xs text-slate-500 font-semibold">⚡ GDP Novillo invernada</p>
+                        <div className="flex items-center gap-2">
+                          <button onClick={()=>setGdpNovilloInv(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                            className="w-7 h-7 rounded-lg bg-blue-700 text-white font-black flex items-center justify-center text-xs active:scale-95">−</button>
+                          <div className="flex-1 bg-blue-50 border-2 border-blue-200 rounded-xl text-center py-1">
+                            <span className="font-mono font-black text-base text-blue-800">{gdpNovilloInv.toFixed(1)}</span>
+                            <span className="text-xs text-blue-600 ml-1">kg/d</span>
+                          </div>
+                          <button onClick={()=>setGdpNovilloInv(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                            className="w-7 h-7 rounded-lg bg-blue-700 text-white font-black flex items-center justify-center text-xs active:scale-95">+</button>
+                        </div>
+                        <input type="range" min="0" max="1.5" step="0.1" value={gdpNovilloInv}
+                          onChange={e=>setGdpNovilloInv(Math.round(parseFloat(e.target.value)*10)/10)}
+                          className="w-full accent-blue-500"/>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-slate-500 font-semibold">⚡ GDP Vaquillona desc.</p>
+                        <div className="flex items-center gap-2">
+                          <button onClick={()=>setGdpVaquillonaDesc(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                            className="w-7 h-7 rounded-lg bg-rose-700 text-white font-black flex items-center justify-center text-xs active:scale-95">−</button>
+                          <div className="flex-1 bg-rose-50 border-2 border-rose-200 rounded-xl text-center py-1">
+                            <span className="font-mono font-black text-base text-rose-800">{gdpVaquillonaDesc.toFixed(1)}</span>
+                            <span className="text-xs text-rose-600 ml-1">kg/d</span>
+                          </div>
+                          <button onClick={()=>setGdpVaquillonaDesc(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                            className="w-7 h-7 rounded-lg bg-rose-700 text-white font-black flex items-center justify-center text-xs active:scale-95">+</button>
+                        </div>
+                        <input type="range" min="0" max="1.5" step="0.1" value={gdpVaquillonaDesc}
+                          onChange={e=>setGdpVaquillonaDesc(Math.round(parseFloat(e.target.value)*10)/10)}
+                          className="w-full accent-rose-500"/>
+                      </div>
+                    </div>
+                  </div>
+                  <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
                   </div>
                   <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -4101,7 +4152,24 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <EditField label="Novillos en feedlot" value={terminacionDatos.novillosFeedlot} onChange={v=>setTermActiva(p=>({...p,novillosFeedlot:v}))} />
                     <EditField label="Peso promedio (kg)" value={terminacionDatos.pesoPromedioKg} onChange={v=>setTermActiva(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
                     <EditField label="Días para venta" value={terminacionDatos.diasRestantes} onChange={v=>setTermActiva(p=>({...p,diasRestantes:v}))} suffix=" días" />
-                    <EditField label="% Mortandad feedlot" value={terminacionDatos.pctMortandadFeedlot??2} onChange={v=>setTermActiva(p=>({...p,pctMortandadFeedlot:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
+                    <div className="space-y-1">
+                    <p className="text-xs text-slate-500 font-semibold">⚡ GDP Feedlot / terminación</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>setGdpNovilloFaena(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
+                        className="w-8 h-8 rounded-lg bg-amber-700 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
+                      <div className="flex-1 bg-amber-50 border-2 border-amber-200 rounded-xl text-center py-1.5">
+                        <span className="font-mono font-black text-lg text-amber-800">{gdpNovilloFaena.toFixed(1)}</span>
+                        <span className="text-xs text-amber-600 ml-1">kg/día</span>
+                      </div>
+                      <button onClick={()=>setGdpNovilloFaena(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
+                        className="w-8 h-8 rounded-lg bg-amber-700 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
+                    </div>
+                    <input type="range" min="0" max="1.5" step="0.1" value={gdpNovilloFaena}
+                      onChange={e=>setGdpNovilloFaena(Math.round(parseFloat(e.target.value)*10)/10)}
+                      className="w-full accent-amber-500"/>
+                    <p className="text-xs text-slate-400 italic">Típico feedlot: 1.1 kg/día</p>
+                  </div>
+                  <EditField label="% Mortandad feedlot" value={terminacionDatos.pctMortandadFeedlot??2} onChange={v=>setTermActiva(p=>({...p,pctMortandadFeedlot:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
                   </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                     <button
@@ -4158,57 +4226,56 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {seccion === "rendimiento" && (
             <div className="space-y-5 sim-zoom-enter">
   
-              {/* Info parición (viene de Cría — solo lectura aquí) */}
-              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-                <span className="text-lg">🔗</span>
-                <div className="flex-1">
-                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Sincronizado desde Stock → Cría</p>
-                  <p className="text-xs text-emerald-600 mt-0.5">
-                    Parición: <b>{MESES_ES[paricionMes]} {paricionAnio}</b> · Destete: <b>{meseDestete} meses</b> ({MESES_ES[(paricionMes+meseDestete)%12]}) · Peso: <b>{pesoDestete} kg</b> ·
-                    Destete: <b>{totalDestete} cab</b> · Mort. cría: <b>{criaDatos.pctMortandadCria??2}%</b>
-                  </p>
+              {/* GDP por etapa — resumen sincronizado */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">🐄 Cría</p>
+                    <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
+                      className="text-xs text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-lg hover:bg-emerald-100">editar</button>
+                  </div>
+                  <p className="text-xs text-emerald-600">Parición: <b>{MESES_ES[paricionMes]} {paricionAnio}</b> · {meseDestete}m destete</p>
+                  <p className="text-xs text-emerald-600">{totalDestete} terneros · mort. {criaDatos.pctMortandadCria??2}%</p>
+                  <div className="mt-2 bg-emerald-100 rounded-xl px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs text-emerald-700 font-black">GDP ternero</span>
+                    <span className="font-mono font-black text-emerald-800">{gdpTernero.toFixed(1)} kg/d</span>
+                    <span className="text-xs text-emerald-600 font-semibold">{pesoDestete} kg</span>
+                  </div>
                 </div>
-                <button onClick={()=>{setSeccion("stock");setSubStock("cria");}}
-                  className="text-xs font-black text-emerald-600 border border-emerald-300 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors shrink-0">
-                  Editar en Cría →
-                </button>
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-black text-blue-700 uppercase tracking-widest">🐂 Recría</p>
+                    <button onClick={()=>{setSeccion("stock");setSubStock("recria");}}
+                      className="text-xs text-blue-600 border border-blue-200 px-2 py-0.5 rounded-lg hover:bg-blue-100">editar</button>
+                  </div>
+                  <p className="text-xs text-blue-600">Novillos: <b>{cabNovillosInv} cab</b> · Vaquillonas: <b>{cabVaquillonaDesc} cab</b></p>
+                  <p className="text-xs text-blue-600">mort. {reciaDatos.pctMortandadRecria??2}%</p>
+                  <div className="mt-2 bg-blue-100 rounded-xl px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs text-blue-700 font-black">GDP novillo</span>
+                    <span className="font-mono font-black text-blue-800">{gdpNovilloInv.toFixed(1)} kg/d</span>
+                    <span className="text-xs text-blue-600 font-semibold">{pesoNovilloInvAlCierre} kg</span>
+                  </div>
+                </div>
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-black text-amber-700 uppercase tracking-widest">🏭 Feedlot</p>
+                    <button onClick={()=>{setSeccion("stock");setSubStock("terminacion");}}
+                      className="text-xs text-amber-600 border border-amber-200 px-2 py-0.5 rounded-lg hover:bg-amber-100">editar</button>
+                  </div>
+                  <p className="text-xs text-amber-600">Campo: <b>{terminacionDatos.novillosCampo}</b> · Feedlot: <b>{terminacionDatos.novillosFeedlot} cab</b></p>
+                  <p className="text-xs text-amber-600">mort. {terminacionDatos.pctMortandadFeedlot??2}%</p>
+                  <div className="mt-2 bg-amber-100 rounded-xl px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs text-amber-700 font-black">GDP feedlot</span>
+                    <span className="font-mono font-black text-amber-800">{gdpNovilloFaena.toFixed(1)} kg/d</span>
+                    <span className="text-xs text-amber-600 font-semibold">{pesoNovilloFaenaAlCierre} kg</span>
+                  </div>
+                </div>
               </div>
   
               {/* Hectáreas + GDP */}
               <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚙️ Configuración rendimiento</p>
                 <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" minVal={1} />
-              </div>
-  
-              {/* ── GDP por categoría ── */}
-              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚡ GDP por categoría (kg/día)</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { label:"Ternero",          val:gdpTernero,     set:setGdpTernero,    color:"sky",    peso:pesoTerneroAlCierre },
-                    { label:"Novillo invernada", val:gdpNovilloInv,  set:setGdpNovilloInv, color:"violet", peso:pesoNovilloInvAlCierre },
-                    { label:"Novillo faena",     val:gdpNovilloFaena,set:setGdpNovilloFaena,color:"amber", peso:pesoNovilloFaenaAlCierre },
-                    { label:"Vaquillona desc.",  val:gdpVaquillonaDesc,set:setGdpVaquillonaDesc,color:"rose",peso:pesoVaquillonaAlCierre },
-                  ].map(({label,val,set,color,peso},i)=>(
-                    <div key={i} className={`section-${color==="sky"?"teal":color==="violet"?"violet":color==="amber"?"amber":"sky"} rounded-2xl border-2 p-3 space-y-2`}>
-                      <p className={`text-xs font-black uppercase tracking-widest text-${color}-700`}>{label}</p>
-                      <div className="flex items-center gap-2">
-                        <button onClick={()=>set(v=>Math.max(0,Math.round((v-0.1)*10)/10))}
-                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">−</button>
-                        <div className="flex-1 text-center">
-                          <span className={`font-mono font-black text-xl text-${color}-800`}>{val.toFixed(1)}</span>
-                          <span className={`text-xs text-${color}-600 ml-1`}>kg/d</span>
-                        </div>
-                        <button onClick={()=>set(v=>Math.min(1.5,Math.round((v+0.1)*10)/10))}
-                          className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-sm active:scale-95">+</button>
-                      </div>
-                      <input type="range" min="0" max="1.5" step="0.1" value={val}
-                        onChange={e=>set(Math.round(parseFloat(e.target.value)*10)/10)}
-                        className="w-full accent-emerald-500" />
-                      <p className={`text-xs text-${color}-600 text-center`}>Peso al cierre: <span className="font-black">{peso} kg</span></p>
-                    </div>
-                  ))}
-                </div>
               </div>
   
               {/* ── KPIs ── */}
@@ -5171,4 +5238,3 @@ export default function App() {
     />
   );
 }
-
