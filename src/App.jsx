@@ -3412,9 +3412,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const cabNovillosInv     = Math.round(reciaDatos.novillos * (1 - mortRecria));
   // Novillos faena con mortandad feedlot
   const cabNovillosFaena   = Math.round(terminacionDatos.novillosCampo * (1 - mortRecria)) + Math.round(terminacionDatos.novillosFeedlot * (1 - mortFeedlot));
-  // Vaquillonas descarte = solo las hembras de ESTE destete que no van a reposición
-  // (ternerosLiquidaHembras son animales ya en recría de años anteriores, no se mezclan)
-  const cabVaquillonaDesc  = Math.round(hembrasVenta * (1 - mortRecria));
+  // Vaquillonas descarte:
+  // De las hembras en recría (ternerosLiquidaHembras), el % que NO va a reposición → venta
+  // Más las hembras nuevas del destete que no van a reposición (hembrasVenta)
+  const hembrasRecriaSale  = Math.round(reciaDatos.ternerosLiquidaHembras * (1 - pctReposicion / 100));
+  const cabVaquillonaDesc  = Math.round((hembrasRecriaSale + hembrasVenta) * (1 - mortRecria));
 
   // Pesos de venta calculados (GDP × meses)
   const pVacaDescarte      = 380;
@@ -4013,7 +4015,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             disabled={pendiente === 0}
-                            onClick={() => onSincronizar({ _accion: "pasar-destete-recria", machos: machosPend, hembras: hembrasPend })}
+                            onClick={() => {
+                            const hVenta = Math.round(hembrasPend * (1 - (criaDatos.pctReposicion??100)/100));
+                            const hRepos = hembrasPend - hVenta;
+                            onSincronizar({ _accion: "pasar-destete-recria", machos: machosPend, hembrasVenta: hVenta, hembrasReposicion: hRepos });
+                          }}
                             className={`flex items-center justify-center gap-2 font-black text-sm px-4 py-3 rounded-2xl transition-all active:scale-95
                               ${pendiente === 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"}`}>
                             <RefreshCw size={14}/>
@@ -4875,7 +4881,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [campoCria, setCampoCria] = useState({
     vacas: 54, vaquillonas: 21, ternerosNoDestetados: 0, toros: 2, vacias: 8,
     pctPreniez: 85, pctDestete: 75, pctMortandadCria: 2,
-    pctMachos: 50, pctReposicion: 30,
+    pctMachos: 50, pctReposicion: 70,
     paricionMes: 9, paricionAnio: new Date().getFullYear(), mesesDestete: 6,
   });
   const [campoRecria, setCampoRecria] = useState({
@@ -4984,13 +4990,20 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const handleSincronizar = (datos) => {
     // Special action: pasar terneros destetados a recría
     if (datos._accion === "pasar-destete-recria") {
+      // Machos → recría para venta
+      // Hembras venta → recría para venta (ternerosLiquidaHembras)
+      // Hembras reposición → cría como futuras vaquillonas
       setCampoRecria(p => ({
         ...p,
         ternerosLiquidaMachos: p.ternerosLiquidaMachos + datos.machos,
-        ternerosLiquidaHembras: p.ternerosLiquidaHembras + datos.hembras,
+        ternerosLiquidaHembras: p.ternerosLiquidaHembras + (datos.hembrasVenta || 0),
       }));
+      if (datos.hembrasReposicion > 0) {
+        setCampoCria(p => ({ ...p, vaquillonas: p.vaquillonas + datos.hembrasReposicion }));
+      }
       setCampoCria(p => ({ ...p, ternerosNoDestetados: 0 }));
-      pushToast(`✅ ${datos.machos + datos.hembras} terneros pasados a Recría (${datos.machos}M + ${datos.hembras}H)`, "success");
+      const total = datos.machos + (datos.hembrasVenta||0) + (datos.hembrasReposicion||0);
+      pushToast(`✅ ${total} terneros destetados — ${datos.machos}M · ${datos.hembrasVenta||0}H venta · ${datos.hembrasReposicion||0}H reposición`, "success");
       return;
     }
     if (datos._accion === "deshacer-destete") {
