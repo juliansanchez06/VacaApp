@@ -3263,6 +3263,17 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
               onClick={() => onNavigate("invernada")}
             />
           </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Compra de Recría"
+              desc="Simulá la compra de terneros por lote, costos completos y rentabilidad al cierre."
+              icon={<Scale size={38} className="text-white" />}
+              iconAnim="float"
+              color="blue"
+              stats={["Por lotes", "Todos los costos", "Margen + ROI"]}
+              onClick={() => onNavigate("recria-compra")}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -4978,6 +4989,418 @@ function getAnoGanaderoActual() {
   return `${año}/${año+1}`;
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPRA DE RECRÍA — Simulador de compra de terneros por lotes
+// ═══════════════════════════════════════════════════════════════════════════
+function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) {
+  const { useState, useCallback } = React;
+  const dolar = global?.inmagVientres || 1420;
+  const gasoil = global?.precioGasoilL || 1100;
+
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const fmt = n => n?.toLocaleString("es-AR") ?? "0";
+  const fmtM = n => `$ ${Math.round(n).toLocaleString("es-AR")}`;
+  const usd = n => `U$S ${Math.round(n / dolar).toLocaleString("es-AR")}`;
+
+  // ── Estado de lotes ────────────────────────────────────────────────────────
+  const nuevoLote = () => ({
+    id: Date.now(),
+    nombre: "Nuevo lote",
+    categoria: "machos",           // machos | hembras
+    cabezas: 50,
+    pesoEntradaKg: 180,
+    precioCompraKg: 2200,          // $/kg vivo
+    mesesRecria: 10,
+    gdp: 0.6,                      // kg/día
+    fechaEntrada: hoyStr,
+    // Costos
+    fleteEntrada: 8000,            // $/cab
+    comisionCompra: 3,             // %
+    sanidad: 5000,                 // $/cab (único)
+    suplementoMes: 3000,           // $/cab/mes
+    pastajeMes: 0,                 // $/cab/mes (si es campo arrendado)
+    fleteSalida: 8000,             // $/cab
+    comisionVenta: 3,              // %
+    // Venta
+    modalidadVenta: "invernada",   // invernada | feedlot
+    precioVentaKg: 2800,           // $/kg
+    diasFeedlot: 60,
+    gdpFeedlot: 1.1,
+    costoFeedlotCab: 4500,         // $/cab/día
+  });
+
+  const [lotes, setLotes] = useState([{ ...nuevoLote(), nombre: "Lote 1", cabezas: 50, pesoEntradaKg: 185, precioCompraKg: 2200 }]);
+  const [loteActivo, setLoteActivo] = useState(0);
+
+  const setL = useCallback((idx, key) => val =>
+    setLotes(prev => prev.map((l, i) => i === idx ? { ...l, [key]: val } : l)),
+  []);
+
+  // ── Cálculos por lote ──────────────────────────────────────────────────────
+  const calcLote = l => {
+    const pesoSalida    = Math.round(l.pesoEntradaKg + l.mesesRecria * 30 * l.gdp);
+    const pesoVenta     = l.modalidadVenta === "feedlot"
+      ? Math.round(pesoSalida + l.diasFeedlot * l.gdpFeedlot)
+      : pesoSalida;
+    const fechaSalida   = (() => {
+      const d = new Date(l.fechaEntrada);
+      d.setMonth(d.getMonth() + l.mesesRecria);
+      return d;
+    })();
+    const fechaSalidaStr = `${MESES[fechaSalida.getMonth()]} ${fechaSalida.getFullYear()}`;
+    const diasHasta30Jun = (() => {
+      const hoy = new Date();
+      const anio = hoy.getMonth() >= 6 ? hoy.getFullYear() + 1 : hoy.getFullYear();
+      return Math.round((new Date(anio, 5, 30) - hoy) / 86400000);
+    })();
+    const pasaAnoSiguiente = l.mesesRecria * 30 > diasHasta30Jun;
+
+    // Costos
+    const costoCompra       = l.pesoEntradaKg * l.precioCompraKg * l.cabezas;
+    const costoFleteEntrada = l.fleteEntrada * l.cabezas;
+    const costoComisionC    = costoCompra * l.comisionCompra / 100;
+    const costoSanidad      = l.sanidad * l.cabezas;
+    const costoSuplemento   = l.suplementoMes * l.cabezas * l.mesesRecria;
+    const costoPastaje      = l.pastajeMes * l.cabezas * l.mesesRecria;
+    const costoFeedlot      = l.modalidadVenta === "feedlot" ? l.costoFeedlotCab * l.cabezas * l.diasFeedlot : 0;
+
+    const ingresoVenta      = pesoVenta * l.precioVentaKg * l.cabezas;
+    const costoFleteSalida  = l.fleteSalida * l.cabezas;
+    const costoComisionV    = ingresoVenta * l.comisionVenta / 100;
+
+    const costoTotal        = costoCompra + costoFleteEntrada + costoComisionC + costoSanidad
+                            + costoSuplemento + costoPastaje + costoFeedlot + costoFleteSalida + costoComisionV;
+    const margen            = ingresoVenta - costoTotal;
+    const margenPorCab      = l.cabezas > 0 ? Math.round(margen / l.cabezas) : 0;
+    const roi               = costoCompra > 0 ? (margen / (costoTotal - costoComisionV - costoFleteSalida) * 100) : 0;
+
+    // Punto de equilibrio: precio venta que hace margen=0
+    // ingresoVenta - costoComisionV = costoTotal - costoComisionV - costoFleteSalida + costoFleteSalida
+    // peqKg * pesoVenta * cabezas * (1 - comisionVenta/100) = costoTotal - ingresoVenta + costoCompra (sin comision venta)
+    const costosSinVenta    = costoCompra + costoFleteEntrada + costoComisionC + costoSanidad + costoSuplemento + costoPastaje + costoFeedlot;
+    const peqKg             = l.cabezas > 0 && pesoVenta > 0
+      ? Math.round(costosSinVenta / (pesoVenta * l.cabezas * (1 - l.comisionVenta / 100)))
+      : 0;
+
+    const kgGanados         = pesoSalida - l.pesoEntradaKg;
+    const eficienciaKg      = costosSinVenta > 0 ? Math.round(costosSinVenta / (kgGanados * l.cabezas)) : 0;
+
+    return {
+      pesoSalida, pesoVenta, fechaSalidaStr, pasaAnoSiguiente,
+      costoCompra, costoFleteEntrada, costoComisionC, costoSanidad,
+      costoSuplemento, costoPastaje, costoFeedlot, costoFleteSalida, costoComisionV,
+      costoTotal, ingresoVenta, margen, margenPorCab, roi, peqKg, kgGanados, eficienciaKg,
+    };
+  };
+
+  const lote   = lotes[loteActivo] || lotes[0];
+  const calc   = calcLote(lote);
+
+  // Totales de todos los lotes
+  const totales = lotes.reduce((acc, l) => {
+    const c = calcLote(l);
+    return {
+      cabezas:     acc.cabezas + l.cabezas,
+      costoTotal:  acc.costoTotal + c.costoTotal,
+      ingreso:     acc.ingreso + c.ingresoVenta,
+      margen:      acc.margen + c.margen,
+    };
+  }, { cabezas: 0, costoTotal: 0, ingreso: 0, margen: 0 });
+
+  // ── Mini EditField ─────────────────────────────────────────────────────────
+  const EF = ({ label, value, onChange, step = 1, suffix = "", prefix = "", hint = "", minVal = 0 }) => {
+    const [str, setStr] = useState(null);
+    return (
+      <div className="space-y-1">
+        <span className="text-xs text-slate-500 font-semibold">{label}</span>
+        <div className="flex items-center gap-1">
+          <button onPointerDown={() => onChange(Math.max(minVal, Math.round((value - step) * 100) / 100))}
+            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+          <div className="flex-1 relative">
+            {prefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{prefix}</span>}
+            <input type="number" step={step} min={minVal}
+              value={str !== null ? str : value}
+              onChange={e => { setStr(e.target.value); const n = parseFloat(e.target.value); if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100)); }}
+              onBlur={() => setStr(null)}
+              onFocus={e => { setStr(String(value)); e.target.select(); }}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-sm text-slate-800 focus:outline-none focus:border-blue-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
+            {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>}
+          </div>
+          <button onPointerDown={() => onChange(Math.round((value + step) * 100) / 100)}
+            className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
+        </div>
+        {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-blue-600">🐂 Compra de Recría</p>
+          <p className="text-sm text-slate-400 mt-0.5">Simulá terneros por lote — costos, GDP y rentabilidad</p>
+        </div>
+        <button onClick={() => { const l = { ...nuevoLote(), nombre: `Lote ${lotes.length + 1}` }; setLotes(p => [...p, l]); setLoteActivo(lotes.length); }}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
+          + Agregar lote
+        </button>
+      </div>
+
+      {/* Tabs de lotes */}
+      <div className="flex gap-2 flex-wrap">
+        {lotes.map((l, i) => {
+          const c = calcLote(l);
+          return (
+            <button key={l.id} onClick={() => setLoteActivo(i)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black transition-all ${loteActivo === i ? "bg-slate-800 text-white shadow-md" : "bg-white border-2 border-slate-200 text-slate-500 hover:border-slate-400"}`}>
+              <span>{l.categoria === "machos" ? "♂" : "♀"}</span>
+              <span>{l.nombre}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${c.margen >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+                {c.margen >= 0 ? "+" : ""}{Math.round(c.margen / 1000000 * 10) / 10}M
+              </span>
+              {lotes.length > 1 && (
+                <span onClick={e => { e.stopPropagation(); setLotes(p => p.filter((_, j) => j !== i)); setLoteActivo(Math.max(0, i - 1)); }}
+                  className="ml-1 text-slate-300 hover:text-red-400 transition-colors">✕</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lote activo */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* ── Col izquierda: parámetros ── */}
+        <div className="space-y-4">
+
+          {/* Datos del lote */}
+          <div className="bg-white border-2 border-blue-100 rounded-3xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <input value={lote.nombre}
+                onChange={e => setL(loteActivo, "nombre")(e.target.value)}
+                className="font-black text-slate-800 text-base bg-transparent border-b-2 border-dashed border-slate-200 focus:outline-none focus:border-blue-400 flex-1"/>
+              <div className="flex gap-1">
+                {[["machos","♂ Machos","blue"],["hembras","♀ Hembras","rose"]].map(([v,lb,c]) => (
+                  <button key={v} onClick={() => setL(loteActivo, "categoria")(v)}
+                    className={`text-xs px-3 py-1.5 rounded-xl font-black transition-all ${lote.categoria === v ? `bg-${c}-600 text-white` : "bg-slate-100 text-slate-500"}`}>
+                    {lb}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <EF label="Cabezas" value={lote.cabezas} onChange={setL(loteActivo,"cabezas")} step={1} minVal={1}/>
+              <EF label="Peso entrada" value={lote.pesoEntradaKg} onChange={setL(loteActivo,"pesoEntradaKg")} step={5} suffix=" kg"/>
+              <EF label="Precio compra" value={lote.precioCompraKg} onChange={setL(loteActivo,"precioCompraKg")} step={50} prefix="$" suffix="/kg"/>
+              <EF label="Meses de recría" value={lote.mesesRecria} onChange={setL(loteActivo,"mesesRecria")} step={1} suffix=" m" minVal={1}/>
+              <EF label="GDP (kg/día)" value={lote.gdp} onChange={setL(loteActivo,"gdp")} step={0.1} suffix=" kg/d" minVal={0.1}/>
+              <div className="space-y-1">
+                <span className="text-xs text-slate-500 font-semibold">Fecha de entrada</span>
+                <input type="date" value={lote.fechaEntrada}
+                  onChange={e => setL(loteActivo,"fechaEntrada")(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-blue-400"/>
+              </div>
+            </div>
+
+            {/* Info calculada */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Peso salida", `${calc.pesoSalida} kg`, "text-blue-700"],
+                ["Kg ganados/cab", `+${calc.kgGanados} kg`, "text-emerald-700"],
+                ["Sale estimado", calc.fechaSalidaStr, "text-slate-700"],
+              ].map(([l,v,c]) => (
+                <div key={l} className="bg-slate-50 border border-slate-100 rounded-xl p-2">
+                  <p className="text-xs text-slate-400">{l}</p>
+                  <p className={`font-black text-sm ${c}`}>{v}</p>
+                </div>
+              ))}
+            </div>
+            {calc.pasaAnoSiguiente && (
+              <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+                ⏭ Este lote sale en el <b>ejercicio siguiente</b> (supera el 30/jun)
+              </p>
+            )}
+          </div>
+
+          {/* Costos */}
+          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-4">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">💰 Costos del lote</p>
+            <div className="grid grid-cols-2 gap-3">
+              <EF label="Flete entrada ($/cab)" value={lote.fleteEntrada} onChange={setL(loteActivo,"fleteEntrada")} step={500} prefix="$"/>
+              <EF label="Comisión compra (%)" value={lote.comisionCompra} onChange={setL(loteActivo,"comisionCompra")} step={0.5} suffix="%" minVal={0}/>
+              <EF label="Sanidad ($/cab)" value={lote.sanidad} onChange={setL(loteActivo,"sanidad")} step={500} prefix="$" hint="Vacunas + sanidad inicial"/>
+              <EF label="Suplemento ($/cab/mes)" value={lote.suplementoMes} onChange={setL(loteActivo,"suplementoMes")} step={500} prefix="$" hint={`Total: ${fmtM(lote.suplementoMes * lote.mesesRecria * lote.cabezas)}`}/>
+              <EF label="Pastaje ($/cab/mes)" value={lote.pastajeMes} onChange={setL(loteActivo,"pastajeMes")} step={500} prefix="$" hint="0 si es campo propio"/>
+              <EF label="Flete salida ($/cab)" value={lote.fleteSalida} onChange={setL(loteActivo,"fleteSalida")} step={500} prefix="$"/>
+              <EF label="Comisión venta (%)" value={lote.comisionVenta} onChange={setL(loteActivo,"comisionVenta")} step={0.5} suffix="%" minVal={0}/>
+            </div>
+          </div>
+
+          {/* Venta */}
+          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-4">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">🐂 Destino al salir</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[["invernada","🌿 Invernada directa"],["feedlot","🏭 Feedlot"]].map(([v,lb]) => (
+                <button key={v} onClick={() => setL(loteActivo,"modalidadVenta")(v)}
+                  className={`py-2.5 rounded-xl text-xs font-black border-2 transition-all ${lote.modalidadVenta === v ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}>
+                  {lb}
+                </button>
+              ))}
+            </div>
+            <EF label="Precio de venta ($/kg)" value={lote.precioVentaKg} onChange={setL(loteActivo,"precioVentaKg")} step={50} prefix="$" suffix="/kg"/>
+            {lote.modalidadVenta === "feedlot" && (
+              <div className="grid grid-cols-2 gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                <EF label="Días en feedlot" value={lote.diasFeedlot} onChange={setL(loteActivo,"diasFeedlot")} step={5} suffix=" días" minVal={1}/>
+                <EF label="GDP feedlot (kg/d)" value={lote.gdpFeedlot} onChange={setL(loteActivo,"gdpFeedlot")} step={0.1} suffix=" kg/d" minVal={0.1}/>
+                <EF label="Costo feedlot ($/cab/día)" value={lote.costoFeedlotCab} onChange={setL(loteActivo,"costoFeedlotCab")} step={500} prefix="$"/>
+                <div className="bg-white rounded-xl border border-amber-200 p-2.5 text-center">
+                  <p className="text-xs text-amber-600">Peso final feedlot</p>
+                  <p className="font-black text-amber-800">{calc.pesoVenta} kg/cab</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Col derecha: resultado ── */}
+        <div className="space-y-4">
+
+          {/* KPIs principales */}
+          <div className={`rounded-3xl p-5 space-y-3 ${calc.margen >= 0 ? "bg-emerald-600" : "bg-red-600"}`}>
+            <p className="text-xs font-black uppercase tracking-widest text-white/70">Resultado — {lote.nombre}</p>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-4xl font-black text-white">{fmtM(calc.margen)}</p>
+                <p className="text-sm text-white/70 mt-0.5">margen total · {fmtM(calc.margenPorCab)}/cab</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-white">{usd(calc.margen)}</p>
+                <p className="text-xs text-white/70">en dólares</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ["ROI", `${calc.roi.toFixed(1)}%`],
+                ["P. equilibrio", `$${fmt(calc.peqKg)}/kg`],
+                ["Costo kg ganado", `$${fmt(calc.eficienciaKg)}`],
+              ].map(([l,v]) => (
+                <div key={l} className="bg-white/20 rounded-xl p-2 text-center">
+                  <p className="text-xs text-white/70">{l}</p>
+                  <p className="font-black text-white text-sm">{v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desglose de costos */}
+          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Desglose</p>
+            <table className="w-full text-xs">
+              <tbody>
+                {[
+                  ["Compra terneros",  calc.costoCompra, "text-slate-700"],
+                  ["Flete entrada",    calc.costoFleteEntrada, "text-slate-600"],
+                  ["Comisión compra",  calc.costoComisionC, "text-slate-600"],
+                  ["Sanidad",          calc.costoSanidad, "text-slate-600"],
+                  ["Suplemento total", calc.costoSuplemento, "text-slate-600"],
+                  lote.pastajeMes > 0 ? ["Pastaje total", calc.costoPastaje, "text-slate-600"] : null,
+                  lote.modalidadVenta === "feedlot" ? ["Feedlot total", calc.costoFeedlot, "text-amber-600"] : null,
+                  ["Flete salida",     calc.costoFleteSalida, "text-slate-600"],
+                  ["Comisión venta",   calc.costoComisionV, "text-slate-600"],
+                ].filter(Boolean).map(([l,v,c]) => (
+                  <tr key={l} className="border-b border-slate-50">
+                    <td className="py-1.5 text-slate-500">{l}</td>
+                    <td className={`text-right py-1.5 font-mono font-bold ${c}`}>{fmtM(v)}</td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-slate-200">
+                  <td className="py-2 font-black text-slate-700">Costo total</td>
+                  <td className="text-right py-2 font-mono font-black text-slate-800">{fmtM(calc.costoTotal)}</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5 font-black text-emerald-700">Ingreso venta</td>
+                  <td className="text-right py-1.5 font-mono font-black text-emerald-700">{fmtM(calc.ingresoVenta)}</td>
+                </tr>
+                <tr className={`border-t-2 ${calc.margen >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                  <td className={`py-2 font-black ${calc.margen >= 0 ? "text-emerald-700" : "text-red-600"}`}>Margen neto</td>
+                  <td className={`text-right py-2 font-mono font-black text-lg ${calc.margen >= 0 ? "text-emerald-700" : "text-red-600"}`}>{fmtM(calc.margen)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Botón agregar al campo */}
+          <button
+            onClick={() => {
+              if (lote.categoria === "machos") {
+                onAgregarAlCampo({ categoria: "terneros-compra-machos", cantidad: lote.cabezas });
+              } else {
+                onAgregarAlCampo({ categoria: "terneros-compra-hembras", cantidad: lote.cabezas });
+              }
+              onToast && onToast(`✅ ${lote.cabezas} ${lote.nombre} agregados a Recría en Mi Campo`, "success");
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-sm px-5 py-4 rounded-2xl shadow-md transition-all active:scale-95 group">
+            <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500"/>
+            Cargar {lote.cabezas} {lote.categoria === "machos" ? "♂" : "♀"} {lote.nombre} → Mi Campo (Recría)
+          </button>
+
+          {/* Resumen todos los lotes */}
+          {lotes.length > 1 && (
+            <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-4 space-y-3">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">📋 Resumen todos los lotes</p>
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-slate-200">
+                  {["Lote","Cab","Margen","ROI"].map(h => (
+                    <th key={h} className={`py-1.5 text-xs font-black text-slate-400 uppercase ${h==="Lote"?"text-left":"text-right"}`}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {lotes.map((l, i) => {
+                    const c = calcLote(l);
+                    return (
+                      <tr key={l.id} className={`border-b border-slate-100 cursor-pointer hover:bg-white transition-colors ${i === loteActivo ? "bg-white font-bold" : ""}`}
+                        onClick={() => setLoteActivo(i)}>
+                        <td className="py-2 text-slate-700">{l.categoria==="machos"?"♂":"♀"} {l.nombre}</td>
+                        <td className="text-right py-2 font-mono text-slate-600">{l.cabezas}</td>
+                        <td className={`text-right py-2 font-mono font-bold ${c.margen>=0?"text-emerald-700":"text-red-600"}`}>{fmtM(c.margen)}</td>
+                        <td className={`text-right py-2 font-mono ${c.roi>=0?"text-emerald-600":"text-red-500"}`}>{c.roi.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t-2 border-slate-300 bg-white">
+                    <td className="py-2.5 font-black text-slate-800">TOTAL</td>
+                    <td className="text-right py-2.5 font-mono font-black text-slate-800">{totales.cabezas}</td>
+                    <td className={`text-right py-2.5 font-mono font-black text-lg ${totales.margen>=0?"text-emerald-700":"text-red-600"}`}>{fmtM(totales.margen)}</td>
+                    <td className={`text-right py-2.5 font-mono font-black ${totales.margen>=0?"text-emerald-600":"text-red-500"}`}>
+                      {totales.costoTotal > 0 ? (totales.margen / totales.costoTotal * 100).toFixed(1) : 0}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Botón cargar todos */}
+              <button
+                onClick={() => {
+                  lotes.forEach(l => {
+                    onAgregarAlCampo({ categoria: l.categoria === "machos" ? "terneros-compra-machos" : "terneros-compra-hembras", cantidad: l.cabezas });
+                  });
+                  onToast && onToast(`✅ ${totales.cabezas} terneros de ${lotes.length} lotes agregados a Recría`, "success");
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black text-sm px-4 py-3 rounded-xl transition-all active:scale-95">
+                Cargar todos los lotes → Mi Campo
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
@@ -5049,9 +5472,10 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   };
 
   const CATEGORIAS = {
-    poder:     { label: "Poder de Compra",     emoji: "⇄" },
-    vientres:  { label: "Proyecto Vientres",   emoji: "🐄" },
-    invernada: { label: "Comparador Invernada", emoji: "⚖️" },
+    poder:         { label: "Poder de Compra",     emoji: "⇄" },
+    vientres:      { label: "Proyecto Vientres",   emoji: "🐄" },
+    invernada:     { label: "Comparador Invernada", emoji: "⚖️" },
+    "recria-compra": { label: "Compra de Recría",  emoji: "🐂" },
   };
 
   const agregarSimulacion = (sim) => {
@@ -5091,6 +5515,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const handleNavigate = (tabId) => {
     if (tabId === "campo") {
       setVistaActual("campo");
+    } else if (tabId === "recria-compra") {
+      setActiveTab("recria-compra");
+      setVistaActual("simuladores");
     } else if (tabId === "simulador-menu") {
       setVistaActual("simulador-menu");
     } else {
@@ -5292,6 +5719,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
               : activeTab === "vientres"
               ? <ProyectoVientres global={global} gastos={gastos} onDescarte={handleDescarte} onGuardar={agregarSimulacion} onToast={pushToast}
                   initialInputs={syncData?.target === "vientres" ? syncData.inputs : undefined}
+                  onAgregarAlCampo={handleAgregarAlCampo} />
+              : activeTab === "recria-compra"
+              ? <CompraRecria global={global} gastos={gastos} onGuardar={agregarSimulacion} onToast={pushToast}
                   onAgregarAlCampo={handleAgregarAlCampo} />
               : <ComparadorInvernada global={global} gastos={gastos} setGastos={setGastos} descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast}
                   initialBase={syncData?.target === "invernada" ? syncData.base : undefined}
