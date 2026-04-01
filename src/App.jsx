@@ -757,22 +757,20 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
   const handleInputChange = (e) => {
     const raw = e.target.value;
-    setInputStr(raw); // allow empty/partial string while typing
-    if (raw === '' || raw === '-') return; // don't commit yet
-    if (!onChange) return;
-    let v = Math.max(minV, Number(raw));
-    if (s < 1) v = Math.round(v * 10) / 10;
-    onChange(v);
+    setInputStr(raw); // only update local display — don't commit yet
   };
 
   const handleInputBlur = () => {
     const raw = inputStr;
-    setInputStr(null); // always reset display first
+    setInputStr(null);
     if (raw === '' || raw === null) {
-      // Commit minV. If parent state already equals minV, no re-render happens,
-      // but setInputStr(null) above already cleared the display to use the prop value.
       onChange && onChange(minV);
+      return;
     }
+    if (!onChange) return;
+    let v = Math.max(minV, Number(raw));
+    if (s < 1) v = Math.round(v * 10) / 10;
+    if (!isNaN(v)) onChange(v);
   };
 
   // MEJORA 3: Long-press handlers
@@ -836,6 +834,7 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
             className={`w-full h-full ${accent.bg} ${accent.text} ${compact ? "px-1 py-2.5 text-sm" : "px-1 py-2.5 text-base"} font-mono font-semibold text-center
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
               focus:outline-none focus:ring-2 ${accent.ring} transition-all`} />
@@ -2492,6 +2491,7 @@ function GInput({ label, value, onChange, unit, borderColor = "border-emerald-30
             onChange={handleGInputChange}
             onBlur={handleGInputBlur}
             onFocus={(e) => { setInputStr(String(value)); e.target.select(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
             className={`w-full bg-transparent text-center text-sm font-mono font-bold ${textColor} py-1
               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none focus:outline-none`} />
           <span className={`text-xs font-mono ${labelColor} opacity-60 leading-none pb-1`}>{unit}</span>
@@ -2529,6 +2529,7 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
     { label: `INMAG I ${global.inmagInvernada} kg`, color: "bg-emerald-100 text-emerald-700 border-emerald-300 shadow-emerald-100" },
     { label: `Novillo $${fmt(global.precioNovilloInmag)}/kg`, color: "bg-sky-100 text-sky-700 border-sky-300 shadow-sky-100" },
     { label: `Inflación ${global.inflacionMensual}%/m`, color: "bg-orange-100 text-orange-700 border-orange-300 shadow-orange-100" },
+    { label: `USD $${fmt(global.dolar || 1420)}`, color: "bg-blue-100 text-blue-700 border-blue-300 shadow-blue-100" },
   ];
 
   return (
@@ -2615,6 +2616,7 @@ function GlobalPanel({ global, setGlobal, gastos, setGastos }) {
                   <span className="text-xs font-black uppercase tracking-widest text-orange-700">Inflación mensual</span>
                 </div>
                 <GInput label="Estimación mensual" value={global.inflacionMensual} onChange={set("inflacionMensual")} unit="%" borderColor="border-orange-200" textColor="text-orange-700" step={0.1} />
+                <GInput label="Dólar ($/USD)" value={global.dolar || 1420} onChange={set("dolar")} unit="$/USD" borderColor="border-blue-200" textColor="text-blue-700" step={10} />
               </div>
             </div>
           </div>
@@ -4997,6 +4999,9 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
   const { useState, useCallback, useRef, useEffect } = React;
   const dolar = global?.dolar || 1420;
   const gasoil = global?.precioGasoilL || 1100;
+  const inflacionBase = global?.inflacionMensual || 4;
+  const [inflacionSim, setInflacionSim] = useState(null); // null = usa la global
+  const inflacion = inflacionSim !== null ? inflacionSim : inflacionBase;
 
   const hoyStr = new Date().toISOString().slice(0, 10);
   const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -5039,7 +5044,7 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
   []);
 
   // ── Cálculos por lote ──────────────────────────────────────────────────────
-  const calcLote = l => {
+  const calcLote = (l, inf = inflacion) => {
     const pesoSalida    = Math.round(l.pesoEntradaKg + l.mesesRecria * 30 * l.gdp);
     const pesoVenta     = l.modalidadVenta === "feedlot"
       ? Math.round(pesoSalida + l.diasFeedlot * l.gdpFeedlot)
@@ -5074,6 +5079,26 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
     const costoTotal        = costoCompra + costoFleteEntrada + costoComisionC + costoSanidad
                             + costoSuplemento + costoPastaje + costoFeedlot + costoFleteSalida + costoComisionV;
     const margen            = ingresoVenta - costoTotal;
+
+    // ── Inflación: precio mínimo para cubrirla ────────────────────────────────
+    // Costo total sin comisión venta (eso depende del precio de venta)
+    const costoSinComVenta  = costoTotal - costoComisionV;
+    // Inflación acumulada sobre el costo de compra durante los meses de recría
+    const inflAcum          = Math.pow(1 + inf / 100, l.mesesRecria) - 1;
+    // Precio mínimo invernada: recuperar costo + inflación sobre la inversión
+    // pesoSalida * pKg * cab * (1 - comVenta/100) = costoSinComVenta * (1 + inflAcum)
+    const costoInflado      = costoSinComVenta * (1 + inflAcum);
+    const precioMinInvernada = on("comisionVenta") && l.comisionVenta > 0
+      ? Math.round(costoInflado / (pesoSalida * l.cabezas * (1 - l.comisionVenta / 100)))
+      : Math.round(costoInflado / Math.max(1, pesoSalida * l.cabezas));
+    // Precio mínimo gordo (feedlot): con más kg
+    const pesoGordo         = Math.round(pesoSalida + 60 * 1.1); // ~60 días feedlot típico
+    const costoFeedlotMin   = l.costoFeedlotCab * l.cabezas * 60;
+    const costoTotalGordo   = costoInflado + costoFeedlotMin;
+    const precioMinGordo    = on("comisionVenta") && l.comisionVenta > 0
+      ? Math.round(costoTotalGordo / (pesoGordo * l.cabezas * (1 - l.comisionVenta / 100)))
+      : Math.round(costoTotalGordo / Math.max(1, pesoGordo * l.cabezas));
+    const inflAcumPct       = Math.round(inflAcum * 100 * 10) / 10;
     const margenPorCab      = l.cabezas > 0 ? Math.round(margen / l.cabezas) : 0;
     const roi               = costoCompra > 0 ? (margen / (costoTotal - costoComisionV - costoFleteSalida) * 100) : 0;
 
@@ -5093,6 +5118,7 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
       costoCompra, costoFleteEntrada, costoComisionC, costoSanidad,
       costoSuplemento, costoPastaje, costoFeedlot, costoFleteSalida, costoComisionV,
       costoTotal, ingresoVenta, margen, margenPorCab, roi, peqKg, kgGanados, eficienciaKg,
+      precioMinInvernada, precioMinGordo, inflAcumPct, pesoGordo,
     };
   };
 
@@ -5220,6 +5246,8 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
                   onChange={e => setL(loteActivo,"fechaEntrada")(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-blue-400"/>
               </div>
+              <EF label="Meses de recría" value={lote.mesesRecria} onChange={setL(loteActivo,"mesesRecria")} step={1} suffix=" m" minVal={1}
+                hint={`Sale: ${calc.fechaSalidaStr}`}/>
             </div>
 
 
@@ -5300,6 +5328,58 @@ function CompraRecria({ global, gastos, onGuardar, onToast, onAgregarAlCampo }) 
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Panel inflación */}
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-3xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-widest text-orange-700">📈 Inflación — precio mínimo de venta</p>
+              <button onClick={() => setInflacionSim(inflacionSim !== null ? null : inflacionBase)}
+                className="text-xs text-orange-600 border border-orange-300 px-2.5 py-1 rounded-xl hover:bg-orange-100 transition-all">
+                {inflacionSim !== null ? "Usar global" : "Personalizar"}
+              </button>
+            </div>
+
+            {/* Slider inflación */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setInflacionSim(Math.max(0, Math.round((inflacion - 0.5) * 10) / 10))}
+                  className="w-7 h-7 rounded-lg bg-orange-600 text-white font-black text-xs flex items-center justify-center active:scale-95">−</button>
+                <input type="range" min="0" max="15" step="0.5" value={inflacion}
+                  onChange={e => setInflacionSim(parseFloat(e.target.value))}
+                  className="flex-1 accent-orange-500"/>
+                <button onClick={() => setInflacionSim(Math.min(15, Math.round((inflacion + 0.5) * 10) / 10))}
+                  className="w-7 h-7 rounded-lg bg-orange-600 text-white font-black text-xs flex items-center justify-center active:scale-95">+</button>
+                <span className="font-mono font-black text-orange-800 text-lg w-16 text-right">{inflacion}%/m</span>
+              </div>
+              <div className="flex justify-between text-xs text-orange-600">
+                <span>Entrada: <b>{new Date(lote.fechaEntrada).toLocaleDateString("es-AR", {month:"short", year:"numeric"})}</b></span>
+                <span>Salida: <b>{calc.fechaSalidaStr}</b></span>
+                <span>Acumulada: <b>{calc.inflAcumPct}%</b></span>
+              </div>
+            </div>
+
+            {/* Precios mínimos */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white border-2 border-orange-200 rounded-2xl p-3 text-center">
+                <p className="text-xs font-black text-orange-600 uppercase tracking-widest mb-1">🌿 Invernada</p>
+                <p className="text-xs text-slate-400">{calc.pesoSalida} kg/cab</p>
+                <p className="text-2xl font-black text-orange-800">${fmt(calc.precioMinInvernada)}</p>
+                <p className="text-xs text-orange-600 font-semibold">/kg vivo</p>
+                <p className="text-xs text-slate-400 mt-1">{fmtM(calc.precioMinInvernada * calc.pesoSalida * lote.cabezas)} total</p>
+              </div>
+              <div className="bg-white border-2 border-amber-200 rounded-2xl p-3 text-center">
+                <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">🏭 Gordo (~60d)</p>
+                <p className="text-xs text-slate-400">{calc.pesoGordo} kg/cab est.</p>
+                <p className="text-2xl font-black text-amber-800">${fmt(calc.precioMinGordo)}</p>
+                <p className="text-xs text-amber-600 font-semibold">/kg vivo</p>
+                <p className="text-xs text-slate-400 mt-1">{fmtM(calc.precioMinGordo * calc.pesoGordo * lote.cabezas)} total</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-orange-500 italic text-center">
+              Precios para recuperar la inversión total ajustada por inflación {inflacion}%/mes
+            </p>
           </div>
 
           {/* Desglose de costos */}
