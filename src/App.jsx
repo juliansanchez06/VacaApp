@@ -4169,6 +4169,119 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     </button>
                 </div>
               </div>
+
+              {/* ── Panel Venta / Feedlot ────────────────────────────────── */}
+              {(() => {
+                const totalRecria = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos;
+                if (totalRecria === 0) return null;
+
+                const CATS = [
+                  { key:"ternerosLiquidaMachos", label:"Terneros marca M",  icon:"🐄", color:"emerald", peso: pesoTerneroAlCierre,  gdp: gdpNovilloInv  },
+                  { key:"ternerosCompraMachos",  label:"Terneros compra M", icon:"🛒", color:"blue",    peso: pesoNovilloInvAlCierre, gdp: gdpNovilloInv },
+                  { key:"novillos",              label:"Novillos",           icon:"🐂", color:"amber",  peso: pesoNovilloInvAlCierre, gdp: gdpNovilloFaena },
+                ].filter(c => reciaDatos[c.key] > 0);
+
+                return (
+                  <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-blue-400 to-amber-400"/>
+                    <div className="p-5 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-600">🐂 Decisión de venta / feedlot</p>
+                      <p className="text-xs text-slate-400">Elegí cuántos animales querés vender como invernada o mandar a feedlot, y simulá en el calculador.</p>
+
+                      {CATS.map(cat => {
+                        const total = reciaDatos[cat.key];
+                        return (
+                          <div key={cat.key} className={`border-2 border-${cat.color}-100 bg-${cat.color}-50 rounded-2xl p-4 space-y-3`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span>{cat.icon}</span>
+                                <p className={`text-xs font-black uppercase tracking-widest text-${cat.color}-700`}>{cat.label}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-400">Stock: <b className="text-slate-700">{total} cab</b></p>
+                                <p className="text-xs text-slate-400">Peso est.: <b className="text-slate-700">{cat.peso} kg/cab</b></p>
+                              </div>
+                            </div>
+
+                            {/* Botones directos al simulador */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => onSincronizar({
+                                  target: "invernada",
+                                  descripcion: `${total} ${cat.label} · ${cat.peso} kg · invernada vs feedlot`,
+                                  base: { cantidad: total, pesoIngreso: cat.peso, precioCompraKg: 1800 },
+                                })}
+                                className="flex items-center justify-center gap-1.5 bg-white border-2 border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95 group">
+                                <RefreshCw size={12} className="group-hover:rotate-180 transition-transform"/>
+                                🌿 Simular invernada
+                              </button>
+                              <button
+                                onClick={() => onSincronizar({
+                                  target: "poder",
+                                  descripcion: `Venta ${total} ${cat.label} ${cat.peso}kg → simular reposición`,
+                                  venta: { cantidad: total, pesoPromedio: cat.peso, precioKg: 2200 },
+                                })}
+                                className="flex items-center justify-center gap-1.5 bg-white border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95 group">
+                                <RefreshCw size={12} className="group-hover:rotate-180 transition-transform"/>
+                                💰 Simular reposición
+                              </button>
+                            </div>
+
+                            {/* Barra para elegir cuántos a feedlot vs invernada */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-xs font-bold">
+                                <span className="text-emerald-600">🌿 Invernada: {total - Math.round(total * (reciaDatos[cat.key + "_feedlotPct"] || 0) / 100)} cab</span>
+                                <span className="text-amber-600">🏭 Feedlot: {Math.round(total * (reciaDatos[cat.key + "_feedlotPct"] || 0) / 100)} cab</span>
+                              </div>
+                              <div className="h-4 rounded-full overflow-hidden flex">
+                                <div className="bg-emerald-400 transition-all flex items-center justify-center text-white text-xs font-black"
+                                  style={{width:`${100-(reciaDatos[cat.key+"_feedlotPct"]||0)}%`}}>
+                                  {100-(reciaDatos[cat.key+"_feedlotPct"]||0)}%
+                                </div>
+                                <div className="bg-amber-400 flex-1 flex items-center justify-center text-white text-xs font-black">
+                                  {reciaDatos[cat.key+"_feedlotPct"]||0}%
+                                </div>
+                              </div>
+                              <input type="range" min="0" max="100" step="10"
+                                value={reciaDatos[cat.key+"_feedlotPct"]||0}
+                                onChange={e=>setRecriaActiva(p=>({...p,[cat.key+"_feedlotPct"]:Number(e.target.value)}))}
+                                className="w-full accent-amber-500"/>
+                              <div className="grid grid-cols-2 gap-2 mt-1">
+                                <button
+                                  disabled={total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100) === 0}
+                                  onClick={() => onSincronizar({
+                                    target: "invernada",
+                                    descripcion: `${total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} ${cat.label} invernada directa`,
+                                    base: {
+                                      cantidad: total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100),
+                                      pesoIngreso: cat.peso, precioCompraKg: 1800,
+                                    },
+                                  })}
+                                  className="text-xs bg-emerald-500 disabled:opacity-40 hover:bg-emerald-600 text-white font-black px-3 py-2 rounded-xl transition-all active:scale-95">
+                                  Simular {total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} como invernada
+                                </button>
+                                <button
+                                  disabled={Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100) === 0}
+                                  onClick={() => onSincronizar({
+                                    target: "invernada",
+                                    descripcion: `${Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} ${cat.label} a feedlot`,
+                                    base: {
+                                      cantidad: Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100),
+                                      pesoIngreso: cat.peso, precioCompraKg: 1800,
+                                    },
+                                  })}
+                                  className="text-xs bg-amber-500 disabled:opacity-40 hover:bg-amber-600 text-white font-black px-3 py-2 rounded-xl transition-all active:scale-95">
+                                  Simular {Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} a feedlot
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
   
