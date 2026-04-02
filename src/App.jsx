@@ -1370,7 +1370,7 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
         />
         {onAgregarAlCampo && calc.cabezasComprables > 0 && (
           <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-4 space-y-3 mb-2">
-            <p className="text-xs font-black uppercase tracking-widest text-sky-700">🐄 Agregar compra a Mi Campo</p>
+            <p className="text-xs font-black uppercase tracking-widest text-sky-700">🚀 Ejecutar Movimiento — Agregar compra a Mi Campo</p>
             <p className="text-xs text-sky-600">Incorporar <span className="font-black">{Math.floor(calc.cabezasComprables)} animales</span> de {compra.pesoAnimal} kg — elegí la categoría:</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => onAgregarAlCampo({ categoria:"terneros-compra-machos", cantidad: Math.floor(calc.cabezasComprables) })}
@@ -2022,7 +2022,7 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
         />
         {onAgregarAlCampo && (
           <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 space-y-3 mb-2">
-            <p className="text-xs font-black uppercase tracking-widest text-violet-700">🐄 Agregar vientres a Mi Campo</p>
+            <p className="text-xs font-black uppercase tracking-widest text-violet-700">🚀 Ejecutar Movimiento — Agregar vientres a Mi Campo</p>
             <p className="text-xs text-violet-600">Incorporar <span className="font-black">{inputs.cantidad} vientres</span> — elegí la categoría:</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => onAgregarAlCampo({ categoria:"vacas", cantidad: inputs.cantidad })}
@@ -2221,8 +2221,15 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     const margenPorKgB = opB.precioVentaKg - costoKgGanadoB;
     const ganadorA = margenA >= margenB;
 
+    // ── MEJORA 4: Relación Compra-Venta — indicador clave de invernada
+    // RC/V = precio venta gordo / precio compra ternero
+    // Umbral: >1.6 excelente, >1.3 bueno, <1.0 peligroso
+    const relacionCV_A = base.precioCompraKg > 0 ? opA.precioVentaKg / base.precioCompraKg : 0;
+    const relacionCV_B = base.precioCompraKg > 0 ? opB.precioVentaKg / base.precioCompraKg : 0;
+
     return {
       inversionBruta, inversionBase, gastosCompra,
+      relacionCV_A, relacionCV_B,
       a: { gpvTotal: gpvTotalA, pesoSalida: pesoSalidaA, costoKgPasto: costoKgPastoCalc,
            costoPastoreo: costoPastoreoA, mesesSuplActivos: mesesSuplValidos.length,
            costoSuplementacion: costoSuplementacionA, costoOperativo: costoOperativoA,
@@ -2532,6 +2539,43 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
 
       <Divider />
 
+      {/* ── MEJORA 4: Relación Compra-Venta ─────────────────────────────── */}
+      {(() => {
+        const rcvA = calc.relacionCV_A;
+        const rcvB = calc.relacionCV_B;
+        const colorRCV = (r) => r >= 1.6 ? "text-emerald-600" : r >= 1.3 ? "text-amber-600" : "text-red-500";
+        const badgeRCV = (r) => r >= 1.6 ? "bg-emerald-100 border-emerald-300 text-emerald-700" : r >= 1.3 ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-red-100 border-red-300 text-red-600";
+        const labelRCV = (r) => r >= 1.6 ? "Excelente" : r >= 1.3 ? "Favorable" : r >= 1.0 ? "Ajustada" : "Desfavorable";
+        return (
+          <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-black shrink-0">📐</span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-teal-700">Relación Compra-Venta — Indicador Clave de Invernada</p>
+                <p className="text-xs text-teal-500">Precio venta gordo ÷ Precio compra ternero · &gt;1.6 excelente · &gt;1.3 bueno · &lt;1.0 peligroso</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border border-green-200 p-4 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-green-700 mb-1">🌿 Invernada (A)</p>
+                <p className="text-xs text-slate-400 mb-2">${fmt(opA.precioVentaKg)}/kg ÷ ${fmt(base.precioCompraKg)}/kg</p>
+                <p className={`font-mono font-black text-4xl ${colorRCV(rcvA)}`}>{fmt(rcvA, 2)}</p>
+                <span className={`mt-1 inline-block text-xs font-bold px-2.5 py-1 rounded-full border ${badgeRCV(rcvA)}`}>{labelRCV(rcvA)}</span>
+              </div>
+              <div className="bg-white rounded-xl border border-blue-200 p-4 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-1">🏭 Feedlot (B)</p>
+                <p className="text-xs text-slate-400 mb-2">${fmt(opB.precioVentaKg)}/kg ÷ ${fmt(base.precioCompraKg)}/kg</p>
+                <p className={`font-mono font-black text-4xl ${colorRCV(rcvB)}`}>{fmt(rcvB, 2)}</p>
+                <span className={`mt-1 inline-block text-xs font-bold px-2.5 py-1 rounded-full border ${badgeRCV(rcvB)}`}>{labelRCV(rcvB)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-teal-500 italic">⚠️ Una relación menor a 1.0 implica que el novillo gordo vale menos kg que el ternero comprado — negocio inviable.</p>
+          </div>
+        );
+      })()}
+
+      <Divider />
+
       {/* TABLA COMPARATIVA */}
       <SectionTitle icon="⚖️" color="text-slate-600">Comparación de Resultados</SectionTitle>
       <div className="table-scroll rounded-2xl border border-slate-200 shadow-sm">
@@ -2663,7 +2707,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
         />
         {onAgregarAlCampo && (
           <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3 mb-2">
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🐄 Agregar novillos a Mi Campo</p>
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🚀 Ejecutar Movimiento — Agregar novillos a Mi Campo</p>
             <p className="text-xs text-emerald-600">Incorporar <span className="font-black">{base.cantidad} novillos</span> — elegí dónde:</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => onAgregarAlCampo({ categoria:"novillos-campo", cantidad: base.cantidad })}
