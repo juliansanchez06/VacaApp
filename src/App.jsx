@@ -1,15 +1,26 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, createContext, useContext } from "react";
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-// Funciones puras de cálculo agro-económico (Paso 1 — extraídas de los useMemo)
-import { calcPoderDeCompra, calcProyectoVientres, calcComparadorInvernada } from "./calculosGanaderos";
 
-// ─── Zustand store (oficial) — reemplaza el createStore custom ───────────────
-// Ventajas: DevTools de Chrome/Firefox, mejor performance, batching automático.
-// La API del store sigue siendo la misma para el resto del código (get/set/subscribe).
-// useStore queda como shim de compatibilidad con código existente.
+// ─── Micro store (Zustand-like, no external dep) ─────────────────────────────
+// Funciona igual que Zustand: suscripción reactiva, persistencia opcional.
+function createStore(init) {
+  let state = {};
+  const listeners = new Set();
+  const setState = (partial) => {
+    state = { ...state, ...(typeof partial === "function" ? partial(state) : partial) };
+    listeners.forEach(fn => fn(state));
+  };
+  const getState = () => state;
+  const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+  state = init(setState, getState);
+  return { getState, setState, subscribe };
+}
 function useStore(store, selector = s => s) {
-  return store(selector);
+  const [slice, setSlice] = useState(() => selector(store.getState()));
+  useEffect(() => {
+    const unsub = store.subscribe(s => setSlice(selector(s)));
+    return unsub;
+  }, [store, selector]);
+  return slice;
 }
 import { initializeApp } from "firebase/app";
 import {
@@ -62,27 +73,12 @@ const LOGO_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAA
 // ═══════════════════════════════════════════════════════════════════════════
 // STORE GLOBAL — Estado centralizado (Pilares 1, 2 y 3)
 // ═══════════════════════════════════════════════════════════════════════════
-
-// ─── Debounce Hook ────────────────────────────────────────────────────────────
-// Retrasa el valor hasta que el usuario deja de escribir (delay ms).
-// Evita que cada keystroke dispare un recálculo completo en inputs pesados.
-// Uso: const debouncedInputs = useDebouncedValue(inputs, 120);
-//      const calc = useMemo(() => calcFn(debouncedInputs), [debouncedInputs]);
-function useDebouncedValue(value, delay = 120) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
-
 function getAnoGanadero() {
   const h = new Date(); const m = h.getMonth(); const a = h.getFullYear();
   return m >= 6 ? `${a}/${a+1}` : `${a-1}/${a}`;
 }
 
-const vacaStore = create(devtools((set, get) => ({
+const vacaStore = createStore((set, get) => ({
   // ── Cotizaciones globales (sincronizadas en todos los simuladores) ──────────
   global: {
     inmagVientres:      10,
@@ -97,12 +93,6 @@ const vacaStore = create(devtools((set, get) => ({
     fleteVentaOn:  false, kmVenta:  300, precioKmVenta:  3500,
     comisionCompraOn: true, comisionCompra: 3,
     comisionVentaOn:  true, comisionVenta:  3,
-    // ── PASO 2: Nuevas variables económico-financieras ────────────────────
-    pctDesbaste:       2,    // % shrinkage sobre peso vivo en venta (típico 1.5-3%)
-    pctImpuesto:       0,    // % retenciones / IVA sobre ingreso bruto
-    plazoCobroDias:    0,    // días hasta cobro (0 = contado)
-    plazoPagoDias:     0,    // días para pagar la compra (0 = contado)
-    amortAnual:        0,    // $/año amortización maquinaria + infraestructura
   },
   // ── Stock del campo ───────────────────────────────────────────────────────
   campoCria: {
@@ -1256,80 +1246,6 @@ function GastosComerciales({ gastos, setGastos }) {
         ))}
       </div>
       <p className="text-xs text-slate-400 italic">Compra → suma a la inversión · Venta → se resta del ingreso bruto</p>
-
-      {/* ── PASO 2: Panel Económico-Financiero ──────────────────────────── */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 mt-1">
-        <div className="flex items-center gap-2">
-          <span className="text-base">📐</span>
-          <p className="text-xs font-black uppercase tracking-widest text-amber-700">Variables Económico-Financieras</p>
-          <span className="text-xs text-amber-500 normal-case">— aplican globalmente a todos los módulos</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Desbaste */}
-          <div className="bg-white rounded-xl border border-amber-200 p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span>⚖️</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-700">Desbaste (Shrinkage)</span>
-            </div>
-            <Field label="% merma en venta" value={gastos.pctDesbaste} onChange={set("pctDesbaste")}
-              unit="%" step={0.5} sliderMax={8}
-              hint="Pérdida de kg por estrés del viaje al mercado" />
-          </div>
-          {/* Retenciones / IVA */}
-          <div className="bg-white rounded-xl border border-amber-200 p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span>🏛️</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-700">Carga Impositiva</span>
-            </div>
-            <Field label="% retenciones / IVA" value={gastos.pctImpuesto} onChange={set("pctImpuesto")}
-              unit="%" step={0.5} sliderMax={21}
-              hint="Aplica sobre el ingreso bruto de venta" />
-          </div>
-          {/* Plazo de cobro */}
-          <div className="bg-white rounded-xl border border-amber-200 p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span>📅</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-700">Plazo de Cobro</span>
-            </div>
-            <Field label="Días hasta cobro" value={gastos.plazoCobroDias} onChange={set("plazoCobroDias")}
-              unit="días" step={1} sliderMax={90}
-              hint="El ingreso futuro vale menos hoy (VP con tasa de descuento)" />
-          </div>
-          {/* Plazo de pago */}
-          <div className="bg-white rounded-xl border border-amber-200 p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span>💳</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-700">Plazo de Pago Compra</span>
-            </div>
-            <Field label="Días para pagar" value={gastos.plazoPagoDias} onChange={set("plazoPagoDias")}
-              unit="días" step={1} sliderMax={90}
-              hint="Pagar en diferido reduce el VP del costo de compra" />
-          </div>
-          {/* Amortización */}
-          <div className="bg-white rounded-xl border border-amber-200 p-3 space-y-2 sm:col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-1.5">
-              <span>🏗️</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-700">Amortización Estructura</span>
-            </div>
-            <Field label="$/año maquinaria + infra" value={gastos.amortAnual} onChange={set("amortAnual")}
-              unit="$/año" step={50000} sliderMax={5000000}
-              hint="Amortización de infraestructura del establecimiento. Afecta el Resultado Neto real." />
-            <div className="rounded-lg bg-amber-100 border border-amber-300 px-3 py-2 flex justify-between items-center">
-              <span className="text-xs font-semibold text-amber-700">Costo amortización / día</span>
-              <span className="font-mono font-bold text-amber-800">{fmtMoney(gastos.amortAnual / 365)}</span>
-            </div>
-          </div>
-        </div>
-        {(gastos.pctDesbaste > 0 || gastos.pctImpuesto > 0 || gastos.plazoCobroDias > 0 || gastos.plazoPagoDias > 0 || gastos.amortAnual > 0) && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {gastos.pctDesbaste > 0 && <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-100 border-amber-300 text-amber-700">⚖️ Desbaste {gastos.pctDesbaste}%</span>}
-            {gastos.pctImpuesto > 0 && <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-100 border-amber-300 text-amber-700">🏛️ Impuesto {gastos.pctImpuesto}%</span>}
-            {gastos.plazoCobroDias > 0 && <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-100 border-amber-300 text-amber-700">📅 Cobro {gastos.plazoCobroDias}d</span>}
-            {gastos.plazoPagoDias > 0 && <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-100 border-amber-300 text-amber-700">💳 Pago {gastos.plazoPagoDias}d</span>}
-            {gastos.amortAnual > 0 && <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-100 border-amber-300 text-amber-700">🏗️ Amort. {fmtMoney(gastos.amortAnual)}/año</span>}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1344,28 +1260,24 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
   const setC = (k) => (v) => setCompra((p) => ({ ...p, [k]: v }));
 
-  // Debounce: evita recálculos en cada keystroke (especialmente en sliders)
-  const dVenta  = useDebouncedValue(venta, 120);
-  const dCompra = useDebouncedValue(compra, 120);
-
   const calc = useMemo(() => {
-    const ingresoBrutoVenta = dVenta.cantidad * dVenta.pesoPromedio * dVenta.precioKg;
+    const ingresoBrutoVenta = venta.cantidad * venta.pesoPromedio * venta.precioKg;
     const fleteVentaCalc = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
     const comisionVentaPct = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const comisionCompraPct = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
     const gastoComisionVenta = ingresoBrutoVenta * comisionVentaPct;
     const ingresoNetoVenta = ingresoBrutoVenta - fleteVentaCalc - gastoComisionVenta;
-    const precioAnimalBruto = dCompra.pesoAnimal * dCompra.precioKg;
+    const precioAnimalBruto = compra.pesoAnimal * compra.precioKg;
     const costoUnitarioBruto = precioAnimalBruto * (1 + comisionCompraPct);
     const cabezasComprables = costoUnitarioBruto > 0
       ? Math.floor((ingresoNetoVenta - fleteCompraCalc) / costoUnitarioBruto)
       : 0;
     const costoRealTotal = cabezasComprables * costoUnitarioBruto + fleteCompraCalc;
     const sobrante = ingresoNetoVenta - costoRealTotal;
-    const relacionVentaCompra = dVenta.cantidad > 0 ? cabezasComprables / venta.cantidad : 0;
+    const relacionVentaCompra = venta.cantidad > 0 ? cabezasComprables / venta.cantidad : 0;
     return { ingresoBrutoVenta, ingresoNetoVenta, costoUnitarioBruto, cabezasComprables, sobrante, relacionVentaCompra };
-  }, [dVenta, dCompra, gastos]);
+  }, [venta, compra, gastos]);
 
   const ratio = calc.relacionVentaCompra;
   const ratioColor = ratio >= 1.3 ? "text-emerald-600" : ratio >= 1 ? "text-amber-600" : "text-red-500";
@@ -1550,81 +1462,72 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
     kreepMeses: 3,
     kreepCostoMes: 8000,
     kreepKgExtra: 15,
-    // ── PASO 2: Mejoras económico-financieras ─────────────────────────────
-    pctDesbasteTerneros: 2,    // % merma en venta de terneros
-    pctImpuestoVenta:    0,    // % retenciones / carga impositiva
-    plazoCobroDias:      0,    // días hasta cobro de terneros
-    amortMaquinaria:     0,    // $/año amortización maquinaria
-    amortReproductores:  0,    // $/año amortización toros / reproductores
   });
   const set = (k) => (v) => setInputs((p) => ({ ...p, [k]: v }));
-
-  // Debounce inputs para evitar recálculos continuos en sliders
-  const dInputs = useDebouncedValue(inputs, 120);
 
   const calc = useMemo(() => {
     const inversionInicial =
       tipoCompra === "terneras"
-        ? dInputs.cantidad * dInputs.pesoCompra * dInputs.precioKgCompra
-        : dInputs.cantidad * dInputs.precioBulto;
+        ? inputs.cantidad * inputs.pesoCompra * inputs.precioKgCompra
+        : inputs.cantidad * inputs.precioBulto;
 
-    const costoRecriaPreServicio = inmagVientres * precioNovilloInmag * dInputs.mesesRecriaPreServicio * dInputs.cantidad;
-    const mesesTotalesVida = dInputs.anosVidaUtil * 12;
-    const costoPastoreoVida = inmagVientres * precioNovilloInmag * mesesTotalesVida * dInputs.cantidad;
-    const costoIatfTotal = dInputs.kgIatf * precioNovilloInmag * dInputs.anosVidaUtil * dInputs.cantidad;
+    const costoRecriaPreServicio = inmagVientres * precioNovilloInmag * inputs.mesesRecriaPreServicio * inputs.cantidad;
+    const mesesTotalesVida = inputs.anosVidaUtil * 12;
+    const costoPastoreoVida = inmagVientres * precioNovilloInmag * mesesTotalesVida * inputs.cantidad;
+    const costoIatfTotal = inputs.kgIatf * precioNovilloInmag * inputs.anosVidaUtil * inputs.cantidad;
 
     // MEJORA 5: Costo de toros anual (kg × precio INMAG × años × cabezas)
-    const costoTorosAnual = dInputs.kgToros * precioNovilloInmag * dInputs.cantidad;
-    const costoTorosTotal = costoTorosAnual * dInputs.anosVidaUtil;
+    const costoTorosAnual = inputs.kgToros * precioNovilloInmag * inputs.cantidad;
+    const costoTorosTotal = costoTorosAnual * inputs.anosVidaUtil;
 
     // Suplementación Terneras (se aplica durante el período de recría pre-servicio)
-    const mesesSuplTernerasValidos = dInputs.mesesSuplTerneras.filter((m) => m <= dInputs.mesesRecriaPreServicio);
-    const costoSuplTerneras = mesesSuplTernerasValidos.length * dInputs.costoSuplTernerasMes * dInputs.cantidad;
+    const mesesSuplTernerasValidos = inputs.mesesSuplTerneras.filter((m) => m <= inputs.mesesRecriaPreServicio);
+    const costoSuplTerneras = mesesSuplTernerasValidos.length * inputs.costoSuplTernerasMes * inputs.cantidad;
 
     // Suplementación Vacas Preñadas — aplica solo en los años seleccionados
-    const anosSupl = Math.min(dInputs.anosSuplementacion ?? dInputs.anosVidaUtil, dInputs.anosVidaUtil);
-    const costoSuplVacasAnual = dInputs.mesesSuplVacas.length * dInputs.costoSuplVacasMes * dInputs.cantidad;
+    const anosSupl = Math.min(inputs.anosSuplementacion ?? inputs.anosVidaUtil, inputs.anosVidaUtil);
+    const costoSuplVacasAnual = inputs.mesesSuplVacas.length * inputs.costoSuplVacasMes * inputs.cantidad;
     const costoSuplVacasTotal = costoSuplVacasAnual * anosSupl;
 
     // Terneros (necesario antes del creep calc)
-    const ternerosAnualesCalc = dInputs.cantidad * (dInputs.pctDestete / 100);
+    const ternerosAnualesCalc = inputs.cantidad * (inputs.pctDestete / 100);
 
     // Creep Feeding terneros — costo adicional sobre los terneros que nacen
-    const costoKreepAnual = dInputs.kreepOn
-      ? ternerosAnualesCalc * dInputs.kreepMeses * (dInputs.kreepCostoMes ?? 8000)
+    const costoKreepAnual = inputs.kreepOn
+      ? ternerosAnualesCalc * inputs.kreepMeses * (inputs.kreepCostoMes ?? 8000)
       : 0;
-    const costoKreepTotal = costoKreepAnual * dInputs.anosVidaUtil;
+    const costoKreepTotal = costoKreepAnual * inputs.anosVidaUtil;
     // Peso extra por creep (agrega kg al peso de destete en el cálculo de ingreso)
-    const pesoTerneroConKreep = dInputs.kreepOn
-      ? dInputs.pesoTerneroDestetado + dInputs.kreepKgExtra
-      : dInputs.pesoTerneroDestetado;
+    const pesoTerneroConKreep = inputs.kreepOn
+      ? inputs.pesoTerneroDestetado + inputs.kreepKgExtra
+      : inputs.pesoTerneroDestetado;
 
     const costoTotalProyecto = inversionInicial + costoRecriaPreServicio + costoPastoreoVida + costoIatfTotal + costoTorosTotal + costoSuplTerneras + costoSuplVacasTotal + costoKreepTotal;
-    const costoRetencionAnual = costoTotalProyecto / dInputs.anosVidaUtil;
-    const costoTotalPorVientre = costoTotalProyecto / dInputs.cantidad;
+    const costoRetencionAnual = costoTotalProyecto / inputs.anosVidaUtil;
+    const costoTotalPorVientre = costoTotalProyecto / inputs.cantidad;
 
     const ternerosAnuales = ternerosAnualesCalc;
-    const ingresoBrutoAnual = ternerosAnuales * pesoTerneroConKreep * dInputs.precioTerneroKg;
+    const ingresoBrutoAnual = ternerosAnuales * pesoTerneroConKreep * inputs.precioTerneroKg;
     const comisionVentaPctV = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const fleteVentaV = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const gastoComisionVentaAnual = ingresoBrutoAnual * comisionVentaPctV;
     const ingresoNetoAnual = ingresoBrutoAnual - fleteVentaV - gastoComisionVentaAnual;
-    const ingresoNetoVidaUtil = ingresoNetoAnual * dInputs.anosVidaUtil;
+    const ingresoNetoVidaUtil = ingresoNetoAnual * inputs.anosVidaUtil;
 
-    const ingresoBrutoDescarte = dInputs.cantidad * dInputs.pesoVacaDescarte * dInputs.precioDescarteSalidaKg;
+    const ingresoBrutoDescarte = inputs.cantidad * inputs.pesoVacaDescarte * inputs.precioDescarteSalidaKg;
     const gastoComisionDescarte = ingresoBrutoDescarte * comisionVentaPctV;
     const recuperoDescarte = ingresoBrutoDescarte - fleteVentaV - gastoComisionDescarte;
 
     const ingresoTotalProyecto = ingresoNetoVidaUtil + recuperoDescarte;
     const margenNeto = ingresoTotalProyecto - costoTotalProyecto;
-    const margenPorVientrePorAno = dInputs.cantidad > 0 && dInputs.anosVidaUtil > 0
-      ? margenNeto / dInputs.cantidad / dInputs.anosVidaUtil : 0;
+    const margenPorVientrePorAno = inputs.cantidad > 0 && inputs.anosVidaUtil > 0
+      ? margenNeto / inputs.cantidad / inputs.anosVidaUtil : 0;
     const roiPct = costoTotalProyecto > 0 ? (margenNeto / costoTotalProyecto) * 100 : 0;
 
     const precioCompraRef =
       tipoCompra === "terneras"
-        ? dInputs.precioKgCompra
-        : dInputs.pesoCompra > 0 ? dInputs.precioBulto / dInputs.pesoCompra : 0;
+        ? inputs.precioKgCompra
+        : inputs.pesoCompra > 0 ? inputs.precioBulto / inputs.pesoCompra : 0;
 
     // ════════════════════════════════════════════════════════════════════════
     // PILAR 3A — Flujos en MONEDA CONSTANTE (sin inflación nominal compuesta)
@@ -1634,15 +1537,15 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
     // Flujo año 0: inversión inicial + recría pre-servicio + supl terneras
     const flujo0 = -(inversionInicial + costoRecriaPreServicio + costoSuplTerneras);
     // Flujos años 1..N: ingreso neto − costos operativos del año
-    const costoPastoreoAnual = inmagVientres * precioNovilloInmag * 12 * dInputs.cantidad;
-    const costoIatfAnual     = dInputs.kgIatf * precioNovilloInmag * dInputs.cantidad;
-    const costoTorosAnualFl  = dInputs.kgToros * precioNovilloInmag * dInputs.cantidad;
+    const costoPastoreoAnual = inmagVientres * precioNovilloInmag * 12 * inputs.cantidad;
+    const costoIatfAnual     = inputs.kgIatf * precioNovilloInmag * inputs.cantidad;
+    const costoTorosAnualFl  = inputs.kgToros * precioNovilloInmag * inputs.cantidad;
     const flujos = [flujo0];
-    for (let t = 1; t <= dInputs.anosVidaUtil; t++) {
+    for (let t = 1; t <= inputs.anosVidaUtil; t++) {
       const suplExtra  = t <= anosSupl ? costoSuplVacasAnual : 0;
-      const kreepExtra = dInputs.kreepOn ? costoKreepAnual : 0;
+      const kreepExtra = inputs.kreepOn ? costoKreepAnual : 0;
       const flujoAnual = ingresoNetoAnual - costoPastoreoAnual - costoIatfAnual - costoTorosAnualFl - kreepExtra - suplExtra;
-      flujos.push(t === dInputs.anosVidaUtil ? flujoAnual + recuperoDescarte : flujoAnual);
+      flujos.push(t === inputs.anosVidaUtil ? flujoAnual + recuperoDescarte : flujoAnual);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1688,7 +1591,7 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
       // Nuevos: moneda constante + VAN
       flujos, van, tir, payback, toUSD, toKgNov,
     };
-  }, [dInputs, tipoCompra, inmagVientres, precioNovilloInmag, dolar, tasaDescuento, gastos]);
+  }, [inputs, tipoCompra, inmagVientres, precioNovilloInmag, dolar, tasaDescuento, gastos]);
 
   const margenPositivo = calc.margenNeto >= 0;
 
@@ -1750,40 +1653,6 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ── PASO 2: Amortizaciones en ProyectoVientres ──────────────────── */}
-      <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <span>🏗️</span>
-          <p className="text-xs font-black uppercase tracking-widest text-rose-700">Amortizaciones — Costos de Estructura</p>
-          <span className="text-xs text-rose-500 normal-case">— para obtener el Resultado Neto real</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Amort. Maquinaria + Infraestructura" value={inputs.amortMaquinaria}
-            onChange={set("amortMaquinaria")} unit="$/año" step={50000} sliderMax={3000000}
-            hint="Tractores, alambrados, corrales, aguadas, etc." />
-          <Field label="Amort. Toros / Reproductores" value={inputs.amortReproductores}
-            onChange={set("amortReproductores")} unit="$/año" step={10000} sliderMax={1000000}
-            hint="Depreciación de la inversión en reproductores" />
-        </div>
-        {(inputs.amortMaquinaria > 0 || inputs.amortReproductores > 0) && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-white border border-rose-200 px-3 py-2 text-center">
-              <p className="text-xs text-rose-600 font-semibold uppercase tracking-wider">Amort. Total / año</p>
-              <p className="font-mono font-bold text-rose-800 text-lg">{fmtMoney((inputs.amortMaquinaria||0) + (inputs.amortReproductores||0))}</p>
-            </div>
-            <div className="rounded-lg bg-white border border-rose-200 px-3 py-2 text-center">
-              <p className="text-xs text-rose-600 font-semibold uppercase tracking-wider">Amort. Total ({inputs.anosVidaUtil}a)</p>
-              <p className="font-mono font-bold text-rose-800 text-lg">{fmtMoney(((inputs.amortMaquinaria||0) + (inputs.amortReproductores||0)) * inputs.anosVidaUtil)}</p>
-            </div>
-            <div className="rounded-lg bg-rose-100 border border-rose-300 px-3 py-2 text-center">
-              <p className="text-xs text-rose-700 font-semibold uppercase tracking-wider">Amort. / vientre / año</p>
-              <p className="font-mono font-bold text-rose-900 text-lg">{fmtMoney(inputs.cantidad > 0 ? ((inputs.amortMaquinaria||0) + (inputs.amortReproductores||0)) / inputs.cantidad : 0)}</p>
-            </div>
-          </div>
-        )}
-        <p className="text-xs text-rose-400 italic">Las amortizaciones no son salida de caja (no-cash) — no afectan el VAN/TIR pero sí el Resultado Neto contable.</p>
       </div>
 
       <Divider />
@@ -1862,11 +1731,7 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 flex-1 flex items-center">
               <span className="font-mono font-bold text-emerald-700 text-lg">{fmtMoney(calc.ingresoNetoAnual)}</span>
             </div>
-            <p className="text-xs text-slate-400 italic">
-              {inputs.pctDesbasteTerneros > 0 && `⚖️ Desbaste ${inputs.pctDesbasteTerneros}%: ${fmt(calc.pesoTerneroConKreep,1)} → ${fmt(calc.pesoTerneroFact,1)} kg · `}
-              después de gastos de venta
-              {inputs.pctImpuestoVenta > 0 && ` e impuestos (${inputs.pctImpuestoVenta}%)`}
-            </p>
+            <p className="text-xs text-slate-400 italic">después de gastos de venta</p>
           </div>
         </div>
       </div>
@@ -2030,12 +1895,6 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
         <KpiCard label="ROI del proyecto" value={fmtPct(calc.roiPct, 1)}
           sub={`sobre inversión total de ${fmtMoney(calc.costoTotalProyecto)}`}
           color={calc.roiPct >= 0 ? "text-emerald-600" : "text-red-500"} />
-        {(inputs.amortMaquinaria > 0 || inputs.amortReproductores > 0) && (
-          <KpiCard label="Resultado Neto (c/amort.)" value={fmtMoney(calc.margenOperativo - calc.amortTotalProyecto)}
-            sub={`Margen operativo − ${fmtMoney(calc.amortTotalProyecto)} amortizaciones`}
-            color={(calc.margenOperativo - calc.amortTotalProyecto) >= 0 ? "text-rose-600" : "text-red-600"}
-            bg="bg-rose-50" border="border-rose-200" />
-        )}
         <KpiCard label="Terneros / año" value={`${fmt(calc.ternerosAnuales, 1)} cab`}
           sub={`${inputs.pctDestete}% de ${inputs.cantidad} vientres`} />
       </div>
@@ -2315,73 +2174,58 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     }
   }, [descarteData]);
 
-  // Debounce para operaciones pesadas del comparador
-  const dBase = useDebouncedValue(base, 120);
-  const dOpA  = useDebouncedValue(opA, 120);
-  const dOpB  = useDebouncedValue(opB, 120);
-
   const calc = useMemo(() => {
-    // PASO 2: enriquecer base con variables económico-financieras del store global
-    const baseConFinanciero = {
-      ...dBase,
-      pctDesbaste:    gastos.pctDesbaste    || 0,
-      pctImpuesto:    gastos.pctImpuesto    || 0,
-      plazoCobroDias: gastos.plazoCobroDias || 0,
-      plazoPagoDias:  gastos.plazoPagoDias  || 0,
-      amortAnual:     gastos.amortAnual     || 0,
-      tasaDescuento:  global.tasaDescuento  || 8,
-    };
-    const inversionBruta = baseConFinanciero.cantidad * baseConFinanciero.pesoIngreso * baseConFinanciero.precioCompraKg;
+    const inversionBruta = base.cantidad * base.pesoIngreso * base.precioCompraKg;
     const comisionCompraPctC = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
     const fleteCompraC = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
     const gastoComisionCompra = inversionBruta * comisionCompraPctC;
     const inversionBase = inversionBruta + fleteCompraC + gastoComisionCompra;
     const gastosCompra = fleteCompraC + gastoComisionCompra;
 
-    const diasPasto = dOpA.mesesRecria * 30;
+    const diasPasto = opA.mesesRecria * 30;
     // MEJORA 2: decimal fix en GPV
-    const gpvA = Math.round(dOpA.gpvDiaria * 10) / 10;
+    const gpvA = Math.round(opA.gpvDiaria * 10) / 10;
     const gpvTotalA = gpvA * diasPasto;
-    const pesoSalidaA = dBase.pesoIngreso + gpvTotalA;
-    const costoPastoreoA = inmagInvernada * precioNovilloInmag * dOpA.mesesRecria * dBase.cantidad;
-    const costoKgPastoCalc = gpvTotalA * dBase.cantidad > 0 ? costoPastoreoA / (gpvTotalA * dBase.cantidad) : 0;
-    const mesesSuplValidos = dOpA.mesesSuplementActivos.filter((m) => m <= dOpA.mesesRecria);
-    const costoSuplementacionA = mesesSuplValidos.length * dOpA.costoSuplementoMensual * dBase.cantidad;
+    const pesoSalidaA = base.pesoIngreso + gpvTotalA;
+    const costoPastoreoA = inmagInvernada * precioNovilloInmag * opA.mesesRecria * base.cantidad;
+    const costoKgPastoCalc = gpvTotalA * base.cantidad > 0 ? costoPastoreoA / (gpvTotalA * base.cantidad) : 0;
+    const mesesSuplValidos = opA.mesesSuplementActivos.filter((m) => m <= opA.mesesRecria);
+    const costoSuplementacionA = mesesSuplValidos.length * opA.costoSuplementoMensual * base.cantidad;
     const costoOperativoA = costoPastoreoA + costoSuplementacionA;
-    const ingresoBrutoA = dBase.cantidad * pesoSalidaA * dOpA.precioVentaKg;
+    const ingresoBrutoA = base.cantidad * pesoSalidaA * opA.precioVentaKg;
     const comisionVentaPctC = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const fleteVentaC = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const gastoComisionVentaA = ingresoBrutoA * comisionVentaPctC;
     const gastosVentaA = fleteVentaC + gastoComisionVentaA;
     const ingresoNetoA = ingresoBrutoA - gastosVentaA;
     const margenA = ingresoNetoA - inversionBase - costoOperativoA;
-    const margenPorCabA = margenA / dBase.cantidad;
+    const margenPorCabA = margenA / base.cantidad;
 
     const pesoIngresoB = opBPesoOverride !== null ? opBPesoOverride : pesoSalidaA;
     // MEJORA 2: decimal fix en GPV feedlot
-    const gpvB = Math.round(dOpB.gpvDiaria * 10) / 10;
-    const gpvTotalB = gpvB * dOpB.diasEncierre;
+    const gpvB = Math.round(opB.gpvDiaria * 10) / 10;
+    const gpvTotalB = gpvB * opB.diasEncierre;
     const pesoSalidaB = pesoIngresoB + gpvTotalB;
-    const costoTotalDiario = dOpB.costoRacionDiaria + dOpB.costoHoteleriadiaria;
-    const costoRacionPorAnimal = dOpB.costoRacionDiaria * dOpB.diasEncierre;
-    const costoHoteleriaPorAnimal = dOpB.costoHoteleriadiaria * dOpB.diasEncierre;
-    const costoOperativoB = costoTotalDiario * dOpB.diasEncierre * dBase.cantidad;
-    const ingresoBrutoB = dBase.cantidad * pesoSalidaB * dOpB.precioVentaKg;
+    const costoTotalDiario = opB.costoRacionDiaria + opB.costoHoteleriadiaria;
+    const costoRacionPorAnimal = opB.costoRacionDiaria * opB.diasEncierre;
+    const costoHoteleriaPorAnimal = opB.costoHoteleriadiaria * opB.diasEncierre;
+    const costoOperativoB = costoTotalDiario * opB.diasEncierre * base.cantidad;
+    const ingresoBrutoB = base.cantidad * pesoSalidaB * opB.precioVentaKg;
     const gastoComisionVentaB = ingresoBrutoB * comisionVentaPctC;
     const gastosVentaB = fleteVentaC + gastoComisionVentaB;
     const ingresoNetoB = ingresoBrutoB - gastosVentaB;
     const inversionB = ingresoNetoA;
     const margenB = ingresoNetoB - inversionB - costoOperativoB;
-    const margenPorCabB = margenB / dBase.cantidad;
-    const costoKgGanadoB = gpvB > 0 ? dOpB.costoRacionDiaria / gpvB : 0;
-    const margenPorKgB = dOpB.precioVentaKg - costoKgGanadoB;
+    const margenPorCabB = margenB / base.cantidad;
+    const costoKgGanadoB = gpvB > 0 ? opB.costoRacionDiaria / gpvB : 0;
+    const margenPorKgB = opB.precioVentaKg - costoKgGanadoB;
     const ganadorA = margenA >= margenB;
 
     // ── MEJORA 4: Relación Compra-Venta — indicador clave de invernada
     // RC/V = precio venta gordo / precio compra ternero
     // Umbral: >1.6 excelente, >1.3 bueno, <1.0 peligroso
-    const relacionCV_A = dBase.precioCompraKg > 0 ? dOpA.precioVentaKg / dBase.precioCompraKg : 0;
-    const relacionCV_B = dBase.precioCompraKg > 0 ? dOpB.precioVentaKg / dBase.precioCompraKg : 0;
+    const relacionCV_A = base.precioCompraKg > 0 ? opA.precioVentaKg / base.precioCompraKg : 0;
+    const relacionCV_B = base.precioCompraKg > 0 ? opB.precioVentaKg / base.precioCompraKg : 0;
 
     return {
       inversionBruta, inversionBase, gastosCompra,
@@ -2395,13 +2239,13 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
            costoRacionPorAnimal, costoHoteleriaPorAnimal, costoOperativo: costoOperativoB,
            inversionB, ingresoBruto: ingresoBrutoB, gastosVenta: gastosVentaB, ingresoNeto: ingresoNetoB,
            margen: margenB, margenPorCab: margenPorCabB, costoKgGanado: costoKgGanadoB, margenPorKg: margenPorKgB,
-           margenProduccion: (dOpB.precioVentaKg - costoKgGanadoB) * gpvTotalB * dBase.cantidad,
-           margenDiferencial: (dOpB.precioVentaKg - dBase.precioCompraKg) * pesoIngresoB * dBase.cantidad,
-           precioIndiferencia: pesoSalidaB > 0 ? (inversionB + costoOperativoB + gastosVentaB) / (dBase.cantidad * pesoSalidaB) : 0,
+           margenProduccion: (opB.precioVentaKg - costoKgGanadoB) * gpvTotalB * base.cantidad,
+           margenDiferencial: (opB.precioVentaKg - base.precioCompraKg) * pesoIngresoB * base.cantidad,
+           precioIndiferencia: pesoSalidaB > 0 ? (inversionB + costoOperativoB + gastosVentaB) / (base.cantidad * pesoSalidaB) : 0,
       },
       ganadorA,
     };
-  }, [dBase, gastos, dOpA, dOpB, opBPesoOverride, inmagInvernada, precioNovilloInmag, global]);
+  }, [base, gastos, opA, opB, opBPesoOverride, inmagInvernada, precioNovilloInmag]);
 
   const mesesFeedlot = opB.diasEncierre / 30;
 
@@ -2758,8 +2602,6 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
           { label: "Costo operativo total", a: fmtMoney(calc.a.costoOperativo), b: fmtMoney(calc.b.costoOperativo) },
           { label: "Gastos de venta", a: fmtMoney(calc.a.gastosVenta), b: fmtMoney(calc.b.gastosVenta) },
           { label: "Ingreso neto de venta", a: fmtMoney(calc.a.ingresoNeto), b: fmtMoney(calc.b.ingresoNeto) },
-          ...(gastos.pctDesbaste > 0 ? [{ label: `⚖️ Peso facturado (desbaste ${gastos.pctDesbaste}%)`, a: fmtKg(calc.a.pesoSalida), b: fmtKg(calc.b.pesoSalida) }] : []),
-          ...(gastos.amortAnual > 0 ? [{ label: `🏗️ Resultado Neto c/amort.`, a: fmtMoney(calc.a.resultadoNeto), b: fmtMoney(calc.b.resultadoNeto) }] : []),
         ].map((row, i) => (
           <div key={i} className={`grid grid-cols-3 border-b border-slate-100 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
             <div className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center">{row.label}</div>
