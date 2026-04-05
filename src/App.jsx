@@ -3158,7 +3158,7 @@ function exportarPDF(titulo, secciones) {
 </style></head>
 <body>
   <div class="header">
-    <img src="data:image/png;base64,${LOGO_B64}" style="height:52px;object-fit:contain" alt="SoyPekun"/>
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:80px;object-fit:contain" alt="SoyPekun"/>
     <span class="badge">Simulador Económico Ganadero</span>
   </div>
   <div class="titulo">${titulo}</div>
@@ -3439,7 +3439,7 @@ function LoginScreen() {
           {/* Logo */}
           <div className="lwrap">
             <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              style={{ height:"72px", maxWidth:"240px", objectFit:"contain" }} />
+              style={{ height:"120px", maxWidth:"360px", objectFit:"contain" }} />
             <div className="lline" />
             <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
               <span className="lbadge">Simulador</span>
@@ -3520,7 +3520,7 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
           </button>
           <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
             <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              className="h-8 sm:h-9 object-contain shrink-0" style={{ maxWidth: "100px" }} />
+              className="h-11 sm:h-14 object-contain shrink-0" style={{ maxWidth: "160px" }} />
             <div className="bg-violet-600 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
               <span>📊</span><span className="hidden sm:inline">Simulador</span>
             </div>
@@ -3927,7 +3927,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           </button>
           <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
             <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              className="h-8 sm:h-9 object-contain shrink-0" style={{ maxWidth: "100px" }} />
+              className="h-11 sm:h-14 object-contain shrink-0" style={{ maxWidth: "160px" }} />
             <div className="bg-blue-500 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
               <span>🌾</span><span className="hidden sm:inline">Mi Campo</span>
             </div>
@@ -5203,8 +5203,8 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogo
             <img
               src={`data:image/png;base64,${LOGO_B64}`}
               alt="SoyPekun"
-              className="h-16 md:h-20 object-contain"
-              style={{ maxWidth: "320px" }}
+              className="h-24 md:h-32 object-contain"
+              style={{ maxWidth: "420px" }}
             />
           </div>
           {primerNombre && (
@@ -6044,8 +6044,8 @@ function EstrategiaComercial({ userEmail, onLogout }) {
               <img
                 src={`data:image/png;base64,${LOGO_B64}`}
                 alt="SoyPekun"
-                className="h-8 sm:h-9 object-contain shrink-0"
-                style={{ maxWidth: "100px" }}
+                className="h-11 sm:h-14 object-contain shrink-0"
+                style={{ maxWidth: "160px" }}
               />
               <div className={`${current.badge} text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0`}>
                 <span>{current.icon}</span>
@@ -6171,7 +6171,7 @@ export default function App() {
           flexDirection:"column", gap:"16px",
         }}>
           <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-            style={{ height:"56px", objectFit:"contain", opacity:0.9 }} />
+            style={{ height:"100px", objectFit:"contain", opacity:0.9 }} />
           <div className="app-spinner" style={{
             width:"32px", height:"32px",
             border:"3px solid rgba(255,255,255,0.3)",
