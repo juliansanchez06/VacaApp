@@ -118,12 +118,21 @@ const vacaStore = createStore((set, get) => ({
   anoGanaderoActual: getAnoGanadero(),
   historialAnos: {},
 
+  // ── Pastaje ───────────────────────────────────────────────────────────────
+  campoPastaje: {
+    tropas:   [],
+    periodos: [],
+    terceros: [],
+    precios:  { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 },
+  },
+
   // ── Setters ────────────────────────────────────────────────────────────────
   setGlobal:          (p) => set(s => ({ global:          { ...s.global,          ...p } })),
   setGastos:          (p) => set(s => ({ gastos:          { ...s.gastos,          ...p } })),
   setCampoCria:       (p) => set(s => ({ campoCria:       { ...s.campoCria,       ...p } })),
   setCampoRecria:     (p) => set(s => ({ campoRecria:     { ...s.campoRecria,     ...p } })),
   setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...p } })),
+  setCampoPastaje:    (p) => set(s => ({ campoPastaje:    { ...s.campoPastaje,    ...p } })),
 
   // ── Agregar al campo desde simulador ─────────────────────────────────────
   agregarAlCampo: ({ categoria, cantidad }) => set(s => {
@@ -3609,7 +3618,7 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
-function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, onToast }) {
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
   const [verHistorial, setVerHistorial] = useState(false);
@@ -3858,6 +3867,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     { id: "rendimiento",  label: "Rendimiento",        icon: "📊" },
     { id: "costos",       label: "Costos estructura",  icon: "💰" },
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
+    { id: "pastaje",      label: "Pastaje",            icon: "🤝" },
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
@@ -5167,6 +5177,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
             </div>
           )}
+
+          {seccion === "pastaje" && (
+            <PastajeCampo
+              pastaje={campoPastaje}
+              setPastaje={setCampoPastaje}
+              precioNovillo={precioNovilloGlobal}
+              stockPropio={{ cria, recria, terminacion }}
+              onToast={onToast || ((msg) => {})}
+            />
+          )}
   
         </div>
   
@@ -5811,6 +5831,712 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: PASTAJE — Gestión de animales de terceros
+// ═══════════════════════════════════════════════════════════════════════════
+function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
+  const [vista, setVista] = useState("tropas");
+  const [modal, setModal] = useState(null);
+  const [precioNov, setPrecioNov] = useState(precioNovillo);
+  const [tropaEgreso, setTropaEgreso] = useState(null);
+
+  const tropas   = pastaje?.tropas   ?? [];
+  const periodos = pastaje?.periodos ?? [];
+  const precios  = pastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 };
+  const terceros = pastaje?.terceros ?? [];
+
+  const setTropas   = (fn) => setPastaje({ tropas:   typeof fn === "function" ? fn(tropas)   : fn });
+  const setPeriodos = (fn) => setPastaje({ periodos: typeof fn === "function" ? fn(periodos) : fn });
+  const setPrecios  = (p)  => setPastaje({ precios:  { ...precios, ...p } });
+  const setTerceros = (fn) => setPastaje({ terceros: typeof fn === "function" ? fn(terceros) : fn });
+
+  const CATS = [
+    { id: "vacas",    label: "Vacas / Vaquillonas",       emoji: "🐄", color: "emerald" },
+    { id: "toros",    label: "Toros",                      emoji: "🐂", color: "blue"    },
+    { id: "terneras", label: "Terneras",                   emoji: "🐃", color: "amber"   },
+    { id: "recria",   label: "Recría (novillos/terneros)", emoji: "🐑", color: "violet"  },
+  ];
+  const CAT_COLORS = {
+    vacas:    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", strip: "bg-emerald-500",  dot: "#10b981" },
+    toros:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-500",      dot: "#0ea5e9" },
+    terneras: { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   strip: "bg-amber-400",    dot: "#f59e0b" },
+    recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
+  };
+
+  // Cargar datos iniciales la primera vez
+  useEffect(() => {
+    if (tropas.length === 0) {
+      const inicial = [
+        { id: 1,  cat: "vacas",    cab: 21,  origen: "Londero",               fechaIngreso: "2024-03-01", servicio: "verano"  },
+        { id: 2,  cat: "vacas",    cab: 26,  origen: "Vacas viejas",           fechaIngreso: "2024-03-01", servicio: "ninguno" },
+        { id: 3,  cat: "vacas",    cab: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2024-04-15", servicio: "otoño"   },
+        { id: 4,  cat: "vacas",    cab: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2024-04-15", servicio: "otoño"   },
+        { id: 5,  cat: "toros",    cab: 2,   origen: "Toros viejos",           fechaIngreso: "2024-03-01", servicio: "ninguno" },
+        { id: 6,  cat: "toros",    cab: 4,   origen: "Toros nuevos",           fechaIngreso: "2024-04-15", servicio: "ninguno" },
+        { id: 7,  cat: "terneras", cab: 7,   origen: "Londero",               fechaIngreso: "2024-06-01", servicio: "ninguno" },
+        { id: 8,  cat: "recria",   cab: 6,   origen: "Novillos compra",        fechaIngreso: "2024-04-01", servicio: "ninguno" },
+        { id: 9,  cat: "recria",   cab: 0,   origen: "Terneros compra",        fechaIngreso: "2024-06-01", servicio: "ninguno" },
+        { id: 10, cat: "recria",   cab: 111, origen: "Terneros marca líq.",    fechaIngreso: "2024-06-01", servicio: "ninguno" },
+      ];
+      const tercerosInic = [
+        { id: 1, nombre: "Londero" },
+        { id: 2, nombre: "Marca líquida" },
+        { id: 3, nombre: "Compra propia" },
+      ];
+      setPastaje({ tropas: inicial, terceros: tercerosInic });
+    }
+  }, []); // eslint-disable-line
+
+  const diasEntre = (desde, hasta) => {
+    const d1 = new Date(desde);
+    const d2 = new Date(hasta || new Date());
+    return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+  };
+  const kgDevengados = (tropa, hasta) => {
+    const cab = tropa.cabActual ?? tropa.cab;
+    if (cab <= 0) return 0;
+    const kgMes = precios[tropa.cat] ?? 6;
+    return cab * kgMes * (diasEntre(tropa.fechaIngreso, hasta) / 30);
+  };
+  const kgTotalesHoy = tropas.reduce((s, t) => s + kgDevengados(t, null), 0);
+  const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+  const totalCabPastaje = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+
+  const fmtN  = (n) => Math.round(n).toLocaleString("es-AR");
+  const fmtK1 = (n) => (n / 1000).toFixed(1) + "k";
+  const fmtFecha = (f) => {
+    if (!f) return "—";
+    const [y, m, d] = f.split("-");
+    return `${d}/${m}/${y.slice(2)}`;
+  };
+  const toast = onToast || ((msg) => console.log(msg));
+
+  // ── Modal Wrapper ─────────────────────────────────────────────────────────
+  const ModalWrapper = ({ titulo, children, onClose, onGuardar }) => (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: "rgba(15,23,42,0.6)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto sim-zoom-enter">
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
+        </div>
+        {children}
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-sm hover:bg-slate-50 transition-all">Cancelar</button>
+          <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
+  const ModalNuevaTropa = ({ onClose }) => {
+    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno" });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const guardar = () => {
+      if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
+      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), id: Date.now() }]);
+      toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Nueva tropa de pastaje" onClose={onClose} onGuardar={guardar}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
+            <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, García…"
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
+            <select value={form.cat} onChange={set("cat")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              {CATS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas</label>
+            <input type="number" min="1" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha ingreso</label>
+            <input type="date" value={form.fechaIngreso} onChange={set("fechaIngreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</label>
+            <select value={form.servicio} onChange={set("servicio")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="ninguno">Sin servicio</option>
+              <option value="verano">Servicio verano</option>
+              <option value="otoño">Servicio otoño</option>
+            </select>
+          </div>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Egreso ──────────────────────────────────────────────────────────
+  const ModalEgreso = ({ tropa, onClose }) => {
+    const cabActual = tropa.cabActual ?? tropa.cab;
+    const [form, setForm] = useState({ cantidad: cabActual, fechaEgreso: new Date().toISOString().slice(0, 10), motivo: "venta", obs: "" });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const cab = Math.min(Number(form.cantidad) || 0, cabActual);
+    const kgDev = kgDevengados({ ...tropa, cabActual: cab }, form.fechaEgreso);
+    const pesos = kgDev * precioNov;
+    const guardar = () => {
+      if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
+      const evento = {
+        id: Date.now(), tipo: "egreso", tropaId: tropa.id, tropaOrigen: tropa.origen, cat: tropa.cat, cab,
+        fechaEgreso: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
+        kgDevengados: Math.round(kgDev * 10) / 10, pesosDevengados: Math.round(pesos),
+        fechaIngreso: tropa.fechaIngreso, diasEstadia: diasEntre(tropa.fechaIngreso, form.fechaEgreso),
+      };
+      setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, egresos: [...(t.egresos || []), evento] } : t));
+      setPeriodos(prev => [...prev, {
+        id: Date.now() + 1, tipo: "egreso", origen: tropa.origen, cat: tropa.cat, cab,
+        fechaDesde: tropa.fechaIngreso, fechaHasta: form.fechaEgreso,
+        dias: evento.diasEstadia, kgTotal: Math.round(kgDev * 10) / 10,
+        precioNov, totalPesos: Math.round(pesos), estado: "pendiente", obs: form.obs,
+      }]);
+      toast(`✅ Egreso: ${cab} cab ${tropa.origen} — ${fmtN(Math.round(kgDev))} kg nov devengados`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo={`Egreso — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que egresan</label>
+            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha egreso</label>
+            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
+            <select value={form.motivo} onChange={set("motivo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="venta">Venta / terminación</option>
+              <option value="descarte">Descarte</option>
+              <option value="mortandad">Mortandad</option>
+              <option value="retiro">Retiro dueño</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+        <div className="mt-1 rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-4 space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cobro generado por este egreso</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white rounded-xl p-2 border border-emerald-100">
+              <p className="text-xs text-slate-400">Estadía</p>
+              <p className="font-black text-slate-800 text-sm">{diasEntre(tropa.fechaIngreso, form.fechaEgreso)} días</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-emerald-100">
+              <p className="text-xs text-slate-400">kg novillo</p>
+              <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgDev))} kg</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-emerald-100">
+              <p className="text-xs text-slate-400">$ aprox.</p>
+              <p className="font-black text-slate-800 text-sm">${fmtK1(pesos)}</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 italic">{cab} cab × {precios[tropa.cat]} kg/ani/mes × {diasEntre(tropa.fechaIngreso, form.fechaEgreso)} días ÷ 30 = {fmtN(Math.round(kgDev))} kg nov</p>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Evento ──────────────────────────────────────────────────────────
+  const ModalEvento = ({ onClose }) => {
+    const [form, setForm] = useState({ tipo: "servicio-verano", tropaId: tropas[0]?.id ?? "", fecha: new Date().toISOString().slice(0, 10), cab: 0, obs: "" });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const tropaSelec = tropas.find(t => String(t.id) === String(form.tropaId));
+    const guardar = () => {
+      const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: form.tipo, estado: "registrado" };
+      setPeriodos(prev => [...prev, { ...evento, tipo: "evento" }]);
+      if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
+        setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
+      }
+      toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Registrar evento" onClose={onClose} onGuardar={guardar}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de evento</label>
+            <select value={form.tipo} onChange={set("tipo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="servicio-verano">Servicio verano</option>
+              <option value="servicio-otoño">Servicio otoño</option>
+              <option value="destete">Destete</option>
+              <option value="mortandad">Mortandad</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tropa</label>
+            <select value={form.tropaId} onChange={set("tropaId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              {tropas.filter(t => (t.cabActual ?? t.cab) > 0).map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+            <input type="date" value={form.fecha} onChange={set("fecha")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{form.tipo === "mortandad" ? "Bajas" : "Cabezas involucradas"}</label>
+            <input type="number" min="0" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Tercero ─────────────────────────────────────────────────────────
+  const ModalTercero = ({ onClose }) => {
+    const [nombre, setNombre] = useState("");
+    const guardar = () => {
+      if (!nombre.trim()) return;
+      setTerceros(prev => [...prev, { id: Date.now(), nombre: nombre.trim() }]);
+      toast(`✅ Tercero "${nombre}" agregado`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Agregar tercero" onClose={onClose} onGuardar={guardar}>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del tercero</label>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: García, Estancia Don Juan…"
+            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+            autoFocus onKeyDown={e => e.key === "Enter" && guardar()} />
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  const TABS = [
+    { id: "tropas",  label: "Tropas",  emoji: "🐄" },
+    { id: "eventos", label: "Eventos", emoji: "📋" },
+    { id: "cobros",  label: "Cobros",  emoji: "💰" },
+    { id: "resumen", label: "Resumen", emoji: "📊" },
+  ];
+  const TabBtn = ({ id, label, emoji }) => (
+    <button onClick={() => setVista(id)}
+      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-black text-xs tracking-wide transition-all whitespace-nowrap
+        ${vista === id ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700"}`}>
+      <span>{emoji}</span><span>{label}</span>
+    </button>
+  );
+
+  // ── Vista Tropas ──────────────────────────────────────────────────────────
+  const VistaTropas = () => {
+    const porCat = CATS.map(c => ({
+      ...c,
+      tropas: tropas.filter(t => t.cat === c.id && (t.cabActual ?? t.cab) > 0),
+      total:  tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0),
+    })).filter(c => c.total > 0);
+    const svcLabel = { verano: "Serv. verano", "otoño": "Serv. otoño" };
+    const svcColor = { verano: "bg-sky-100 text-sky-700 border-sky-200", "otoño": "bg-amber-100 text-amber-700 border-amber-200" };
+    return (
+      <div className="space-y-4">
+        {porCat.map(cat => {
+          const col = CAT_COLORS[cat.id];
+          return (
+            <div key={cat.id} className={`rounded-3xl border-2 overflow-hidden shadow-sm ${col.border} ${col.bg}`}>
+              <div className={`h-1.5 ${col.strip}`} />
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{cat.emoji}</span>
+                    <span className={`text-xs font-black uppercase tracking-widest ${col.text}`}>{cat.label}</span>
+                  </div>
+                  <span className={`text-sm font-black ${col.text}`}>{cat.total} cab</span>
+                </div>
+                <div className="space-y-2">
+                  {cat.tropas.map(t => {
+                    const cabAct = t.cabActual ?? t.cab;
+                    const kgHoy = kgDevengados(t, null);
+                    return (
+                      <div key={t.id} className="bg-white/80 rounded-2xl border border-white p-3 flex flex-col gap-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="font-black text-slate-800 text-sm">{t.origen}</p>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
+                              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
+                              {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
+                              {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-slate-400">devengado</p>
+                            <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgHoy))} kg</p>
+                            <p className="text-xs text-slate-400">${fmtK1(kgHoy * precioNov)}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1 border-t border-slate-100">
+                          <button onClick={() => setTropaEgreso(t)}
+                            className="flex-1 text-xs font-black py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95">
+                            ↑ Registrar egreso
+                          </button>
+                          <button onClick={() => { if (!window.confirm(`¿Eliminar tropa "${t.origen}"?`)) return; setTropas(prev => prev.filter(x => x.id !== t.id)); toast(`🗑 Tropa ${t.origen} eliminada`, "warn"); }}
+                            className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">✕</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <button onClick={() => setModal("tropa")}
+          className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 hover:border-emerald-400 transition-all">
+          + Agregar tropa
+        </button>
+        {/* Apartado stock propio */}
+        {stockPropio && (
+          <div className="rounded-3xl border-2 border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">📦 Stock propio (referencia)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                ["Vacas propias",       stockPropio.cria?.vacas ?? 0,           "text-emerald-700"],
+                ["Vaquillonas",         stockPropio.cria?.vaquillonas ?? 0,      "text-emerald-600"],
+                ["Terneros al pie",     stockPropio.cria?.ternerosNoDestetados ?? 0, "text-amber-700"],
+                ["Toros propios",       stockPropio.cria?.toros ?? 0,            "text-sky-700"],
+                ["Recría propia",       (stockPropio.recria?.ternerosLiquidaMachos ?? 0) + (stockPropio.recria?.novillos ?? 0), "text-violet-700"],
+                ["Terminación",         (stockPropio.terminacion?.novillosCampo ?? 0) + (stockPropio.terminacion?.novillosFeedlot ?? 0), "text-orange-700"],
+              ].map(([lbl, val, col]) => (
+                <div key={lbl} className="bg-white rounded-xl border border-slate-200 p-2.5 text-center">
+                  <p className="text-xs text-slate-400">{lbl}</p>
+                  <p className={`font-black text-base ${col}`}>{val} cab</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between text-sm font-black">
+              <span className="text-slate-600">Total campo completo</span>
+              <span className="text-slate-800">
+                {totalCabPastaje + ((stockPropio.cria?.vacas ?? 0) + (stockPropio.cria?.vaquillonas ?? 0) + (stockPropio.cria?.ternerosNoDestetados ?? 0) + (stockPropio.cria?.toros ?? 0) + (stockPropio.recria?.ternerosLiquidaMachos ?? 0) + (stockPropio.recria?.novillos ?? 0) + (stockPropio.terminacion?.novillosCampo ?? 0) + (stockPropio.terminacion?.novillosFeedlot ?? 0))} cab
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Vista Eventos ─────────────────────────────────────────────────────────
+  const VistaEventos = () => {
+    const eventos = periodos
+      .filter(p => p.tipo === "evento" || p.tipo === "egreso")
+      .sort((a, b) => new Date(b.fecha || b.fechaEgreso) - new Date(a.fecha || a.fechaEgreso));
+    const TIPO_CFG = {
+      "servicio-verano": { color: "bg-sky-100 text-sky-700",        dot: "#0ea5e9", label: "Serv. verano" },
+      "servicio-otoño":  { color: "bg-amber-100 text-amber-700",    dot: "#f59e0b", label: "Serv. otoño"  },
+      destete:           { color: "bg-emerald-100 text-emerald-700", dot: "#10b981", label: "Destete"      },
+      mortandad:         { color: "bg-red-100 text-red-700",         dot: "#ef4444", label: "Mortandad"    },
+      egreso:            { color: "bg-orange-100 text-orange-700",   dot: "#f97316", label: "Egreso"       },
+      otro:              { color: "bg-slate-100 text-slate-600",     dot: "#94a3b8", label: "Evento"       },
+    };
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <button onClick={() => setModal("evento")}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-black text-xs shadow-md hover:bg-emerald-700 transition-all active:scale-95">
+            + Nuevo evento
+          </button>
+        </div>
+        {eventos.length === 0 && (
+          <div className="text-center py-10 text-slate-400"><p className="text-3xl mb-2">📋</p><p className="text-sm">Sin eventos registrados aún</p></div>
+        )}
+        {eventos.map(ev => {
+          const cfg = TIPO_CFG[ev.tipo] ?? TIPO_CFG.otro;
+          const fecha = ev.fecha || ev.fechaEgreso;
+          return (
+            <div key={ev.id} className="bg-white rounded-2xl border border-slate-200 p-3.5 flex gap-3 shadow-sm">
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.dot, marginTop: 4, flexShrink: 0 }} />
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
+                    <p className="font-black text-slate-800 text-sm mt-1">{ev.tropaOrigen}</p>
+                  </div>
+                  <span className="text-xs text-slate-400 whitespace-nowrap">{fmtFecha(fecha)}</span>
+                </div>
+                {ev.cab > 0 && <p className="text-xs text-slate-500 mt-1">{ev.cab} cab</p>}
+                {ev.tipo === "egreso" && (
+                  <div className="mt-1.5 flex gap-3 text-xs">
+                    <span className="text-emerald-700 font-bold">{fmtN(ev.kgDevengados)} kg nov</span>
+                    <span className="text-slate-500">${fmtK1(ev.pesosDevengados)} · {ev.diasEstadia} días</span>
+                  </div>
+                )}
+                {ev.obs && <p className="text-xs text-slate-400 italic mt-1">{ev.obs}</p>}
+              </div>
+              <button onClick={() => { if (!window.confirm("¿Eliminar este evento?")) return; setPeriodos(prev => prev.filter(p => p.id !== ev.id)); }}
+                className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors self-start mt-1">✕</button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── Vista Cobros ──────────────────────────────────────────────────────────
+  const VistaCobros = () => {
+    const todos = periodos
+      .filter(p => p.tipo === "egreso")
+      .sort((a, b) => new Date(b.fechaHasta || b.fechaEgreso || "") - new Date(a.fechaHasta || a.fechaEgreso || ""));
+    const pendiente = todos.filter(p => p.estado === "pendiente");
+    const pagado    = todos.filter(p => p.estado === "pagado");
+    const kgPend = pendiente.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+    const kgPag  = pagado.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+    const [expandPag, setExpandPag] = useState(false);
+
+    const marcarPagado = (id) => {
+      setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: new Date().toISOString().slice(0, 10) } : p));
+      toast("✅ Cobro marcado como pagado", "success");
+    };
+
+    const CobRow = ({ c }) => (
+      <div className={`rounded-2xl border-2 p-3.5 space-y-2 ${c.estado === "pagado" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${c.estado === "pagado" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
+                {c.estado === "pagado" ? "✓ Cobrado" : "⏳ Pendiente"}
+              </span>
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200 font-bold">Egreso</span>
+            </div>
+            <p className="font-black text-slate-800 text-sm mt-1.5">{c.origen}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{c.cab} cab · {fmtFecha(c.fechaDesde)} → {fmtFecha(c.fechaHasta)} · {c.dias} días</p>
+            {c.motivo && c.motivo !== "venta" && <p className="text-xs text-slate-400 italic">{c.motivo}</p>}
+            {c.obs && <p className="text-xs text-slate-400 italic">{c.obs}</p>}
+          </div>
+          <div className="text-right shrink-0">
+            <p className="font-black text-slate-800 text-lg">{fmtN(c.kgTotal)} kg</p>
+            <p className="text-sm text-slate-500">${fmtK1((c.kgTotal ?? 0) * precioNov)}</p>
+            {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pago {fmtFecha(c.fechaPago)}</p>}
+          </div>
+        </div>
+        {c.estado === "pendiente" && (
+          <button onClick={() => marcarPagado(c.id)}
+            className="w-full text-xs font-black py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all active:scale-95">
+            Marcar como cobrado ✓
+          </button>
+        )}
+      </div>
+    );
+
+    return (
+      <div className="space-y-4">
+        {/* Precio novillo */}
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Precio novillo INMAG ($/kg)</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-slate-500">$</span>
+            <input type="number" value={precioNov} onChange={e => setPrecioNov(Number(e.target.value))}
+              className="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-base font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+            <span className="text-sm text-slate-400 font-semibold">/kg</span>
+          </div>
+        </div>
+        {/* Precios por categoría */}
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Pastaje por categoría (kg nov/animal/mes)</p>
+          <div className="grid grid-cols-2 gap-3">
+            {CATS.map(c => {
+              const col = CAT_COLORS[c.id];
+              return (
+                <div key={c.id} className={`rounded-xl border p-2.5 ${col.bg} ${col.border}`}>
+                  <p className="text-xs text-slate-500">{c.emoji} {c.label}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input type="number" step="0.5" min="0" value={precios[c.id]}
+                      onChange={e => setPrecios({ [c.id]: parseFloat(e.target.value) || 0 })}
+                      className={`w-full border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none bg-white/70 ${col.border}`} />
+                    <span className="text-xs text-slate-400 whitespace-nowrap">kg/mes</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* KPIs */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5 text-center">
+            <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-1">Por cobrar</p>
+            <p className="text-2xl font-black text-amber-800">{fmtN(Math.round(kgPend))} kg</p>
+            <p className="text-sm text-amber-600">${fmtK1(kgPend * precioNov)}</p>
+          </div>
+          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3.5 text-center">
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-1">Cobrado</p>
+            <p className="text-2xl font-black text-emerald-800">{fmtN(Math.round(kgPag))} kg</p>
+            <p className="text-sm text-emerald-600">${fmtK1(kgPag * precioNov)}</p>
+          </div>
+        </div>
+        {pendiente.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por cobrar ({pendiente.length})</p>
+            {pendiente.map(c => <CobRow key={c.id} c={c} />)}
+          </div>
+        )}
+        {pagado.length > 0 && (
+          <div>
+            <button onClick={() => setExpandPag(p => !p)} className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-slate-600 transition-colors">
+              {expandPag ? "▾" : "▸"} Historial cobrado ({pagado.length})
+            </button>
+            {expandPag && <div className="mt-2 space-y-2">{pagado.map(c => <CobRow key={c.id} c={c} />)}</div>}
+          </div>
+        )}
+        {todos.length === 0 && (
+          <div className="text-center py-8 text-slate-400"><p className="text-3xl mb-2">💰</p><p className="text-sm">Los cobros se generan automáticamente al registrar un egreso</p></div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Vista Resumen ─────────────────────────────────────────────────────────
+  const VistaResumen = () => {
+    const porOrigen = useMemo(() => {
+      const map = {};
+      tropas.forEach(t => {
+        if (!map[t.origen]) map[t.origen] = { origen: t.origen, cat: t.cat, cab: 0, kgDev: 0 };
+        map[t.origen].cab    += t.cabActual ?? t.cab;
+        map[t.origen].kgDev += kgDevengados(t, null);
+      });
+      return Object.values(map).sort((a, b) => b.kgDev - a.kgDev);
+    }, [tropas, precios]);
+
+    const totalCab = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+    const totalKgDev = porOrigen.reduce((s, o) => s + o.kgDev, 0);
+    const kgCobPend = periodos.filter(p => p.tipo === "egreso" && p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+    const stockProp = stockPropio
+      ? (stockPropio.cria?.vacas ?? 0) + (stockPropio.cria?.vaquillonas ?? 0) +
+        (stockPropio.cria?.ternerosNoDestetados ?? 0) + (stockPropio.cria?.toros ?? 0) +
+        (stockPropio.recria?.ternerosLiquidaMachos ?? 0) + (stockPropio.recria?.novillos ?? 0) +
+        (stockPropio.terminacion?.novillosCampo ?? 0) + (stockPropio.terminacion?.novillosFeedlot ?? 0)
+      : 0;
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { lbl: "Cab. pastaje",    val: totalCab,                          suf: "cab",    col: "text-slate-800" },
+            { lbl: "Campo total",     val: totalCab + stockProp,               suf: "cab",    col: "text-slate-800" },
+            { lbl: "Devengado hoy",   val: fmtN(Math.round(totalKgDev)),       suf: "kg nov", col: "text-emerald-700" },
+            { lbl: "Por cobrar",      val: fmtN(Math.round(kgCobPend)),        suf: "kg nov", col: "text-amber-700" },
+          ].map(k => (
+            <div key={k.lbl} className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 text-center kpi-pop">
+              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">{k.lbl}</p>
+              <p className={`text-2xl font-black ${k.col} mt-0.5`}>{k.val}</p>
+              <p className="text-xs text-slate-400">{k.suf}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Por categoría</p>
+          <div className="space-y-2">
+            {CATS.map(c => {
+              const cab = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+              const kg  = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + kgDevengados(t, null), 0);
+              if (cab === 0) return null;
+              const col = CAT_COLORS[c.id];
+              return (
+                <div key={c.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${col.bg} ${col.border}`}>
+                  <span>{c.emoji}</span>
+                  <span className={`flex-1 text-sm font-bold ${col.text}`}>{c.label}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${col.border} ${col.bg} ${col.text}`}>{cab} cab</span>
+                  <span className={`font-black text-sm ${col.text}`}>{fmtN(Math.round(kg))} kg</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Por origen / tercero</p>
+          <div className="space-y-2">
+            {porOrigen.map(o => {
+              const col = CAT_COLORS[o.cat] ?? CAT_COLORS.vacas;
+              return (
+                <div key={o.origen} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.dot, flexShrink: 0 }} />
+                  <span className="flex-1 text-sm text-slate-700 font-semibold">{o.origen}</span>
+                  <span className="text-xs text-slate-400 font-semibold">{o.cab} cab</span>
+                  <span className="font-black text-sm text-emerald-700">{fmtN(Math.round(o.kgDev))} kg</span>
+                  <span className="text-xs text-slate-400">${fmtK1(o.kgDev * precioNov)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-2 border-t-2 border-slate-200 flex justify-between">
+            <span className="font-black text-slate-700">Total devengado hoy</span>
+            <div className="text-right">
+              <span className="font-black text-emerald-700">{fmtN(Math.round(totalKgDev))} kg nov</span>
+              <span className="text-slate-400 text-xs ml-2">${fmtK1(totalKgDev * precioNov)}</span>
+            </div>
+          </div>
+        </div>
+        {/* Gestión de terceros */}
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Terceros registrados</p>
+            <button onClick={() => setModal("tercero")}
+              className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-all">
+              + Agregar
+            </button>
+          </div>
+          {terceros.length === 0 && <p className="text-xs text-slate-400 italic">Sin terceros cargados</p>}
+          <div className="space-y-1.5">
+            {terceros.map(t => (
+              <div key={t.id} className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                <div className="w-7 h-7 rounded-full bg-slate-800 text-white font-black text-xs flex items-center justify-center">{t.nombre.slice(0, 2).toUpperCase()}</div>
+                <span className="flex-1 text-sm font-semibold text-slate-700">{t.nombre}</span>
+                <button onClick={() => { if (!window.confirm(`¿Eliminar tercero "${t.nombre}"?`)) return; setTerceros(prev => prev.filter(x => x.id !== t.id)); }}
+                  className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Render principal ──────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4 section-enter">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-black text-slate-800 text-xl tracking-tight">🤝 Pastaje</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {totalCabPastaje} cab · devengado: <span className="font-bold text-emerald-700">{fmtN(Math.round(kgTotalesHoy))} kg nov</span>
+            {kgPendientes > 0 && <> · <span className="text-amber-600 font-bold">{fmtN(Math.round(kgPendientes))} kg por cobrar</span></>}
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {TABS.map(t => <TabBtn key={t.id} {...t} />)}
+      </div>
+      <div key={vista}>
+        {vista === "tropas"  && <VistaTropas />}
+        {vista === "eventos" && <VistaEventos />}
+        {vista === "cobros"  && <VistaCobros />}
+        {vista === "resumen" && <VistaResumen />}
+      </div>
+      {modal === "tropa"   && <ModalNuevaTropa   onClose={() => setModal(null)} />}
+      {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
+      {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
+      {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
+    </div>
+  );
+}
+
 function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
@@ -5827,9 +6553,11 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const campoCria           = useStore(vacaStore, s => s.campoCria);
   const campoRecria         = useStore(vacaStore, s => s.campoRecria);
   const campoTerminacion    = useStore(vacaStore, s => s.campoTerminacion);
+  const campoPastaje        = useStore(vacaStore, s => s.campoPastaje);
   const setCampoCria        = (p) => vacaStore.getState().setCampoCria(p);
   const setCampoRecria      = (p) => vacaStore.getState().setCampoRecria(p);
   const setCampoTerminacion = (p) => vacaStore.getState().setCampoTerminacion(p);
+  const setCampoPastaje     = (p) => vacaStore.getState().setCampoPastaje(p);
 
   // ── Agregar al campo desde simulador — usa el store ─────────────────────
   const handleAgregarAlCampo = (datos) => {
@@ -5985,7 +6713,10 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           anoGanadero={anoGanaderoActual}
           historialAnos={historialAnos}
           onCerrarAno={handleCerrarAno}
-
+          campoPastaje={campoPastaje}
+          setCampoPastaje={setCampoPastaje}
+          precioNovilloGlobal={global.precioNovilloInmag}
+          onToast={pushToast}
         />
       </>
     );
