@@ -5831,6 +5831,52 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
   );
 }
 
+// ── Input especial para precio novillo: tipeo libre + botones long-press ────
+function PrecioNovInput({ value, onChange }) {
+  const [str, setStr] = useState(null); // null = mostrar prop, string = tipeo en curso
+
+  const handleChange = (e) => setStr(e.target.value);
+  const handleBlur = () => {
+    const n = parseInt((str ?? "").replace(/\D/g, ""), 10);
+    if (!isNaN(n) && n > 0) onChange(n);
+    setStr(null);
+  };
+  const handleFocus = (e) => { setStr(String(value)); e.target.select(); };
+
+  const step = 50;
+  const incFn = useCallback(() => onChange(Math.round((value + step) / step) * step), [onChange, value]);
+  const decFn = useCallback(() => onChange(Math.max(0, Math.round((value - step) / step) * step)), [onChange, value]);
+  const incLP = useLongPress(incFn, 80);
+  const decLP = useLongPress(decFn, 80);
+
+  return (
+    <div className="flex items-stretch gap-0 rounded-2xl border-2 border-slate-200 overflow-hidden shadow-sm">
+      <button {...decLP}
+        className="w-12 bg-slate-800 hover:bg-slate-900 text-white font-black text-xl flex items-center justify-center shrink-0 active:bg-slate-700 transition-colors touch-manipulation select-none">
+        −
+      </button>
+      <div className="flex-1 relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none font-bold">$</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={str !== null ? str : value.toLocaleString("es-AR")}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+          className="w-full h-full py-3 pl-7 pr-10 text-center font-mono font-black text-lg text-slate-800 focus:outline-none bg-white"
+          style={{ border: "none" }}
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">/kg</span>
+      </div>
+      <button {...incLP}
+        className="w-12 bg-slate-800 hover:bg-slate-900 text-white font-black text-xl flex items-center justify-center shrink-0 active:bg-slate-700 transition-colors touch-manipulation select-none">
+        +
+      </button>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PASTAJE — Gestión de animales de terceros
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5867,16 +5913,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   useEffect(() => {
     if (tropas.length === 0) {
       const inicial = [
-        { id: 1,  cat: "vacas",    cab: 21,  origen: "Londero",               fechaIngreso: "2024-03-01", servicio: "verano"  },
-        { id: 2,  cat: "vacas",    cab: 26,  origen: "Vacas viejas",           fechaIngreso: "2024-03-01", servicio: "ninguno" },
-        { id: 3,  cat: "vacas",    cab: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2024-04-15", servicio: "otoño"   },
-        { id: 4,  cat: "vacas",    cab: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2024-04-15", servicio: "otoño"   },
-        { id: 5,  cat: "toros",    cab: 2,   origen: "Toros viejos",           fechaIngreso: "2024-03-01", servicio: "ninguno" },
-        { id: 6,  cat: "toros",    cab: 4,   origen: "Toros nuevos",           fechaIngreso: "2024-04-15", servicio: "ninguno" },
-        { id: 7,  cat: "terneras", cab: 7,   origen: "Londero",               fechaIngreso: "2024-06-01", servicio: "ninguno" },
-        { id: 8,  cat: "recria",   cab: 6,   origen: "Novillos compra",        fechaIngreso: "2024-04-01", servicio: "ninguno" },
-        { id: 9,  cat: "recria",   cab: 0,   origen: "Terneros compra",        fechaIngreso: "2024-06-01", servicio: "ninguno" },
-        { id: 10, cat: "recria",   cab: 111, origen: "Terneros marca líq.",    fechaIngreso: "2024-06-01", servicio: "ninguno" },
+        { id: 1,  cat: "vacas",    cab: 21,  origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "verano"  },
+        { id: 2,  cat: "vacas",    cab: 26,  origen: "Vacas viejas",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 3,  cat: "vacas",    cab: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2026-04-21", servicio: "otoño"   },
+        { id: 4,  cat: "vacas",    cab: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2026-04-21", servicio: "otoño"   },
+        { id: 5,  cat: "toros",    cab: 2,   origen: "Toros viejos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 6,  cat: "toros",    cab: 4,   origen: "Toros nuevos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 7,  cat: "terneras", cab: 7,   origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 8,  cat: "recria",   cab: 6,   origen: "Novillos compra",        fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 9,  cat: "recria",   cab: 111, origen: "Terneros marca líq.",    fechaIngreso: "2026-04-21", servicio: "ninguno" },
       ];
       const tercerosInic = [
         { id: 1, nombre: "Londero" },
@@ -5902,8 +5947,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const totalCabPastaje = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
 
-  const fmtN  = (n) => Math.round(n).toLocaleString("es-AR");
-  const fmtK1 = (n) => (n / 1000).toFixed(1) + "k";
+  const fmtN    = (n) => Math.round(n).toLocaleString("es-AR");
+  const fmtPesos = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+  const fmtK1   = fmtPesos; // alias para no romper usos existentes
   const fmtFecha = (f) => {
     if (!f) return "—";
     const [y, m, d] = f.split("-");
@@ -6463,6 +6509,108 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const MODO_LABELS = { trimestral: "Trimestral", semestral: "Semestral", anual: "Anual", fecha: "Fecha específica" };
 
+    // ── Generador de imagen PNG del cobro ─────────────────────────────────────
+    const generarImagenCobro = (cobro) => {
+      const canvas = document.createElement("canvas");
+      const W = 800, padding = 48;
+      // Calcular altura según cantidad de líneas
+      const lineas = cobro.lineas ?? [];
+      const H = 280 + lineas.length * 72 + 120;
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // Fondo
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(0, 0, W, H);
+
+      // Franja superior verde
+      ctx.fillStyle = "#064e3b";
+      ctx.fillRect(0, 0, W, 80);
+
+      // Título
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px system-ui, sans-serif";
+      ctx.fillText("🤝 Liquidación de Pastaje", padding, 50);
+
+      // Subtítulo fecha
+      ctx.font = "16px system-ui, sans-serif";
+      ctx.fillStyle = "#6ee7b7";
+      ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}  ·  generado ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, padding, 70);
+
+      // Precio novillo
+      ctx.fillStyle = "#1e293b";
+      ctx.font = "14px system-ui, sans-serif";
+      ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 110);
+
+      // Tabla de líneas
+      let y = 140;
+      lineas.forEach((l, i) => {
+        // Fila alternada
+        ctx.fillStyle = i % 2 === 0 ? "#f1f5f9" : "#ffffff";
+        ctx.fillRect(padding, y - 18, W - padding * 2, 64);
+
+        // Origen
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 16px system-ui, sans-serif";
+        ctx.fillText(l.origen, padding + 10, y + 2);
+
+        // Cabezas + días
+        ctx.fillStyle = "#475569";
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText(`${l.cabActual} cab · desde ${fmtFecha(l.desde)} · ${l.diasTotalesPeriodo} días`, padding + 10, y + 22);
+
+        // Egresos si hay
+        if (l.tramosEnPeriodo?.length > 0) {
+          ctx.fillStyle = "#ea580c";
+          ctx.font = "12px system-ui, sans-serif";
+          ctx.fillText(l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab (${te.dias}d)`).join("  "), padding + 10, y + 40);
+        }
+
+        // kg y pesos — derecha
+        ctx.fillStyle = "#065f46";
+        ctx.font = "bold 18px system-ui, sans-serif";
+        const kgStr = `${fmtN(l.kgTotal)} kg`;
+        ctx.fillText(kgStr, W - padding - 240, y + 6);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 16px system-ui, sans-serif";
+        const pesosStr = fmtPesos(l.pesos);
+        ctx.fillText(pesosStr, W - padding - 240, y + 28);
+
+        y += 68;
+      });
+
+      // Línea separadora
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(padding, y + 8); ctx.lineTo(W - padding, y + 8); ctx.stroke();
+      y += 24;
+
+      // Total
+      ctx.fillStyle = "#064e3b";
+      ctx.fillRect(padding, y, W - padding * 2, 72);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px system-ui, sans-serif";
+      ctx.fillText("TOTAL", padding + 16, y + 26);
+      ctx.font = "28px system-ui, sans-serif";
+      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov`, padding + 16, y + 56);
+      ctx.font = "bold 26px system-ui, sans-serif";
+      ctx.fillStyle = "#6ee7b7";
+      ctx.fillText(fmtPesos(cobro.pesos), W - padding - 260, y + 50);
+
+      // Footer
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.fillText("SoyPekun · Gestión Ganadera Profesional", padding, H - 16);
+
+      // Descargar
+      const link = document.createElement("a");
+      link.download = `pastaje_${cobro.fechaHasta}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      toast("📥 Imagen descargada", "success");
+    };
+
     const CobRow = ({ c }) => {
       const [expand, setExpand] = useState(false);
       return (
@@ -6490,6 +6638,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               <button onClick={() => setExpand(p => !p)}
                 className="flex-1 text-xs font-bold py-1.5 rounded-xl border border-slate-200 bg-white/80 text-slate-600 hover:bg-white transition-all">
                 {expand ? "▾ Ocultar detalle" : "▸ Ver por tropa"}
+              </button>
+              <button onClick={() => generarImagenCobro(c)}
+                className="px-4 text-xs font-black py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-all active:scale-95">
+                📥 Imagen
               </button>
               {c.estado === "pendiente" && (
                 <button onClick={() => marcarPagado(c.id)}
@@ -6542,13 +6694,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {/* Panel de configuración + precios */}
         <div className="bg-white rounded-2xl border-2 border-slate-200 p-4 space-y-4">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">Configuración de cobro</p>
-          {/* Precio novillo */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Precio novillo INMAG</span>
-            <span className="text-xs text-slate-400">$</span>
-            <input type="number" value={precioNov} onChange={e => setPrecioNov(Number(e.target.value))}
-              className="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
-            <span className="text-xs text-slate-400">/kg</span>
+          {/* Precio novillo — input libre con botones long-press */}
+          <div>
+            <p className="text-xs font-bold text-slate-400 mb-2">Índice novillo arrendamiento ($/kg)</p>
+            <PrecioNovInput value={precioNov} onChange={setPrecioNov} />
           </div>
           {/* Precios por categoría */}
           <div>
@@ -6617,18 +6766,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                       </button>
                     );
                   })}
-                </div>
-              </div>
-              {/* Modo (solo informativo para el registro) */}
-              <div>
-                <p className="text-xs font-bold text-slate-400 mb-2">Tipo de período (para el registro)</p>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {Object.entries(MODO_LABELS).map(([k, v]) => (
-                    <button key={k} onClick={() => setModoCobro(k)}
-                      className={`py-1.5 rounded-xl text-xs font-black border-2 transition-all ${modoCobro === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}>
-                      {v}
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>
