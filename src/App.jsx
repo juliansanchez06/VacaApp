@@ -5975,47 +5975,85 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     );
   };
 
-  // ── Modal Egreso ──────────────────────────────────────────────────────────
+  // ── Modal Egreso — solo movimiento de stock, sin cobro ───────────────────
+  // El cobro se liquida siempre por período (trimestre/semestre/año/fecha).
+  // El egreso registra el cambio de cabezas y el tramo que "cerró" para esa
+  // cantidad, de modo que la liquidación futura lo tome correctamente.
   const ModalEgreso = ({ tropa, onClose }) => {
     const cabActual = tropa.cabActual ?? tropa.cab;
-    const [form, setForm] = useState({ cantidad: cabActual, fechaEgreso: new Date().toISOString().slice(0, 10), motivo: "venta", obs: "" });
+    const [form, setForm] = useState({
+      cantidad: cabActual,
+      fechaEgreso: new Date().toISOString().slice(0, 10),
+      motivo: "venta",
+      obs: "",
+    });
     const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
     const cab = Math.min(Number(form.cantidad) || 0, cabActual);
-    const kgDev = kgDevengados({ ...tropa, cabActual: cab }, form.fechaEgreso);
-    const pesos = kgDev * precioNov;
+    // Días desde el último corte de cobro (o desde ingreso si nunca se cobró)
+    const ultimoCobro = (tropa.ultimoCobro) || tropa.fechaIngreso;
+    const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
+    const diasTotales    = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
+    const kgMes = precios[tropa.cat] ?? 6;
+    // kg del tramo que se cierra (desde último corte hasta egreso)
+    const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
+
     const guardar = () => {
       if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
-      const evento = {
-        id: Date.now(), tipo: "egreso", tropaId: tropa.id, tropaOrigen: tropa.origen, cat: tropa.cat, cab,
-        fechaEgreso: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
-        kgDevengados: Math.round(kgDev * 10) / 10, pesosDevengados: Math.round(pesos),
-        fechaIngreso: tropa.fechaIngreso, diasEstadia: diasEntre(tropa.fechaIngreso, form.fechaEgreso),
+      // Registrar el movimiento de stock en la tropa:
+      // - bajamos cabezas
+      // - guardamos el tramo cerrado para que la próxima liquidación no lo duplique
+      const tramoEgreso = {
+        fecha: form.fechaEgreso,
+        cab,
+        desdeCorte: ultimoCobro,
+        dias: diasDesdeCorte,
+        kgTramo: Math.round(kgTramo * 10) / 10,
+        motivo: form.motivo,
+        obs: form.obs,
       };
-      setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, egresos: [...(t.egresos || []), evento] } : t));
+      setTropas(prev => prev.map(t =>
+        t.id === tropa.id
+          ? {
+              ...t,
+              cabActual: (t.cabActual ?? t.cab) - cab,
+              tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso],
+            }
+          : t
+      ));
+      // También lo registramos en periodos como evento visible en la pestaña Eventos
       setPeriodos(prev => [...prev, {
-        id: Date.now() + 1, tipo: "egreso", origen: tropa.origen, cat: tropa.cat, cab,
-        fechaDesde: tropa.fechaIngreso, fechaHasta: form.fechaEgreso,
-        dias: evento.diasEstadia, kgTotal: Math.round(kgDev * 10) / 10,
-        precioNov, totalPesos: Math.round(pesos), estado: "pendiente", obs: form.obs,
+        id: Date.now(), tipo: "evento", subtipo: "egreso",
+        tropaOrigen: tropa.origen, cat: tropa.cat,
+        cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
+        diasEstadia: diasTotales,
+        kgTramoInfo: Math.round(kgTramo * 10) / 10,
+        estado: "registrado",
       }]);
-      toast(`✅ Egreso: ${cab} cab ${tropa.origen} — ${fmtN(Math.round(kgDev))} kg nov devengados`, "success");
+      toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
       onClose();
     };
+
     return (
-      <ModalWrapper titulo={`Egreso — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+      <ModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
+          ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que egresan</label>
-            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
+            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
             <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha egreso</label>
-            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
+            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
-            <select value={form.motivo} onChange={set("motivo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            <select value={form.motivo} onChange={set("motivo")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
               <option value="venta">Venta / terminación</option>
               <option value="descarte">Descarte</option>
               <option value="mortandad">Mortandad</option>
@@ -6025,26 +6063,30 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-            <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional"
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
           </div>
         </div>
-        <div className="mt-1 rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-4 space-y-2">
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cobro generado por este egreso</p>
+        {/* Info del tramo que queda descolgado hasta el próximo cobro */}
+        <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white rounded-xl p-2 border border-emerald-100">
-              <p className="text-xs text-slate-400">Estadía</p>
-              <p className="font-black text-slate-800 text-sm">{diasEntre(tropa.fechaIngreso, form.fechaEgreso)} días</p>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Días en campo</p>
+              <p className="font-black text-slate-800 text-sm">{diasTotales} días</p>
             </div>
-            <div className="bg-white rounded-xl p-2 border border-emerald-100">
-              <p className="text-xs text-slate-400">kg novillo</p>
-              <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgDev))} kg</p>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Desde último cobro</p>
+              <p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p>
             </div>
-            <div className="bg-white rounded-xl p-2 border border-emerald-100">
-              <p className="text-xs text-slate-400">$ aprox.</p>
-              <p className="font-black text-slate-800 text-sm">${fmtK1(pesos)}</p>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">kg aprox. del tramo</p>
+              <p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p>
             </div>
           </div>
-          <p className="text-xs text-slate-400 italic">{cab} cab × {precios[tropa.cat]} kg/ani/mes × {diasEntre(tropa.fechaIngreso, form.fechaEgreso)} días ÷ 30 = {fmtN(Math.round(kgDev))} kg nov</p>
+          <p className="text-xs text-slate-400 italic">
+            Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30
+          </p>
         </div>
       </ModalWrapper>
     );
@@ -6290,114 +6332,371 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   };
 
   // ── Vista Cobros ──────────────────────────────────────────────────────────
+  // Lógica: el cobro siempre es por período (trim/sem/anual/fecha libre).
+  // Al liquidar un período se calcula por tropa:
+  //   cab_actuales × kg/mes × días_en_período ÷ 30
+  //   + tramos de egresos que cayeron dentro del período (pro-rateados)
+  // El último corte de cobro queda guardado en cada tropa como "ultimoCobro".
   const VistaCobros = () => {
-    const todos = periodos
-      .filter(p => p.tipo === "egreso")
-      .sort((a, b) => new Date(b.fechaHasta || b.fechaEgreso || "") - new Date(a.fechaHasta || a.fechaEgreso || ""));
-    const pendiente = todos.filter(p => p.estado === "pendiente");
-    const pagado    = todos.filter(p => p.estado === "pagado");
-    const kgPend = pendiente.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
-    const kgPag  = pagado.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+    const hoy = new Date().toISOString().slice(0, 10);
+    const [modoCobro, setModoCobro] = useState("semestral");
+    const [fechaHasta, setFechaHasta] = useState(hoy);
+    const [showLiquidar, setShowLiquidar] = useState(false);
     const [expandPag, setExpandPag] = useState(false);
 
+    // Fecha de inicio del próximo período = el ultimoCobro más antiguo entre todas las tropas
+    // (o la fecha de ingreso más antigua si ninguna tiene cobro previo)
+    const fechaDesdeAuto = useMemo(() => {
+      if (tropas.length === 0) return hoy;
+      const fechas = tropas.map(t => t.ultimoCobro || t.fechaIngreso);
+      return fechas.sort()[0]; // la más antigua
+    }, [tropas]);
+
+    // Calcular fecha hasta según el modo seleccionado
+    const calcFechaHastaAuto = (modo) => {
+      const d = new Date(fechaDesdeAuto);
+      if (modo === "trimestral") d.setMonth(d.getMonth() + 3);
+      else if (modo === "semestral") d.setMonth(d.getMonth() + 6);
+      else if (modo === "anual") d.setFullYear(d.getFullYear() + 1);
+      // Para "fecha" el usuario la elige
+      return d.toISOString().slice(0, 10);
+    };
+
+    // Cuando cambia el modo, actualiza fecha hasta (excepto si es "fecha" libre)
+    useEffect(() => {
+      if (modoCobro !== "fecha") setFechaHasta(calcFechaHastaAuto(modoCobro));
+    }, [modoCobro, fechaDesdeAuto]);
+
+    // ── Motor de cálculo de liquidación ──────────────────────────────────────
+    // Por cada tropa calcula los kg devengados entre su ultimoCobro y fechaHasta,
+    // considerando los tramos de egresos parciales dentro de ese intervalo.
+    const calcLiquidacion = (fHasta) => {
+      return tropas.map(tropa => {
+        const desde = tropa.ultimoCobro || tropa.fechaIngreso;
+        const kgMes = precios[tropa.cat] ?? 6;
+        const cabActual = tropa.cabActual ?? tropa.cab;
+        const tramosEgreso = tropa.tramosEgreso || [];
+
+        // Tramos de egresos que cayeron dentro de [desde, fHasta]
+        // Para cada egreso: cab_egresadas × kgMes × días_desde_corte ÷ 30
+        const tramosEnPeriodo = tramosEgreso.filter(te =>
+          te.fecha >= desde && te.fecha <= fHasta && te.desdeCorte >= desde
+        );
+        const kgTramos = tramosEnPeriodo.reduce((s, te) => s + (te.kgTramo ?? 0), 0);
+
+        // Cabezas actuales (las que quedan) × días desde el último egreso/corte hasta fHasta
+        // Si hubo egresos, el "desde" de las restantes es la fecha del último egreso
+        const ultimoEgresoEnPeriodo = tramosEnPeriodo.length > 0
+          ? tramosEnPeriodo[tramosEnPeriodo.length - 1].fecha
+          : desde;
+        const diasRestantes = diasEntre(ultimoEgresoEnPeriodo, fHasta);
+        const kgRestantes = cabActual * kgMes * (diasRestantes / 30);
+
+        const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
+        const diasTotalesPeriodo = diasEntre(desde, fHasta);
+
+        return {
+          tropaId: tropa.id,
+          origen: tropa.origen,
+          cat: tropa.cat,
+          cabIniciales: tropa.cab,
+          cabActual,
+          desde,
+          hasta: fHasta,
+          diasTotalesPeriodo,
+          tramosEnPeriodo,
+          kgTramos: Math.round(kgTramos * 10) / 10,
+          kgRestantes: Math.round(kgRestantes * 10) / 10,
+          kgTotal,
+          pesos: Math.round(kgTotal * precioNov),
+        };
+      }).filter(l => l.kgTotal > 0);
+    };
+
+    const preview = useMemo(() => calcLiquidacion(fechaHasta), [tropas, fechaHasta, precios, precioNov]);
+    const kgPreview = preview.reduce((s, l) => s + l.kgTotal, 0);
+    const pesosPreview = preview.reduce((s, l) => s + l.pesos, 0);
+
+    // Cobros ya cerrados
+    const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo");
+    const pendientes = cobrados.filter(p => p.estado === "pendiente");
+    const pagados    = cobrados.filter(p => p.estado === "pagado");
+    const kgPend = pendientes.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+    const kgPag  = pagados.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+
+    const confirmarLiquidacion = () => {
+      if (preview.length === 0) { toast("No hay kg a liquidar en este período", "warn"); return; }
+      // Crear el registro de cobro
+      const nuevoCobro = {
+        id: Date.now(), tipo: "cobro-periodo",
+        modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta,
+        lineas: preview,
+        kgTotal: Math.round(kgPreview * 10) / 10,
+        precioNov, pesos: pesosPreview,
+        estado: "pendiente",
+        fechaCreacion: hoy,
+      };
+      setPeriodos(prev => [...prev, nuevoCobro]);
+      // Actualizar ultimoCobro en cada tropa y limpiar tramosEgreso ya liquidados
+      setTropas(prev => prev.map(t => {
+        const linea = preview.find(l => l.tropaId === t.id);
+        if (!linea) return t;
+        return {
+          ...t,
+          ultimoCobro: fechaHasta,
+          tramosEgreso: (t.tramosEgreso || []).filter(te => te.fecha > fechaHasta),
+        };
+      }));
+      setShowLiquidar(false);
+      toast(`✅ Liquidación generada: ${fmtN(Math.round(kgPreview))} kg nov · $${fmtK1(pesosPreview)}`, "success");
+    };
+
     const marcarPagado = (id) => {
-      setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: new Date().toISOString().slice(0, 10) } : p));
+      setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: hoy } : p));
       toast("✅ Cobro marcado como pagado", "success");
     };
 
-    const CobRow = ({ c }) => (
-      <div className={`rounded-2xl border-2 p-3.5 space-y-2 ${c.estado === "pagado" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${c.estado === "pagado" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
-                {c.estado === "pagado" ? "✓ Cobrado" : "⏳ Pendiente"}
-              </span>
-              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200 font-bold">Egreso</span>
+    const MODO_LABELS = { trimestral: "Trimestral", semestral: "Semestral", anual: "Anual", fecha: "Fecha específica" };
+
+    const CobRow = ({ c }) => {
+      const [expand, setExpand] = useState(false);
+      return (
+        <div className={`rounded-2xl border-2 space-y-2 overflow-hidden ${c.estado === "pagado" ? "border-emerald-200" : "border-amber-200"}`}>
+          {/* Header */}
+          <div className={`p-3.5 ${c.estado === "pagado" ? "bg-emerald-50" : "bg-amber-50"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${c.estado === "pagado" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
+                    {c.estado === "pagado" ? "✓ Cobrado" : "⏳ Pendiente"}
+                  </span>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-bold">{MODO_LABELS[c.modo] ?? c.modo}</span>
+                </div>
+                <p className="text-xs text-slate-500">{fmtFecha(c.fechaDesde)} → {fmtFecha(c.fechaHasta)}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{c.lineas?.length ?? 0} tropas · precio nov ${fmtN(c.precioNov)}/kg</p>
+                {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pagado {fmtFecha(c.fechaPago)}</p>}
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-black text-slate-800 text-xl">{fmtN(c.kgTotal)} kg</p>
+                <p className="text-sm text-slate-500">${fmtK1(c.pesos)}</p>
+              </div>
             </div>
-            <p className="font-black text-slate-800 text-sm mt-1.5">{c.origen}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{c.cab} cab · {fmtFecha(c.fechaDesde)} → {fmtFecha(c.fechaHasta)} · {c.dias} días</p>
-            {c.motivo && c.motivo !== "venta" && <p className="text-xs text-slate-400 italic">{c.motivo}</p>}
-            {c.obs && <p className="text-xs text-slate-400 italic">{c.obs}</p>}
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => setExpand(p => !p)}
+                className="flex-1 text-xs font-bold py-1.5 rounded-xl border border-slate-200 bg-white/80 text-slate-600 hover:bg-white transition-all">
+                {expand ? "▾ Ocultar detalle" : "▸ Ver por tropa"}
+              </button>
+              {c.estado === "pendiente" && (
+                <button onClick={() => marcarPagado(c.id)}
+                  className="flex-1 text-xs font-black py-1.5 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all active:scale-95">
+                  Marcar cobrado ✓
+                </button>
+              )}
+            </div>
           </div>
-          <div className="text-right shrink-0">
-            <p className="font-black text-slate-800 text-lg">{fmtN(c.kgTotal)} kg</p>
-            <p className="text-sm text-slate-500">${fmtK1((c.kgTotal ?? 0) * precioNov)}</p>
-            {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pago {fmtFecha(c.fechaPago)}</p>}
-          </div>
+          {/* Detalle por tropa */}
+          {expand && c.lineas && (
+            <div className="px-3.5 pb-3.5 space-y-1.5">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Detalle por tropa</p>
+              {c.lineas.map((l, i) => {
+                const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
+                return (
+                  <div key={i} className={`rounded-xl p-2.5 border ${col.bg} ${col.border}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-black text-sm ${col.text}`}>{l.origen}</span>
+                      <span className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg</span>
+                    </div>
+                    <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                      <span>{l.cabActual} cab actuales</span>
+                      <span>{l.diasTotalesPeriodo} días</span>
+                      {l.tramosEnPeriodo?.length > 0 && (
+                        <span className="text-orange-600 font-semibold">+ {l.tramosEnPeriodo.length} egreso(s) pro-rateado(s)</span>
+                      )}
+                    </div>
+                    {l.tramosEnPeriodo?.length > 0 && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {l.tramosEnPeriodo.map((te, j) => (
+                          <p key={j} className="text-xs text-orange-600 italic">
+                            Egreso {fmtFecha(te.fecha)}: {te.cab} cab × {te.dias} días = {fmtN(te.kgTramo)} kg
+                          </p>
+                        ))}
+                        <p className="text-xs text-slate-500">Restantes {l.cabActual} cab × {diasEntre(l.tramosEnPeriodo[l.tramosEnPeriodo.length-1]?.fecha, l.hasta)} días = {fmtN(l.kgRestantes)} kg</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        {c.estado === "pendiente" && (
-          <button onClick={() => marcarPagado(c.id)}
-            className="w-full text-xs font-black py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all active:scale-95">
-            Marcar como cobrado ✓
-          </button>
-        )}
-      </div>
-    );
+      );
+    };
 
     return (
       <div className="space-y-4">
-        {/* Precio novillo */}
-        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Precio novillo INMAG ($/kg)</p>
-          </div>
+        {/* Panel de configuración + precios */}
+        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4 space-y-4">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Configuración de cobro</p>
+          {/* Precio novillo */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-slate-500">$</span>
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Precio novillo INMAG</span>
+            <span className="text-xs text-slate-400">$</span>
             <input type="number" value={precioNov} onChange={e => setPrecioNov(Number(e.target.value))}
-              className="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-base font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
-            <span className="text-sm text-slate-400 font-semibold">/kg</span>
+              className="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+            <span className="text-xs text-slate-400">/kg</span>
           </div>
-        </div>
-        {/* Precios por categoría */}
-        <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Pastaje por categoría (kg nov/animal/mes)</p>
-          <div className="grid grid-cols-2 gap-3">
-            {CATS.map(c => {
-              const col = CAT_COLORS[c.id];
-              return (
-                <div key={c.id} className={`rounded-xl border p-2.5 ${col.bg} ${col.border}`}>
-                  <p className="text-xs text-slate-500">{c.emoji} {c.label}</p>
-                  <div className="flex items-center gap-2 mt-1">
+          {/* Precios por categoría */}
+          <div>
+            <p className="text-xs font-bold text-slate-400 mb-2">Pastaje por categoría (kg nov/animal/mes)</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CATS.map(c => {
+                const col = CAT_COLORS[c.id];
+                return (
+                  <div key={c.id} className={`rounded-xl border p-2 ${col.bg} ${col.border} flex items-center gap-2`}>
+                    <span className="text-base">{c.emoji}</span>
                     <input type="number" step="0.5" min="0" value={precios[c.id]}
                       onChange={e => setPrecios({ [c.id]: parseFloat(e.target.value) || 0 })}
-                      className={`w-full border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none bg-white/70 ${col.border}`} />
+                      className={`w-16 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none bg-white/80 ${col.border}`} />
                     <span className="text-xs text-slate-400 whitespace-nowrap">kg/mes</span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-        {/* KPIs */}
+
+        {/* KPIs actuales */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5 text-center">
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 text-center">
             <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-1">Por cobrar</p>
             <p className="text-2xl font-black text-amber-800">{fmtN(Math.round(kgPend))} kg</p>
             <p className="text-sm text-amber-600">${fmtK1(kgPend * precioNov)}</p>
           </div>
-          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3.5 text-center">
+          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3 text-center">
             <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-1">Cobrado</p>
             <p className="text-2xl font-black text-emerald-800">{fmtN(Math.round(kgPag))} kg</p>
             <p className="text-sm text-emerald-600">${fmtK1(kgPag * precioNov)}</p>
           </div>
         </div>
-        {pendiente.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por cobrar ({pendiente.length})</p>
-            {pendiente.map(c => <CobRow key={c.id} c={c} />)}
+
+        {/* Botón para abrir liquidador */}
+        <button onClick={() => setShowLiquidar(p => !p)}
+          className="w-full py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+          <span>💰</span> {showLiquidar ? "Cerrar liquidador" : "Generar nuevo cobro de período"}
+        </button>
+
+        {/* Panel liquidador */}
+        {showLiquidar && (
+          <div className="rounded-3xl border-2 border-slate-800 bg-slate-50 p-4 space-y-4 sim-zoom-enter">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-700">Liquidar período</p>
+
+            {/* Modo de cobro */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 mb-2">Frecuencia</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(MODO_LABELS).map(([k, v]) => (
+                  <button key={k} onClick={() => setModoCobro(k)}
+                    className={`py-2 rounded-xl text-xs font-black border-2 transition-all ${modoCobro === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fechas del período */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-bold text-slate-400 mb-1">Desde</p>
+                <div className="bg-white border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-slate-500 text-center">{fmtFecha(fechaDesdeAuto)}</div>
+                <p className="text-xs text-slate-400 mt-1 text-center">automático (último cobro)</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 mb-1">Hasta</p>
+                {modoCobro === "fecha"
+                  ? <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                      className="w-full border-2 border-slate-800 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none" />
+                  : <div className="bg-slate-800 text-white border-2 border-slate-800 rounded-xl px-3 py-2 text-sm font-mono font-black text-center">{fmtFecha(fechaHasta)}</div>
+                }
+              </div>
+            </div>
+
+            {/* Preview de la liquidación */}
+            {preview.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Preview por tropa</p>
+                {preview.map((l, i) => {
+                  const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
+                  return (
+                    <div key={i} className={`rounded-xl p-3 border ${col.bg} ${col.border}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {l.cabActual} cab · {l.diasTotalesPeriodo} días
+                            {l.tramosEnPeriodo?.length > 0 && <span className="text-orange-600 font-semibold ml-1">+ {l.tramosEnPeriodo.length} egreso(s)</span>}
+                          </p>
+                          {l.tramosEnPeriodo?.length > 0 && (
+                            <p className="text-xs text-orange-600 italic mt-0.5">
+                              {l.tramosEnPeriodo.map(te => `${te.cab} cab × ${te.dias}d`).join(" + ")} + {l.cabActual} restantes
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-black text-base ${col.text}`}>{fmtN(l.kgTotal)} kg</p>
+                          <p className="text-xs text-slate-400">${fmtK1(l.pesos)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Total */}
+                <div className="bg-slate-800 text-white rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-white/60">Total período</p>
+                    <p className="text-xs text-white/50">{fmtFecha(fechaDesdeAuto)} → {fmtFecha(fechaHasta)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black">{fmtN(Math.round(kgPreview))} kg</p>
+                    <p className="text-sm text-white/70">${fmtK1(pesosPreview)}</p>
+                  </div>
+                </div>
+                <button onClick={confirmarLiquidacion}
+                  className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">
+                  Confirmar y generar cobro ✓
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-slate-400">
+                <p className="text-2xl mb-1">🔍</p>
+                <p className="text-sm">Sin kg a liquidar en este período</p>
+              </div>
+            )}
           </div>
         )}
-        {pagado.length > 0 && (
+
+        {/* Cobros pendientes */}
+        {pendientes.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por cobrar ({pendientes.length})</p>
+            {pendientes.map(c => <CobRow key={c.id} c={c} />)}
+          </div>
+        )}
+
+        {/* Historial pagados */}
+        {pagados.length > 0 && (
           <div>
             <button onClick={() => setExpandPag(p => !p)} className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-slate-600 transition-colors">
-              {expandPag ? "▾" : "▸"} Historial cobrado ({pagado.length})
+              {expandPag ? "▾" : "▸"} Historial cobrado ({pagados.length})
             </button>
-            {expandPag && <div className="mt-2 space-y-2">{pagado.map(c => <CobRow key={c.id} c={c} />)}</div>}
+            {expandPag && <div className="mt-2 space-y-2">{pagados.map(c => <CobRow key={c.id} c={c} />)}</div>}
           </div>
         )}
-        {todos.length === 0 && (
-          <div className="text-center py-8 text-slate-400"><p className="text-3xl mb-2">💰</p><p className="text-sm">Los cobros se generan automáticamente al registrar un egreso</p></div>
+
+        {cobrados.length === 0 && !showLiquidar && (
+          <div className="text-center py-8 text-slate-400">
+            <p className="text-3xl mb-2">💰</p>
+            <p className="text-sm">Abrí el liquidador para generar el primer cobro</p>
+          </div>
         )}
       </div>
     );
