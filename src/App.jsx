@@ -6370,6 +6370,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     // Por cada tropa calcula los kg devengados entre su ultimoCobro y fechaHasta,
     // considerando los tramos de egresos parciales dentro de ese intervalo.
+    // REGLA: los animales que egresaron (venta o mortandad) dentro del período
+    // cobran sus días exactos hasta la fecha en que salieron — no hasta fHasta.
+    // Los que siguen en campo cobran desde ultimoCobro hasta fHasta.
     const calcLiquidacion = (fHasta) => {
       return tropas.map(tropa => {
         const desde = tropa.ultimoCobro || tropa.fechaIngreso;
@@ -6377,20 +6380,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         const cabActual = tropa.cabActual ?? tropa.cab;
         const tramosEgreso = tropa.tramosEgreso || [];
 
-        // Tramos de egresos que cayeron dentro de [desde, fHasta]
-        // Para cada egreso: cab_egresadas × kgMes × días_desde_corte ÷ 30
+        // Tramos de egresos que cayeron dentro de [desde, fHasta].
+        // Cada tramo ya tiene guardado su kgTramo = cab × kgMes × diasDesdeCorte ÷ 30
+        // (calculado al momento del egreso, con los días exactos que estuvo esa cantidad).
         const tramosEnPeriodo = tramosEgreso.filter(te =>
-          te.fecha >= desde && te.fecha <= fHasta && te.desdeCorte >= desde
+          te.fecha >= desde && te.fecha <= fHasta
         );
         const kgTramos = tramosEnPeriodo.reduce((s, te) => s + (te.kgTramo ?? 0), 0);
 
-        // Cabezas actuales (las que quedan) × días desde el último egreso/corte hasta fHasta
-        // Si hubo egresos, el "desde" de las restantes es la fecha del último egreso
+        // Las cabezas actuales (las que NO egresaron) cobran desde el punto correcto hasta fHasta.
+        // Si hubo egresos en el período, el punto de partida de las restantes es el último egreso
+        // (porque su tramo ya fue contado en kgTramos). Si no hubo egresos, arrancan desde `desde`.
         const ultimoEgresoEnPeriodo = tramosEnPeriodo.length > 0
-          ? tramosEnPeriodo[tramosEnPeriodo.length - 1].fecha
+          ? tramosEnPeriodo.slice().sort((a, b) => a.fecha > b.fecha ? 1 : -1).at(-1).fecha
           : desde;
         const diasRestantes = diasEntre(ultimoEgresoEnPeriodo, fHasta);
-        const kgRestantes = cabActual * kgMes * (diasRestantes / 30);
+        const kgRestantes = cabActual > 0 ? cabActual * kgMes * (diasRestantes / 30) : 0;
 
         const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
         const diasTotalesPeriodo = diasEntre(desde, fHasta);
@@ -6590,33 +6595,41 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           <div className="rounded-3xl border-2 border-slate-800 bg-slate-50 p-4 space-y-4 sim-zoom-enter">
             <p className="text-xs font-black uppercase tracking-widest text-slate-700">Liquidar período</p>
 
-            {/* Modo de cobro */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 mb-2">Frecuencia</p>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(MODO_LABELS).map(([k, v]) => (
-                  <button key={k} onClick={() => setModoCobro(k)}
-                    className={`py-2 rounded-xl text-xs font-black border-2 transition-all ${modoCobro === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Fechas del período */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Fecha de corte — la única que importa */}
+            <div className="bg-white rounded-2xl border-2 border-slate-800 p-4 space-y-3">
               <div>
-                <p className="text-xs font-bold text-slate-400 mb-1">Desde</p>
-                <div className="bg-white border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-slate-500 text-center">{fmtFecha(fechaDesdeAuto)}</div>
-                <p className="text-xs text-slate-400 mt-1 text-center">automático (último cobro)</p>
+                <p className="text-xs font-black text-slate-700 uppercase tracking-widest mb-1">Fecha de corte del cobro</p>
+                <p className="text-xs text-slate-400 mb-2">Elegí hasta qué fecha querés liquidar. Los animales que egresaron antes de esta fecha cobran sus días exactos hasta la salida.</p>
+                <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                  className="w-full border-2 border-slate-800 rounded-xl px-3 py-3 text-base font-mono font-black text-center focus:outline-none" />
+                <div className="flex gap-2 mt-2">
+                  {[
+                    { label: "Hoy", dias: 0 },
+                    { label: "Ayer", dias: -1 },
+                    { label: "Hace 7 días", dias: -7 },
+                  ].map(({ label, dias }) => {
+                    const d = new Date(); d.setDate(d.getDate() + dias);
+                    const f = d.toISOString().slice(0, 10);
+                    return (
+                      <button key={label} onClick={() => setFechaHasta(f)}
+                        className={`flex-1 text-xs font-black py-1.5 rounded-xl border-2 transition-all ${fechaHasta === f ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+              {/* Modo (solo informativo para el registro) */}
               <div>
-                <p className="text-xs font-bold text-slate-400 mb-1">Hasta</p>
-                {modoCobro === "fecha"
-                  ? <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
-                      className="w-full border-2 border-slate-800 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none" />
-                  : <div className="bg-slate-800 text-white border-2 border-slate-800 rounded-xl px-3 py-2 text-sm font-mono font-black text-center">{fmtFecha(fechaHasta)}</div>
-                }
+                <p className="text-xs font-bold text-slate-400 mb-2">Tipo de período (para el registro)</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {Object.entries(MODO_LABELS).map(([k, v]) => (
+                    <button key={k} onClick={() => setModoCobro(k)}
+                      className={`py-1.5 rounded-xl text-xs font-black border-2 transition-all ${modoCobro === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -6632,12 +6645,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                         <div>
                           <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {l.cabActual} cab · {l.diasTotalesPeriodo} días
+                            desde {fmtFecha(l.desde)} · {l.diasTotalesPeriodo} días
                             {l.tramosEnPeriodo?.length > 0 && <span className="text-orange-600 font-semibold ml-1">+ {l.tramosEnPeriodo.length} egreso(s)</span>}
                           </p>
                           {l.tramosEnPeriodo?.length > 0 && (
                             <p className="text-xs text-orange-600 italic mt-0.5">
-                              {l.tramosEnPeriodo.map(te => `${te.cab} cab × ${te.dias}d`).join(" + ")} + {l.cabActual} restantes
+                              {l.tramosEnPeriodo.map(te => `${te.cab} cab egr. ${fmtFecha(te.fecha)} (${te.dias}d)`).join(" · ")}
+                            </p>
+                          )}
+                          {l.cabActual > 0 && (
+                            <p className="text-xs text-slate-400 italic mt-0.5">
+                              {l.cabActual} cab en campo × {diasEntre(l.tramosEnPeriodo?.length > 0 ? l.tramosEnPeriodo.slice().sort((a,b)=>a.fecha>b.fecha?1:-1).at(-1).fecha : l.desde, l.hasta)} días
                             </p>
                           )}
                         </div>
@@ -6653,7 +6671,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 <div className="bg-slate-800 text-white rounded-2xl p-4 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-white/60">Total período</p>
-                    <p className="text-xs text-white/50">{fmtFecha(fechaDesdeAuto)} → {fmtFecha(fechaHasta)}</p>
+                    <p className="text-xs text-white/50">corte al {fmtFecha(fechaHasta)} · {MODO_LABELS[modoCobro]}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black">{fmtN(Math.round(kgPreview))} kg</p>
