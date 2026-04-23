@@ -5885,6 +5885,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [modal, setModal] = useState(null);
   const [precioNov, setPrecioNov] = useState(precioNovillo);
   const [tropaEgreso, setTropaEgreso] = useState(null);
+  const [tropaSuplemento, setTropaSuplemento] = useState(null); // tropa a editar suplemento
 
   const tropas   = pastaje?.tropas   ?? [];
   const periodos = pastaje?.periodos ?? [];
@@ -5946,6 +5947,43 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const kgTotalesHoy = tropas.reduce((s, t) => s + kgDevengados(t, null), 0);
   const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const totalCabPastaje = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+
+  // ── Cálculo de suplemento de una tropa en un rango de fechas ─────────────
+  // Retorna { kgSup, pesosSup } para el período [desde, hasta]
+  // Tiene en cuenta los segmentos definidos por meses o por fechas finas.
+  const calcSuplemento = (tropa, desde, hasta) => {
+    const sup = tropa.suplemento;
+    if (!sup || !sup.activo || sup.kgDia <= 0 || sup.precioPorKg <= 0) return { kgSup: 0, pesosSup: 0 };
+    const cab = tropa.cabActual ?? tropa.cab;
+    if (cab <= 0) return { kgSup: 0, pesosSup: 0 };
+
+    const dInicio = new Date(desde);
+    const dFin    = new Date(hasta || new Date());
+
+    // Segmentos: si hay fechaDesde/fechaHasta finas, usarlas; si no, usar los meses tildados
+    let diasConSup = 0;
+
+    if (sup.usarFechas && sup.fechaDesde && sup.fechaHasta) {
+      // Rango fino: intersección entre [dInicio,dFin] y [fechaDesde,fechaHasta]
+      const sD = new Date(Math.max(new Date(sup.fechaDesde), dInicio));
+      const sH = new Date(Math.min(new Date(sup.fechaHasta),  dFin));
+      diasConSup = Math.max(0, Math.round((sH - sD) / (1000 * 60 * 60 * 24)));
+    } else {
+      // Meses tildados: por cada día entre dInicio y dFin, verificar si su mes (1-12) está en meses[]
+      const meses = sup.meses ?? [];
+      if (meses.length > 0) {
+        let d = new Date(dInicio);
+        while (d < dFin) {
+          if (meses.includes(d.getMonth() + 1)) diasConSup++;
+          d.setDate(d.getDate() + 1);
+        }
+      }
+    }
+
+    const kgSup    = Math.round(cab * sup.kgDia * diasConSup * 10) / 10;
+    const pesosSup = Math.round(kgSup * sup.precioPorKg);
+    return { kgSup, pesosSup, diasConSup };
+  };
 
   const fmtN    = (n) => Math.round(n).toLocaleString("es-AR");
   const fmtPesos = (n) => "$" + Math.round(n).toLocaleString("es-AR");
@@ -6188,6 +6226,134 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     );
   };
 
+  // ── Modal Suplemento ─────────────────────────────────────────────────────
+  const MESES_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const ModalSuplemento = ({ tropa, onClose }) => {
+    const supInicial = tropa.suplemento ?? {
+      activo: false, kgDia: 0, precioPorKg: 0,
+      meses: [], usarFechas: false, fechaDesde: "", fechaHasta: "",
+    };
+    const [sup, setSup] = useState(supInicial);
+    const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
+
+    const toggleMes = (m) => setSup(p => ({
+      ...p,
+      meses: p.meses.includes(m) ? p.meses.filter(x => x !== m) : [...p.meses, m],
+    }));
+
+    const guardar = () => {
+      setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, suplemento: { ...sup, activo: sup.kgDia > 0 && sup.precioPorKg > 0 } } : t));
+      toast(`✅ Suplemento de ${tropa.origen} actualizado`, "success");
+      onClose();
+    };
+
+    // Preview: consumo estimado por mes en período actual
+    const kgEstimadoMes = sup.kgDia * (tropa.cabActual ?? tropa.cab) * 30;
+
+    return (
+      <ModalWrapper titulo={`Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="space-y-5">
+
+          {/* Valores por tropa */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo (kg/animal/día)</label>
+              <input type="number" step="0.1" min="0" value={sup.kgDia}
+                onChange={e => setS("kgDia")(parseFloat(e.target.value) || 0)}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio ($/kg suplemento)</label>
+              <input type="number" step="10" min="0" value={sup.precioPorKg}
+                onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+
+          {/* Preview rápido */}
+          {sup.kgDia > 0 && sup.precioPorKg > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-800">
+              <span className="font-black">{fmtN(Math.round(kgEstimadoMes))} kg/mes</span>
+              <span className="text-amber-600 ml-2">≈ {fmtPesos(kgEstimadoMes * sup.precioPorKg)} por mes · {tropa.cabActual ?? tropa.cab} cab</span>
+            </div>
+          )}
+
+          {/* Selector de meses o fechas */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex-1">Período de suplemento</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setS("usarFechas")(false)}
+                  className={`text-xs font-black px-3 py-1 rounded-lg border-2 transition-all ${!sup.usarFechas ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
+                  Por meses
+                </button>
+                <button onClick={() => setS("usarFechas")(true)}
+                  className={`text-xs font-black px-3 py-1 rounded-lg border-2 transition-all ${sup.usarFechas ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
+                  Fechas exactas
+                </button>
+              </div>
+            </div>
+
+            {!sup.usarFechas ? (
+              /* Grilla de 12 meses */
+              <div>
+                <p className="text-xs text-slate-400 mb-2">Tocá los meses en que consume suplemento</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {MESES_LABELS.map((lbl, i) => {
+                    const m = i + 1;
+                    const on = sup.meses.includes(m);
+                    return (
+                      <button key={m} onClick={() => toggleMes(m)}
+                        className={`py-2.5 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${on ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-500 border-slate-200 hover:border-emerald-300"}`}>
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => setSup(p => ({ ...p, meses: [1,2,3,4,5,6,7,8,9,10,11,12] }))}
+                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
+                    Todos
+                  </button>
+                  <button onClick={() => setSup(p => ({ ...p, meses: [] }))}
+                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
+                    Ninguno
+                  </button>
+                  <button onClick={() => setSup(p => ({ ...p, meses: [4,5,6,7,8,9] }))}
+                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">
+                    Otoño-inv.
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Fechas finas */
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</label>
+                  <input type="date" value={sup.fechaDesde}
+                    onChange={e => setS("fechaDesde")(e.target.value)}
+                    className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</label>
+                  <input type="date" value={sup.fechaHasta}
+                    onChange={e => setS("fechaHasta")(e.target.value)}
+                    className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                </div>
+                {sup.fechaDesde && sup.fechaHasta && (
+                  <div className="col-span-2 bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                    {diasEntre(sup.fechaDesde, sup.fechaHasta)} días de suplemento
+                    {sup.kgDia > 0 && ` · ${fmtN(Math.round((tropa.cabActual ?? tropa.cab) * sup.kgDia * diasEntre(sup.fechaDesde, sup.fechaHasta)))} kg totales`}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
   // ── Modal Tercero ─────────────────────────────────────────────────────────
   const ModalTercero = ({ onClose }) => {
     const [nombre, setNombre] = useState("");
@@ -6262,18 +6428,27 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
                               {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                               {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
+                              {t.suplemento?.activo && (
+                                <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
+                                  💊 {t.suplemento.kgDia} kg/día · {fmtPesos(t.suplemento.precioPorKg)}/kg
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-slate-400">devengado</p>
+                            <p className="text-xs text-slate-400">pastaje dev.</p>
                             <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgHoy))} kg</p>
-                            <p className="text-xs text-slate-400">${fmtK1(kgHoy * precioNov)}</p>
+                            <p className="text-xs text-slate-400">{fmtPesos(kgHoy * precioNov)}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 pt-1 border-t border-slate-100">
+                          <button onClick={() => setTropaSuplemento(t)}
+                            className={`flex-1 text-xs font-black py-1.5 rounded-xl border transition-all active:scale-95 ${t.suplemento?.activo ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"}`}>
+                            💊 Suplemento
+                          </button>
                           <button onClick={() => setTropaEgreso(t)}
                             className="flex-1 text-xs font-black py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95">
-                            ↑ Registrar egreso
+                            ↑ Egreso
                           </button>
                           <button onClick={() => { if (!window.confirm(`¿Eliminar tropa "${t.origen}"?`)) return; setTropas(prev => prev.filter(x => x.id !== t.id)); toast(`🗑 Tropa ${t.origen} eliminada`, "warn"); }}
                             className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">✕</button>
@@ -6446,6 +6621,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
         const diasTotalesPeriodo = diasEntre(desde, fHasta);
 
+        // ── Suplemento ──────────────────────────────────────────────────────
+        const { kgSup, pesosSup, diasConSup } = calcSuplemento(tropa, desde, fHasta);
+
         return {
           tropaId: tropa.id,
           origen: tropa.origen,
@@ -6460,13 +6638,24 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           kgRestantes: Math.round(kgRestantes * 10) / 10,
           kgTotal,
           pesos: Math.round(kgTotal * precioNov),
+          // suplemento discriminado
+          kgSup:    Math.round(kgSup * 10) / 10,
+          pesosSup: Math.round(pesosSup),
+          diasConSup: diasConSup ?? 0,
+          supActivo: (tropa.suplemento?.activo) ?? false,
+          supKgDia: tropa.suplemento?.kgDia ?? 0,
+          supPrecio: tropa.suplemento?.precioPorKg ?? 0,
+          // total general = pastaje + suplemento
+          totalPesos: Math.round(kgTotal * precioNov) + Math.round(pesosSup),
         };
-      }).filter(l => l.kgTotal > 0);
+      }).filter(l => l.kgTotal > 0 || l.kgSup > 0);
     };
 
     const preview = useMemo(() => calcLiquidacion(fechaHasta), [tropas, fechaHasta, precios, precioNov]);
-    const kgPreview = preview.reduce((s, l) => s + l.kgTotal, 0);
-    const pesosPreview = preview.reduce((s, l) => s + l.pesos, 0);
+    const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
+    const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
+    const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
+    const totalPreview  = pesosPreview + supPreview;
 
     // Cobros ya cerrados
     const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo");
@@ -6484,6 +6673,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         lineas: preview,
         kgTotal: Math.round(kgPreview * 10) / 10,
         precioNov, pesos: pesosPreview,
+        pesosSup: supPreview,
+        totalPesos: totalPreview,
         estado: "pendiente",
         fechaCreacion: hoy,
       };
@@ -6499,7 +6690,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         };
       }));
       setShowLiquidar(false);
-      toast(`✅ Liquidación generada: ${fmtN(Math.round(kgPreview))} kg nov · $${fmtK1(pesosPreview)}`, "success");
+      toast(`✅ Liquidación: ${fmtN(Math.round(kgPreview))} kg pastaje + ${fmtPesos(supPreview)} suplemento = ${fmtPesos(totalPreview)} total`, "success");
     };
 
     const marcarPagado = (id) => {
@@ -6568,14 +6759,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
         // kg y pesos — derecha
         ctx.fillStyle = "#065f46";
-        ctx.font = "bold 18px system-ui, sans-serif";
-        const kgStr = `${fmtN(l.kgTotal)} kg`;
-        ctx.fillText(kgStr, W - padding - 240, y + 6);
+        ctx.font = "bold 16px system-ui, sans-serif";
+        const kgStr = `${fmtN(l.kgTotal)} kg nov`;
+        ctx.fillText(kgStr, W - padding - 260, y + 2);
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 16px system-ui, sans-serif";
-        const pesosStr = fmtPesos(l.pesos);
-        ctx.fillText(pesosStr, W - padding - 240, y + 28);
+        ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.fillText(`Pastaje: ${fmtPesos(l.pesos)}`, W - padding - 260, y + 22);
+
+        if (l.supActivo && l.kgSup > 0) {
+          ctx.fillStyle = "#b45309";
+          ctx.font = "13px system-ui, sans-serif";
+          ctx.fillText(`💊 Sup: ${fmtN(l.kgSup)} kg · ${fmtPesos(l.pesosSup)}`, W - padding - 260, y + 40);
+        }
 
         y += 68;
       });
@@ -6593,10 +6789,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       ctx.font = "bold 16px system-ui, sans-serif";
       ctx.fillText("TOTAL", padding + 16, y + 26);
       ctx.font = "28px system-ui, sans-serif";
-      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov`, padding + 16, y + 56);
+      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding + 16, y + 40);
+      if ((cobro.pesosSup ?? 0) > 0) {
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillStyle = "#fcd34d";
+        ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding + 16, y + 62);
+      }
       ctx.font = "bold 26px system-ui, sans-serif";
       ctx.fillStyle = "#6ee7b7";
-      ctx.fillText(fmtPesos(cobro.pesos), W - padding - 260, y + 50);
+      ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding - 260, y + 50);
 
       // Footer
       ctx.fillStyle = "#94a3b8";
@@ -6630,8 +6831,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pagado {fmtFecha(c.fechaPago)}</p>}
               </div>
               <div className="text-right shrink-0">
-                <p className="font-black text-slate-800 text-xl">{fmtN(c.kgTotal)} kg</p>
-                <p className="text-sm text-slate-500">${fmtK1(c.pesos)}</p>
+                <p className="font-black text-slate-800 text-xl">{fmtPesos(c.totalPesos ?? c.pesos)}</p>
+                <p className="text-xs text-slate-400">{fmtN(c.kgTotal)} kg pastaje</p>
+                {c.pesosSup > 0 && <p className="text-xs text-amber-600 font-bold">+ {fmtPesos(c.pesosSup)} sup.</p>}
               </div>
             </div>
             <div className="flex gap-2 mt-2">
@@ -6777,42 +6979,74 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 {preview.map((l, i) => {
                   const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
                   return (
-                    <div key={i} className={`rounded-xl p-3 border ${col.bg} ${col.border}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            desde {fmtFecha(l.desde)} · {l.diasTotalesPeriodo} días
-                            {l.tramosEnPeriodo?.length > 0 && <span className="text-orange-600 font-semibold ml-1">+ {l.tramosEnPeriodo.length} egreso(s)</span>}
-                          </p>
-                          {l.tramosEnPeriodo?.length > 0 && (
-                            <p className="text-xs text-orange-600 italic mt-0.5">
-                              {l.tramosEnPeriodo.map(te => `${te.cab} cab egr. ${fmtFecha(te.fecha)} (${te.dias}d)`).join(" · ")}
+                    <div key={i} className={`rounded-xl border ${col.bg} ${col.border} overflow-hidden`}>
+                      <div className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              desde {fmtFecha(l.desde)} · {l.diasTotalesPeriodo} días
+                              {l.tramosEnPeriodo?.length > 0 && <span className="text-orange-600 font-semibold ml-1">+ {l.tramosEnPeriodo.length} egreso(s)</span>}
                             </p>
-                          )}
-                          {l.cabActual > 0 && (
-                            <p className="text-xs text-slate-400 italic mt-0.5">
-                              {l.cabActual} cab en campo × {diasEntre(l.tramosEnPeriodo?.length > 0 ? l.tramosEnPeriodo.slice().sort((a,b)=>a.fecha>b.fecha?1:-1).at(-1).fecha : l.desde, l.hasta)} días
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-black text-base ${col.text}`}>{fmtN(l.kgTotal)} kg</p>
-                          <p className="text-xs text-slate-400">${fmtK1(l.pesos)}</p>
+                            {l.tramosEnPeriodo?.length > 0 && (
+                              <p className="text-xs text-orange-600 italic mt-0.5">
+                                {l.tramosEnPeriodo.map(te => `${te.cab} cab egr. ${fmtFecha(te.fecha)} (${te.dias}d)`).join(" · ")}
+                              </p>
+                            )}
+                            {l.cabActual > 0 && (
+                              <p className="text-xs text-slate-400 italic mt-0.5">
+                                {l.cabActual} cab en campo × {diasEntre(l.tramosEnPeriodo?.length > 0 ? l.tramosEnPeriodo.slice().sort((a,b)=>a.fecha>b.fecha?1:-1).at(-1).fecha : l.desde, l.hasta)} días
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg pastaje</p>
+                            <p className="text-slate-600 font-bold text-sm">{fmtPesos(l.pesos)}</p>
+                          </div>
                         </div>
                       </div>
+                      {/* Suplemento discriminado */}
+                      {l.supActivo && l.kgSup > 0 && (
+                        <div className="bg-amber-50 border-t border-amber-200 px-3 py-2 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-black text-amber-700">💊 Suplemento</span>
+                            <span className="text-xs text-amber-600 ml-2">{l.supKgDia} kg/día × {l.diasConSup} días · {fmtN(l.kgSup)} kg</span>
+                          </div>
+                          <span className="font-black text-sm text-amber-700">{fmtPesos(l.pesosSup)}</span>
+                        </div>
+                      )}
+                      {/* Total por tropa */}
+                      {l.supActivo && l.kgSup > 0 && (
+                        <div className="bg-slate-100 border-t border-slate-200 px-3 py-1.5 flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-600">Total tropa</span>
+                          <span className="font-black text-sm text-slate-800">{fmtPesos(l.totalPesos)}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
                 {/* Total */}
-                <div className="bg-slate-800 text-white rounded-2xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-white/60">Total período</p>
-                    <p className="text-xs text-white/50">corte al {fmtFecha(fechaHasta)} · {MODO_LABELS[modoCobro]}</p>
+                <div className="bg-slate-800 text-white rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-white/60">Total período</p>
+                      <p className="text-xs text-white/50">corte al {fmtFecha(fechaHasta)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black">{fmtPesos(totalPreview)}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black">{fmtN(Math.round(kgPreview))} kg</p>
-                    <p className="text-sm text-white/70">${fmtK1(pesosPreview)}</p>
+                  <div className="border-t border-white/20 pt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white/10 rounded-xl p-2">
+                      <p className="text-white/60">Pastaje ({fmtN(Math.round(kgPreview))} kg nov)</p>
+                      <p className="font-black text-white">{fmtPesos(pesosPreview)}</p>
+                    </div>
+                    {supPreview > 0 && (
+                      <div className="bg-amber-500/30 rounded-xl p-2">
+                        <p className="text-amber-200">💊 Suplemento</p>
+                        <p className="font-black text-amber-100">{fmtPesos(supPreview)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <button onClick={confirmarLiquidacion}
@@ -6987,6 +7221,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
       {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
       {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
+      {tropaSuplemento     && <ModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} />}
     </div>
   );
 }
