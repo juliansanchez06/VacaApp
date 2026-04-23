@@ -5949,40 +5949,41 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const totalCabPastaje = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
 
   // ── Cálculo de suplemento de una tropa en un rango de fechas ─────────────
-  // Retorna { kgSup, pesosSup } para el período [desde, hasta]
-  // Tiene en cuenta los segmentos definidos por meses o por fechas finas.
+  // Retorna { kgSup, pesosSup, detallesMes } para el período [desde, hasta]
+  // Cada mes tiene su propio kgDia. Itera día a día y suma el kgDia del mes correspondiente.
   const calcSuplemento = (tropa, desde, hasta) => {
     const sup = tropa.suplemento;
-    if (!sup || !sup.activo || sup.kgDia <= 0 || sup.precioPorKg <= 0) return { kgSup: 0, pesosSup: 0 };
+    if (!sup || !sup.activo || !sup.precioPorKg || sup.precioPorKg <= 0) return { kgSup: 0, pesosSup: 0, detallesMes: [] };
     const cab = tropa.cabActual ?? tropa.cab;
-    if (cab <= 0) return { kgSup: 0, pesosSup: 0 };
+    if (cab <= 0) return { kgSup: 0, pesosSup: 0, detallesMes: [] };
 
     const dInicio = new Date(desde);
     const dFin    = new Date(hasta || new Date());
 
-    // Segmentos: si hay fechaDesde/fechaHasta finas, usarlas; si no, usar los meses tildados
-    let diasConSup = 0;
+    // kgDiaPorMes: objeto { 1: 2.5, 2: 0, 3: 1.8, ... } — si el mes no está o es 0 no suma
+    const kgDiaPorMes = sup.kgDiaPorMes ?? {};
 
-    if (sup.usarFechas && sup.fechaDesde && sup.fechaHasta) {
-      // Rango fino: intersección entre [dInicio,dFin] y [fechaDesde,fechaHasta]
-      const sD = new Date(Math.max(new Date(sup.fechaDesde), dInicio));
-      const sH = new Date(Math.min(new Date(sup.fechaHasta),  dFin));
-      diasConSup = Math.max(0, Math.round((sH - sD) / (1000 * 60 * 60 * 24)));
-    } else {
-      // Meses tildados: por cada día entre dInicio y dFin, verificar si su mes (1-12) está en meses[]
-      const meses = sup.meses ?? [];
-      if (meses.length > 0) {
-        let d = new Date(dInicio);
-        while (d < dFin) {
-          if (meses.includes(d.getMonth() + 1)) diasConSup++;
-          d.setDate(d.getDate() + 1);
-        }
+    // Acumular por mes para el detalle
+    const acumMes = {}; // { "2026-04": { dias, kgTotal } }
+
+    let d = new Date(dInicio);
+    while (d < dFin) {
+      const m  = d.getMonth() + 1;           // 1-12
+      const kg = kgDiaPorMes[m] ?? 0;
+      if (kg > 0) {
+        const key = `${d.getFullYear()}-${String(m).padStart(2,"0")}`;
+        if (!acumMes[key]) acumMes[key] = { mes: m, anio: d.getFullYear(), label: MESES_LABELS[m-1], kgDia: kg, dias: 0, kgTotal: 0 };
+        acumMes[key].dias++;
+        acumMes[key].kgTotal += kg;
       }
+      d.setDate(d.getDate() + 1);
     }
 
-    const kgSup    = Math.round(cab * sup.kgDia * diasConSup * 10) / 10;
+    const detallesMes = Object.values(acumMes);
+    const kgSup    = Math.round(detallesMes.reduce((s, x) => s + cab * x.kgTotal, 0) * 10) / 10;
     const pesosSup = Math.round(kgSup * sup.precioPorKg);
-    return { kgSup, pesosSup, diasConSup };
+    const diasConSup = detallesMes.reduce((s, x) => s + x.dias, 0);
+    return { kgSup, pesosSup, diasConSup, detallesMes };
   };
 
   const fmtN    = (n) => Math.round(n).toLocaleString("es-AR");
@@ -6230,125 +6231,141 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const MESES_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const ModalSuplemento = ({ tropa, onClose }) => {
     const supInicial = tropa.suplemento ?? {
-      activo: false, kgDia: 0, precioPorKg: 0,
-      meses: [], usarFechas: false, fechaDesde: "", fechaHasta: "",
+      activo: false, precioPorKg: 0,
+      kgDiaPorMes: {},
+      usarFechas: false, fechaDesde: "", fechaHasta: "",
     };
     const [sup, setSup] = useState(supInicial);
     const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
 
-    const toggleMes = (m) => setSup(p => ({
+    // kg/día de un mes en particular
+    const setKgMes = (m, val) => setSup(p => ({
       ...p,
-      meses: p.meses.includes(m) ? p.meses.filter(x => x !== m) : [...p.meses, m],
+      kgDiaPorMes: { ...p.kgDiaPorMes, [m]: parseFloat(val) || 0 },
     }));
 
+    const cab = tropa.cabActual ?? tropa.cab;
+
+    // Atajos: poner el mismo valor a un rango de meses
+    const setRango = (meses, val) => setSup(p => {
+      const nuevo = { ...p.kgDiaPorMes };
+      meses.forEach(m => { nuevo[m] = val; });
+      return { ...p, kgDiaPorMes: nuevo };
+    });
+
+    // Preview total por mes
+    const previewMeses = MESES_LABELS.map((lbl, i) => {
+      const m   = i + 1;
+      const kg  = sup.kgDiaPorMes?.[m] ?? 0;
+      const diasMes = new Date(2026, m, 0).getDate(); // días en ese mes
+      return { m, lbl, kg, kgTotal: kg * diasMes * cab, pesos: kg * diasMes * cab * (sup.precioPorKg || 0) };
+    });
+    const kgAnual   = previewMeses.reduce((s, x) => s + x.kgTotal, 0);
+    const pesosAnual = previewMeses.reduce((s, x) => s + x.pesos, 0);
+
     const guardar = () => {
-      setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, suplemento: { ...sup, activo: sup.kgDia > 0 && sup.precioPorKg > 0 } } : t));
+      const tieneConsumo = Object.values(sup.kgDiaPorMes ?? {}).some(v => v > 0);
+      setTropas(prev => prev.map(t =>
+        t.id === tropa.id
+          ? { ...t, suplemento: { ...sup, activo: tieneConsumo && sup.precioPorKg > 0 } }
+          : t
+      ));
       toast(`✅ Suplemento de ${tropa.origen} actualizado`, "success");
       onClose();
     };
 
-    // Preview: consumo estimado por mes en período actual
-    const kgEstimadoMes = sup.kgDia * (tropa.cabActual ?? tropa.cab) * 30;
-
     return (
-      <ModalWrapper titulo={`Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+      <ModalWrapper titulo={`💊 Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
         <div className="space-y-5">
 
-          {/* Valores por tropa */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo (kg/animal/día)</label>
-              <input type="number" step="0.1" min="0" value={sup.kgDia}
-                onChange={e => setS("kgDia")(parseFloat(e.target.value) || 0)}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+          {/* Precio del suplemento */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio del suplemento ($/kg)</label>
+            <input type="number" step="10" min="0" value={sup.precioPorKg}
+              onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-amber-400" />
+          </div>
+
+          {/* Grilla de consumo por mes */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo por mes (kg/animal/día)</p>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio ($/kg suplemento)</label>
-              <input type="number" step="10" min="0" value={sup.precioPorKg}
-                onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mb-3">Dejá en 0 los meses que no consume</p>
+
+            <div className="space-y-1.5">
+              {MESES_LABELS.map((lbl, i) => {
+                const m      = i + 1;
+                const kg     = sup.kgDiaPorMes?.[m] ?? 0;
+                const activo = kg > 0;
+                const kgMesTotal = kg * new Date(2026, m, 0).getDate() * cab;
+                return (
+                  <div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+                    <span className={`text-xs font-black w-8 ${activo ? "text-amber-700" : "text-slate-400"}`}>{lbl}</span>
+                    <input
+                      type="number" step="0.1" min="0" value={kg === 0 ? "" : kg}
+                      placeholder="0"
+                      onChange={e => setKgMes(m, e.target.value)}
+                      className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo ? "border-amber-300 bg-white text-amber-800 focus:border-amber-500" : "border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`}
+                    />
+                    <span className="text-xs text-slate-400">kg/ani/día</span>
+                    {activo && sup.precioPorKg > 0 && (
+                      <div className="ml-auto text-right">
+                        <span className="text-xs text-amber-600 font-bold">{fmtN(Math.round(kgMesTotal))} kg</span>
+                        <span className="text-xs text-slate-400 ml-2">{fmtPesos(kgMesTotal * sup.precioPorKg)}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Atajos */}
+            <div className="flex gap-2 mt-3 flex-wrap">
+              <button onClick={() => setRango([1,2,3,4,5,6,7,8,9,10,11,12], 0)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
+                Limpiar todo
+              </button>
+              <button onClick={() => setRango([4,5,6,7,8,9], sup.kgDiaPorMes?.[4] || 2)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">
+                Otoño-inv (Abr→Sep)
+              </button>
+              <button onClick={() => setRango([10,11,12,1,2,3], sup.kgDiaPorMes?.[10] || 1)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all">
+                Primavera-ver
+              </button>
             </div>
           </div>
 
-          {/* Preview rápido */}
-          {sup.kgDia > 0 && sup.precioPorKg > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-800">
-              <span className="font-black">{fmtN(Math.round(kgEstimadoMes))} kg/mes</span>
-              <span className="text-amber-600 ml-2">≈ {fmtPesos(kgEstimadoMes * sup.precioPorKg)} por mes · {tropa.cabActual ?? tropa.cab} cab</span>
+          {/* Resumen anual */}
+          {kgAnual > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2">Proyección anual · {cab} cab</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
+                  <p className="text-xs text-amber-500">kg totales/año</p>
+                  <p className="font-black text-amber-800 text-lg">{fmtN(Math.round(kgAnual))} kg</p>
+                </div>
+                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
+                  <p className="text-xs text-amber-500">$ totales/año</p>
+                  <p className="font-black text-amber-800 text-lg">{fmtPesos(pesosAnual)}</p>
+                </div>
+              </div>
+              {/* Barra visual por mes */}
+              <div className="mt-3 flex items-end gap-1 h-12">
+                {previewMeses.map(x => {
+                  const maxKg = Math.max(...previewMeses.map(p => p.kgTotal), 1);
+                  const h = Math.round((x.kgTotal / maxKg) * 100);
+                  return (
+                    <div key={x.m} className="flex-1 flex flex-col items-center gap-0.5" title={`${x.lbl}: ${fmtN(Math.round(x.kgTotal))} kg`}>
+                      <div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, background: h > 0 ? "#d97706" : "#e2e8f0", minHeight: h > 0 ? 3 : 0 }} />
+                      <span className="text-[9px] text-slate-400">{x.lbl.slice(0,1)}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          {/* Selector de meses o fechas */}
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex-1">Período de suplemento</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setS("usarFechas")(false)}
-                  className={`text-xs font-black px-3 py-1 rounded-lg border-2 transition-all ${!sup.usarFechas ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
-                  Por meses
-                </button>
-                <button onClick={() => setS("usarFechas")(true)}
-                  className={`text-xs font-black px-3 py-1 rounded-lg border-2 transition-all ${sup.usarFechas ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
-                  Fechas exactas
-                </button>
-              </div>
-            </div>
-
-            {!sup.usarFechas ? (
-              /* Grilla de 12 meses */
-              <div>
-                <p className="text-xs text-slate-400 mb-2">Tocá los meses en que consume suplemento</p>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {MESES_LABELS.map((lbl, i) => {
-                    const m = i + 1;
-                    const on = sup.meses.includes(m);
-                    return (
-                      <button key={m} onClick={() => toggleMes(m)}
-                        className={`py-2.5 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${on ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-500 border-slate-200 hover:border-emerald-300"}`}>
-                        {lbl}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <button onClick={() => setSup(p => ({ ...p, meses: [1,2,3,4,5,6,7,8,9,10,11,12] }))}
-                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
-                    Todos
-                  </button>
-                  <button onClick={() => setSup(p => ({ ...p, meses: [] }))}
-                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
-                    Ninguno
-                  </button>
-                  <button onClick={() => setSup(p => ({ ...p, meses: [4,5,6,7,8,9] }))}
-                    className="flex-1 text-xs font-bold py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">
-                    Otoño-inv.
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Fechas finas */
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</label>
-                  <input type="date" value={sup.fechaDesde}
-                    onChange={e => setS("fechaDesde")(e.target.value)}
-                    className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</label>
-                  <input type="date" value={sup.fechaHasta}
-                    onChange={e => setS("fechaHasta")(e.target.value)}
-                    className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                </div>
-                {sup.fechaDesde && sup.fechaHasta && (
-                  <div className="col-span-2 bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-500">
-                    {diasEntre(sup.fechaDesde, sup.fechaHasta)} días de suplemento
-                    {sup.kgDia > 0 && ` · ${fmtN(Math.round((tropa.cabActual ?? tropa.cab) * sup.kgDia * diasEntre(sup.fechaDesde, sup.fechaHasta)))} kg totales`}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </ModalWrapper>
     );
@@ -6430,7 +6447,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
                               {t.suplemento?.activo && (
                                 <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
-                                  💊 {t.suplemento.kgDia} kg/día · {fmtPesos(t.suplemento.precioPorKg)}/kg
+                                  💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
                                 </span>
                               )}
                             </div>
@@ -6642,6 +6659,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           kgSup:    Math.round(kgSup * 10) / 10,
           pesosSup: Math.round(pesosSup),
           diasConSup: diasConSup ?? 0,
+          detallesMes: detallesMes ?? [],
           supActivo: (tropa.suplemento?.activo) ?? false,
           supKgDia: tropa.suplemento?.kgDia ?? 0,
           supPrecio: tropa.suplemento?.precioPorKg ?? 0,
@@ -7007,12 +7025,21 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                       </div>
                       {/* Suplemento discriminado */}
                       {l.supActivo && l.kgSup > 0 && (
-                        <div className="bg-amber-50 border-t border-amber-200 px-3 py-2 flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-black text-amber-700">💊 Suplemento</span>
-                            <span className="text-xs text-amber-600 ml-2">{l.supKgDia} kg/día × {l.diasConSup} días · {fmtN(l.kgSup)} kg</span>
+                        <div className="bg-amber-50 border-t border-amber-200 px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-black text-amber-700">💊 Suplemento · {l.diasConSup} días</span>
+                            <span className="font-black text-sm text-amber-700">{fmtPesos(l.pesosSup)}</span>
                           </div>
-                          <span className="font-black text-sm text-amber-700">{fmtPesos(l.pesosSup)}</span>
+                          {l.detallesMes?.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {l.detallesMes.map((dm, j) => (
+                                <span key={j} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                                  {dm.label}: {dm.kgDia} kg/día × {dm.dias}d
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-xs text-amber-600 mt-1">{fmtN(l.kgSup)} kg × {fmtPesos(l.supPrecio)}/kg</p>
                         </div>
                       )}
                       {/* Total por tropa */}
