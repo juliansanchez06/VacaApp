@@ -33,6 +33,12 @@ import {
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+} from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
 
@@ -47,7 +53,48 @@ const firebaseConfig = {
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
+const db   = getFirestore(firebaseApp);
 setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+// ── Guardar / cargar estado en Firestore ─────────────────────────────────────
+// Guarda todos los datos del store en /usuarios/{email}/estado
+async function guardarEstado(userEmail) {
+  if (!userEmail || !db) return;
+  const s = vacaStore.getState();
+  const payload = {
+    global:           s.global,
+    gastos:           s.gastos,
+    campoCria:        s.campoCria,
+    campoRecria:      s.campoRecria,
+    campoTerminacion: s.campoTerminacion,
+    campoPastaje:     s.campoPastaje,
+    simulaciones:     s.simulaciones,
+    anoGanaderoActual: s.anoGanaderoActual,
+    historialAnos:    s.historialAnos,
+    savedAt:          new Date().toISOString(),
+  };
+  const ref = doc(db, "usuarios", userEmail.replace(/[.@]/g, "_"), "datos", "estado");
+  await setDoc(ref, payload);
+}
+
+// Carga el estado desde Firestore y lo aplica al store
+async function cargarEstado(userEmail) {
+  if (!userEmail || !db) return false;
+  const ref = doc(db, "usuarios", userEmail.replace(/[.@]/g, "_"), "datos", "estado");
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return false;
+  const data = snap.data();
+  const s = vacaStore.getState();
+  if (data.global)           s.setGlobal(data.global);
+  if (data.gastos)           s.setGastos(data.gastos);
+  if (data.campoCria)        s.setCampoCria(data.campoCria);
+  if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
+  if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
+  if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
+  if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
+  if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
+  return true;
+}
 
 // ── Emails autorizados ────────────────────────────────────────────────────────
 const EMAILS_AUTORIZADOS = [
@@ -64,7 +111,6 @@ const ACTION_CODE_SETTINGS = {
   handleCodeInApp: true,
 };
 
-const db = null; // persistencia desactivada
 
 
 // ─── Logo (embedded) ─────────────────────────────────────────────────────────
@@ -7283,7 +7329,33 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [syncData,    setSyncData]      = useState(null);
   const [descarteData, setDescarteData] = useState(null);
   const [simulaciones, setSimulaciones] = useState([]);
+  const [guardando,    setGuardando]    = useState(false);
+  const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
+
+  // ── Cargar estado de Firestore al iniciar ─────────────────────────────────
+  useEffect(() => {
+    if (!userEmail) return;
+    cargarEstado(userEmail).then(ok => {
+      if (ok) setUltimoGuardado("cargado");
+    }).catch(err => console.error("Error cargando estado:", err));
+  }, [userEmail]);
+
+  // ── Guardar estado en Firestore ───────────────────────────────────────────
+  const handleGuardar = async () => {
+    setGuardando(true);
+    try {
+      await guardarEstado(userEmail);
+      const ahora = new Date();
+      setUltimoGuardado(`${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2,"0")}`);
+      pushToast("✅ Datos guardados en la nube", "success");
+    } catch (err) {
+      console.error("Error guardando:", err);
+      pushToast("❌ Error al guardar. Revisá la conexión.", "warn");
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   // ── Año ganadero ──────────────────────────────────────────────────────────
   const anoGanaderoActual = useStore(vacaStore, s => s.anoGanaderoActual);
@@ -7524,14 +7596,29 @@ function EstrategiaComercial({ userEmail, onLogout }) {
               </div>
             </div>
 
-            {/* Simulaciones badge — right */}
-            <div className="shrink-0">
-              {simulaciones.length > 0
-                ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full badge-pulse">
-                    {simulaciones.length} 💾
-                  </span>
-                : <span className="w-16 hidden sm:inline-block" />
-              }
+            {/* Guardar + simulaciones badge — right */}
+            <div className="shrink-0 flex items-center gap-2">
+              {simulaciones.length > 0 && (
+                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full badge-pulse hidden sm:inline-flex items-center gap-1">
+                  {simulaciones.length} 💾
+                </span>
+              )}
+              <button
+                onClick={handleGuardar}
+                disabled={guardando}
+                title={ultimoGuardado ? `Último guardado: ${ultimoGuardado}` : "Guardar en la nube"}
+                className={`flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-xl border-2 transition-all active:scale-95
+                  ${guardando
+                    ? "bg-slate-100 border-slate-200 text-slate-400 cursor-wait"
+                    : "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 shadow-sm"
+                  }`}
+              >
+                {guardando ? (
+                  <><span className="animate-spin">⟳</span><span className="hidden sm:inline">Guardando…</span></>
+                ) : (
+                  <><span>☁</span><span className="hidden sm:inline">{ultimoGuardado ? ultimoGuardado : "Guardar"}</span></>
+                )}
+              </button>
             </div>
           </div>
         </nav>
