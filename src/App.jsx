@@ -5917,26 +5917,28 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
   };
 
-  // Cargar datos iniciales la primera vez
+  // Cargar datos iniciales — también resetea si hay datos viejos (fechas pre-2026-04-21)
   useEffect(() => {
-    if (tropas.length === 0) {
+    const tieneViejos = tropas.length === 0 ||
+      tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21");
+    if (tieneViejos) {
       const inicial = [
-        { id: 1,  cat: "vacas",    cab: 21,  origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "verano"  },
-        { id: 2,  cat: "vacas",    cab: 26,  origen: "Vacas viejas",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        { id: 3,  cat: "vacas",    cab: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2026-04-21", servicio: "otoño"   },
-        { id: 4,  cat: "vacas",    cab: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2026-04-21", servicio: "otoño"   },
-        { id: 5,  cat: "toros",    cab: 2,   origen: "Toros viejos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        { id: 6,  cat: "toros",    cab: 4,   origen: "Toros nuevos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        { id: 7,  cat: "terneras", cab: 7,   origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        { id: 8,  cat: "recria",   cab: 6,   origen: "Novillos compra",        fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        { id: 9,  cat: "recria",   cab: 111, origen: "Terneros marca líq.",    fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 1,  cat: "vacas",    cab: 21,  cabActual: 21,  origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "verano"  },
+        { id: 2,  cat: "vacas",    cab: 26,  cabActual: 26,  origen: "Vacas viejas",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 3,  cat: "vacas",    cab: 30,  cabActual: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2026-04-21", servicio: "otoño"   },
+        { id: 4,  cat: "vacas",    cab: 15,  cabActual: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2026-04-21", servicio: "otoño"   },
+        { id: 5,  cat: "toros",    cab: 2,   cabActual: 2,   origen: "Toros viejos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 6,  cat: "toros",    cab: 4,   cabActual: 4,   origen: "Toros nuevos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 8,  cat: "recria",   cab: 6,   cabActual: 6,   origen: "Novillos compra",        fechaIngreso: "2026-04-21", servicio: "ninguno" },
+        { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    fechaIngreso: "2026-04-21", servicio: "ninguno" },
       ];
       const tercerosInic = [
         { id: 1, nombre: "Londero" },
         { id: 2, nombre: "Marca líquida" },
         { id: 3, nombre: "Compra propia" },
       ];
-      setPastaje({ tropas: inicial, terceros: tercerosInic });
+      setPastaje({ tropas: inicial, terceros: tercerosInic, periodos: [], precios: { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 } });
     }
   }, []); // eslint-disable-line
 
