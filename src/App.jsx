@@ -5971,9 +5971,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     else if (modo === "anual") d.setFullYear(d.getFullYear() + 1);
     return d.toISOString().slice(0, 10);
   };
-  const fechaHastaEfectiva = modoCobro !== "fecha"
-    ? calcFechaHastaAuto(modoCobro, fechaDesdeAuto)
-    : fechaHasta;
+  // La fecha hasta SIEMPRE es la que elige el usuario — nunca se calcula automático
+  const fechaHastaEfectiva = fechaHasta;
 
   // ── Cálculo de suplemento de una tropa en un rango de fechas ─────────────
   // Retorna { kgSup, pesosSup, detallesMes } para el período [desde, hasta]
