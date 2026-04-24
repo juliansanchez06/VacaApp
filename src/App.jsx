@@ -3792,6 +3792,60 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
+// ── EditField — componente independiente para editar valores numéricos ────────
+function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) {
+  const [inputStr, setInputStr] = useState(null);
+  const decFn = useCallback(() => { onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)); setInputStr(null); }, [value, step, minVal, onChange]);
+  const incFn = useCallback(() => { onChange(Math.round((value + step) * 100) / 100); setInputStr(null); }, [value, step, onChange]);
+  const decLP = useLongPress(decFn, 180);
+  const incLP = useLongPress(incFn, 180);
+  const handleChange = (e) => {
+    const raw = e.target.value;
+    setInputStr(raw);
+    if (raw === "" || raw === "-") return;
+    const n = parseFloat(raw);
+    if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100));
+  };
+  const handleBlur = () => {
+    if (inputStr === "" || inputStr === null) onChange(minVal);
+    setInputStr(null);
+  };
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-500 font-semibold">{label}</span>
+        <div className="flex items-center gap-1.5">
+          {usdVal && <span className="text-xs text-emerald-600 font-semibold">{usdVal}</span>}
+          {value !== minVal && (
+            <button onClick={() => { onChange(minVal); setInputStr(null); }}
+              className="text-xs text-slate-400 hover:text-red-500 font-black px-1.5 py-0.5 rounded-md hover:bg-red-50 transition-all"
+              title="Poner en 0">×0</button>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button {...decLP}
+          className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">−</button>
+        <div className="flex-1 relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{prefix}</span>
+          <input
+            type="number" step={step} min={minVal}
+            value={inputStr !== null ? inputStr : value}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            onFocus={e => { setInputStr(String(value)); e.target.select(); }}
+            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-base text-slate-800 focus:outline-none focus:border-emerald-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{suffix}</span>
+        </div>
+        <button {...incLP}
+          className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">+</button>
+      </div>
+      {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, onToast }) {
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
@@ -4045,58 +4099,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
-  const EditField = ({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) => {
-    const [inputStr, setInputStr] = useState(null);
-    const decFn = useCallback(() => { onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)); setInputStr(null); }, [value, step, minVal, onChange]);
-    const incFn = useCallback(() => { onChange(Math.round((value + step) * 100) / 100); setInputStr(null); }, [value, step, onChange]);
-    const decLP = useLongPress(decFn, 180);
-    const incLP = useLongPress(incFn, 180);
-    const handleChange = (e) => {
-      const raw = e.target.value;
-      setInputStr(raw);
-      if (raw === "" || raw === "-") return;
-      const n = parseFloat(raw);
-      if (!isNaN(n)) onChange(Math.max(minVal, Math.round(n * 100) / 100));
-    };
-    const handleBlur = () => {
-      if (inputStr === "" || inputStr === null) onChange(minVal);
-      setInputStr(null);
-    };
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-500 font-semibold">{label}</span>
-          <div className="flex items-center gap-1.5">
-            {usdVal && <span className="text-xs text-emerald-600 font-semibold">{usdVal}</span>}
-            {value !== minVal && (
-              <button onClick={() => { onChange(minVal); setInputStr(null); }}
-                className="text-xs text-slate-400 hover:text-red-500 font-black px-1.5 py-0.5 rounded-md hover:bg-red-50 transition-all"
-                title="Poner en 0">×0</button>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button {...decLP}
-            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">−</button>
-          <div className="flex-1 relative">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{prefix}</span>
-            <input
-              type="number" step={step} min={minVal}
-              value={inputStr !== null ? inputStr : value}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              onFocus={e => { setInputStr(String(value)); e.target.select(); }}
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-1.5 text-center font-mono font-black text-base text-slate-800 focus:outline-none focus:border-emerald-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{suffix}</span>
-          </div>
-          <button {...incLP}
-            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0 active:scale-95 transition-all touch-manipulation select-none">+</button>
-        </div>
-        {hint && <p className="text-xs text-slate-400 italic">{hint}</p>}
-      </div>
-    );
-  };
+  // EditField definido como componente de nivel superior (ver arriba)
 
   return (
     <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
@@ -7467,6 +7470,25 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const { toasts, push: pushToast } = useToast();
 
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
+
+  // ── Auto-guardar cuando el store cambia (debounce 2s) ────────────────────
+  useEffect(() => {
+    if (!userEmail) return;
+    let timer;
+    const unsub = vacaStore.subscribe(() => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          await guardarEstado(userEmail);
+          const ahora = new Date();
+          setUltimoGuardado(`${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2,"0")}`);
+        } catch(e) {
+          console.warn("Auto-save falló:", e.message);
+        }
+      }, 2000);
+    });
+    return () => { unsub(); clearTimeout(timer); };
+  }, [userEmail]);
 
   // ── Guardar estado en Firestore ───────────────────────────────────────────
   const handleGuardar = async () => {
