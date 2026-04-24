@@ -73,27 +73,41 @@ async function guardarEstado(userEmail) {
     historialAnos:    s.historialAnos,
     savedAt:          new Date().toISOString(),
   };
-  const ref = doc(db, "usuarios", userEmail.replace(/[.@]/g, "_"), "datos", "estado");
-  await setDoc(ref, payload);
+  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+  const ref = doc(db, "usuarios", key);
+  await setDoc(ref, payload, { merge: true });
 }
 
-// Carga el estado desde Firestore y lo aplica al store
-async function cargarEstado(userEmail) {
+// Carga el estado desde Firestore con reintentos
+async function cargarEstado(userEmail, intentos = 3) {
   if (!userEmail || !db) return false;
-  const ref = doc(db, "usuarios", userEmail.replace(/[.@]/g, "_"), "datos", "estado");
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return false;
-  const data = snap.data();
-  const s = vacaStore.getState();
-  if (data.global)           s.setGlobal(data.global);
-  if (data.gastos)           s.setGastos(data.gastos);
-  if (data.campoCria)        s.setCampoCria(data.campoCria);
-  if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
-  if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
-  if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
-  if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
-  if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
-  return true;
+  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+  const ref = doc(db, "usuarios", key);
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return false;
+      const data = snap.data();
+      const s = vacaStore.getState();
+      if (data.global)           s.setGlobal(data.global);
+      if (data.gastos)           s.setGastos(data.gastos);
+      if (data.campoCria)        s.setCampoCria(data.campoCria);
+      if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
+      if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
+      if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
+      if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
+      if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
+      return true;
+    } catch (err) {
+      if (i < intentos - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      } else {
+        console.warn("Firestore no disponible:", err.message);
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 // ── Emails autorizados ────────────────────────────────────────────────────────
