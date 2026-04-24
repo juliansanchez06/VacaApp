@@ -7453,12 +7453,16 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const handleGuardar = async () => {
     setGuardando(true);
     try {
+      console.log("🔵 Iniciando guardado para:", userEmail);
+      console.log("🔵 Auth user:", auth.currentUser?.email);
+      console.log("🔵 DB:", db);
       await guardarEstado(userEmail);
       const ahora = new Date();
       setUltimoGuardado(`${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2,"0")}`);
+      console.log("✅ Guardado exitoso");
       pushToast("✅ Datos guardados en la nube", "success");
     } catch (err) {
-      console.error("Error guardando:", err);
+      console.error("❌ Error guardando:", err);
       pushToast("❌ Error al guardar. Revisá la conexión.", "warn");
     } finally {
       setGuardando(false);
