@@ -27,11 +27,11 @@ import {
   getAuth,
   setPersistence,
   browserLocalPersistence,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -105,11 +105,7 @@ const EMAILS_AUTORIZADOS = [
 const DEV_BYPASS = true;
 const DEV_USER   = { email: "juliansanchez06@gmail.com" };
 
-// ── Magic link settings ───────────────────────────────────────────────────────
-const ACTION_CODE_SETTINGS = {
-  url: "https://soypekun-umber.vercel.app/",
-  handleCodeInApp: true,
-};
+// ── Magic link settings removed — usando email+contraseña ────────────────────
 
 
 
@@ -3400,36 +3396,85 @@ function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
   );
 }
 
+// LOGIN SCREEN — Email + Contraseña
+// ═══════════════════════════════════════════════════════════════════════════
 function LoginScreen() {
-  const [email, setEmail]   = useState("");
-  const [estado, setEstado] = useState("idle");
+  const [modo,     setModo]     = useState("login"); // "login" | "register" | "reset"
+  const [email,    setEmail]    = useState("");
+  const [pass,     setPass]     = useState("");
+  const [pass2,    setPass2]    = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [estado,   setEstado]   = useState("idle"); // idle | loading | ok | error
   const [errorMsg, setErrorMsg] = useState("");
+  const [resetOk,  setResetOk]  = useState(false);
 
-  const handleSend = async () => {
+  const resetForm = () => { setErrorMsg(""); setEstado("idle"); setPass(""); setPass2(""); setResetOk(false); };
+  const cambiarModo = (m) => { setModo(m); resetForm(); };
+
+  const handleLogin = async () => {
     const em = email.trim().toLowerCase();
-    if (!em || !em.includes("@")) { setErrorMsg("Ingresá un email válido."); setEstado("error"); return; }
+    if (!em || !pass) { setErrorMsg("Completá email y contraseña."); setEstado("error"); return; }
     if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado para acceder."); setEstado("error"); return; }
-    setEstado("sending");
+    setEstado("loading");
     try {
-      await sendSignInLinkToEmail(auth, em, ACTION_CODE_SETTINGS);
-      window.localStorage.setItem("emailParaLogin", em);
-      setEstado("sent");
+      await signInWithEmailAndPassword(auth, em, pass);
     } catch(err) {
-      const code = err?.code || "";
-      let msg = "Error al enviar el link. Intentá de nuevo.";
-      if (code === "auth/invalid-email") msg = "Email inválido.";
-      else if (code === "auth/unauthorized-domain") msg = "Dominio no autorizado en Firebase. Agregá soypekun-umber.vercel.app en Authentication → Settings → Authorized domains.";
-      else if (code === "auth/too-many-requests") msg = "Demasiados intentos. Esperá unos minutos.";
-      else if (code === "auth/operation-not-allowed") msg = "Email link no habilitado en Firebase. Activá Email/Password + Email link en Authentication → Sign-in method.";
-      else if (code) msg = `Error Firebase: ${code}`;
-      setErrorMsg(msg); setEstado("error");
-      console.error("Firebase auth error:", err);
+      const msgs = {
+        "auth/user-not-found":    "No existe una cuenta con ese email. Registrate primero.",
+        "auth/wrong-password":    "Contraseña incorrecta.",
+        "auth/invalid-credential":"Email o contraseña incorrectos.",
+        "auth/too-many-requests": "Demasiados intentos. Esperá unos minutos.",
+        "auth/invalid-email":     "Email inválido.",
+      };
+      setErrorMsg(msgs[err?.code] || `Error: ${err?.code || "desconocido"}`);
+      setEstado("error");
     }
   };
 
+  const handleRegistrar = async () => {
+    const em = email.trim().toLowerCase();
+    if (!em || !pass || !pass2) { setErrorMsg("Completá todos los campos."); setEstado("error"); return; }
+    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado para registrarse."); setEstado("error"); return; }
+    if (pass.length < 6) { setErrorMsg("La contraseña debe tener al menos 6 caracteres."); setEstado("error"); return; }
+    if (pass !== pass2) { setErrorMsg("Las contraseñas no coinciden."); setEstado("error"); return; }
+    setEstado("loading");
+    try {
+      await createUserWithEmailAndPassword(auth, em, pass);
+    } catch(err) {
+      const msgs = {
+        "auth/email-already-in-use": "Ya existe una cuenta con ese email. Iniciá sesión.",
+        "auth/weak-password":        "Contraseña muy débil. Usá al menos 6 caracteres.",
+        "auth/invalid-email":        "Email inválido.",
+      };
+      setErrorMsg(msgs[err?.code] || `Error: ${err?.code || "desconocido"}`);
+      setEstado("error");
+    }
+  };
+
+  const handleReset = async () => {
+    const em = email.trim().toLowerCase();
+    if (!em) { setErrorMsg("Ingresá tu email."); setEstado("error"); return; }
+    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado."); setEstado("error"); return; }
+    setEstado("loading");
+    try {
+      await sendPasswordResetEmail(auth, em);
+      setResetOk(true);
+      setEstado("ok");
+    } catch(err) {
+      setErrorMsg("Error al enviar el email. Revisá que el email sea correcto.");
+      setEstado("error");
+    }
+  };
+
+  const handleSubmit = () => {
+    if (modo === "login")    handleLogin();
+    else if (modo === "register") handleRegistrar();
+    else handleReset();
+  };
+
   const STYLE = `
-    .lb { min-height:100vh; background:#064e3b; display:flex; align-items:center; justify-content:center; padding:1.5rem 1rem; position:relative; overflow:hidden; font-family:sans-serif; }
-    .lblob { position:absolute; border-radius:50%; pointer-events:none; }
+    .lb{min-height:100vh;background:#064e3b;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
+    .lblob{position:absolute;border-radius:50%;pointer-events:none;}
     .lb1{width:560px;height:560px;background:#10b981;opacity:.11;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
     .lb2{width:360px;height:360px;background:#34d399;opacity:.10;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
     .lb3{width:200px;height:200px;background:#6ee7b7;opacity:.10;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
@@ -3445,40 +3490,38 @@ function LoginScreen() {
     .ld6{font-size:44px;opacity:.08;top:42%;left:15%;animation:fd2 7.5s ease-in-out 3s infinite;}
     @keyframes fd1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
     @keyframes fd2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-50px) rotate(28deg)}}
-    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:400px;position:relative;z-index:2;box-shadow:0 40px 100px -10px rgba(6,78,59,.5);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
+    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:420px;position:relative;z-index:2;box-shadow:0 40px 100px -10px rgba(6,78,59,.5);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
     @keyframes lcardIn{from{opacity:0;transform:translateY(40px) scale(0.93)}to{opacity:1;transform:translateY(0) scale(1)}}
-    .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;animation:lfadeUp .6s cubic-bezier(.34,1.56,.64,1) .1s both;}
-    @keyframes lfadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-    .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;animation:llineGrow .5s .5s both;}
-    @keyframes llineGrow{from{width:0;opacity:0}to{width:56px;opacity:1}}
+    .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;}
+    .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;}
     .lbadge{background:linear-gradient(135deg,#064e3b,#059669);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
     .lslogan{font-size:10px;font-weight:700;letter-spacing:.18em;color:#6b7280;text-transform:uppercase;margin:0;}
-    .lh2{font-size:22px;font-weight:900;color:#111827;text-align:center;margin:1.25rem 0 .3rem;letter-spacing:-.4px;animation:lfadeUp .5s .2s both;}
-    .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.4rem;line-height:1.55;animation:lfadeUp .5s .28s both;}
-    .linpwrap{position:relative;margin-bottom:.75rem;animation:lfadeUp .5s .34s both;}
+    .lh2{font-size:21px;font-weight:900;color:#111827;text-align:center;margin:1rem 0 .25rem;letter-spacing:-.4px;}
+    .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.2rem;line-height:1.55;}
+    .ltabs{display:flex;gap:6px;margin-bottom:1.25rem;background:#f3f4f6;border-radius:14px;padding:4px;}
+    .ltab{flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;background:transparent;color:#6b7280;}
+    .ltab.active{background:#fff;color:#064e3b;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+    .linpwrap{position:relative;margin-bottom:.7rem;}
     .linpicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;}
-    .linp{width:100%;box-sizing:border-box;padding:13px 14px 13px 44px;font-size:16px;border:2px solid #e5e7eb;border-radius:14px;outline:none;color:#111827;background:#f9fafb;transition:border-color .2s,box-shadow .2s;font-family:inherit;}
+    .linptoggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:.45;cursor:pointer;background:none;border:none;padding:0;display:flex;}
+    .linp{width:100%;box-sizing:border-box;padding:13px 14px 13px 44px;font-size:15px;border:2px solid #e5e7eb;border-radius:14px;outline:none;color:#111827;background:#f9fafb;transition:border-color .2s,box-shadow .2s;font-family:inherit;}
     .linp:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.14);}
-    .linp::placeholder{color:#9ca3af;}
     .linp.lerr{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12);}
-    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#064e3b,#059669);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;animation:lfadeUp .5s .4s both;}
+    .linp::placeholder{color:#9ca3af;}
+    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#064e3b,#059669);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
     .lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,78,59,.4);}
     .lbtn:active{transform:scale(.97);}
     .lbtn:disabled{opacity:.7;cursor:not-allowed;transform:none!important;}
-    .ltoast{display:none;margin-top:.75rem;background:#ecfdf5;border:2px solid #6ee7b7;border-radius:14px;padding:13px 15px;align-items:flex-start;gap:11px;}
-    .ltoast.show{display:flex;animation:lfadeUp .4s both;}
-    .ldot{width:10px;height:10px;background:#10b981;border-radius:50%;margin-top:3px;flex-shrink:0;animation:lpulse 1.5s ease-in-out infinite;}
-    @keyframes lpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5);opacity:.6}}
-    .lerrmsg{display:none;margin-top:.6rem;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:10px 13px;font-size:13px;color:#dc2626;font-weight:600;align-items:center;gap:8px;}
-    .lerrmsg.show{display:flex;animation:lfadeUp .3s both;}
-    .lfeats{display:flex;justify-content:center;gap:24px;margin-top:1.5rem;animation:lfadeUp .5s .48s both;}
-    .lfeat{display:flex;flex-direction:column;align-items:center;gap:5px;}
-    .lfeaticon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;}
-    .lfeatlabel{font-size:10px;font-weight:700;color:#9ca3af;text-align:center;text-transform:uppercase;letter-spacing:.05em;line-height:1.3;}
-    .lnote{font-size:11px;color:#9ca3af;text-align:center;margin:1.25rem 0 0;line-height:1.55;animation:lfadeUp .5s .54s both;}
+    .lerrmsg{margin-top:.6rem;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:10px 13px;font-size:13px;color:#dc2626;font-weight:600;display:flex;align-items:center;gap:8px;}
+    .lokmsg{margin-top:.6rem;background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:12px;padding:10px 13px;font-size:13px;color:#065f46;font-weight:600;display:flex;align-items:center;gap:8px;}
+    .lforgot{font-size:12px;color:#6b7280;text-align:center;margin-top:.9rem;cursor:pointer;text-decoration:underline;}
     .lspinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:lspin .7s linear infinite;display:inline-block;}
     @keyframes lspin{to{transform:rotate(360deg)}}
+    .lnote{font-size:11px;color:#9ca3af;text-align:center;margin:1rem 0 0;line-height:1.55;}
   `;
+
+  const isErr = estado === "error";
+  const isLoading = estado === "loading";
 
   return (
     <>
@@ -3491,10 +3534,9 @@ function LoginScreen() {
         <div className="ldollar ld5">$</div><div className="ldollar ld6">$</div>
 
         <div className="lcard">
-          {/* Logo */}
           <div className="lwrap">
             <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              style={{ height:"120px", maxWidth:"360px", objectFit:"contain" }} />
+              style={{ height:"110px", maxWidth:"340px", objectFit:"contain" }} />
             <div className="lline" />
             <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
               <span className="lbadge">Simulador</span>
@@ -3502,51 +3544,103 @@ function LoginScreen() {
             </div>
           </div>
 
-          <h2 className="lh2">Bienvenido de vuelta</h2>
-          <p className="lsub">Ingresá tu email y te mandamos un link mágico.<br/>Un click y estás adentro, sin contraseña.</p>
+          {/* Tabs login / registrar / recuperar */}
+          <div className="ltabs">
+            <button className={`ltab${modo==="login" ? " active" : ""}`} onClick={() => cambiarModo("login")}>Ingresar</button>
+            <button className={`ltab${modo==="register" ? " active" : ""}`} onClick={() => cambiarModo("register")}>Registrarse</button>
+            <button className={`ltab${modo==="reset" ? " active" : ""}`} onClick={() => cambiarModo("reset")}>Recuperar</button>
+          </div>
 
+          <h2 className="lh2">
+            {modo === "login"    ? "Bienvenido de vuelta" :
+             modo === "register" ? "Crear cuenta" :
+                                   "Recuperar contraseña"}
+          </h2>
+          <p className="lsub">
+            {modo === "login"    ? "Ingresá tus credenciales para acceder." :
+             modo === "register" ? "Solo emails autorizados pueden registrarse." :
+                                   "Te mandamos un email para restablecer tu contraseña."}
+          </p>
+
+          {/* Email */}
           <div className="linpwrap">
             <div className="linpicon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
             </div>
-            <input className={`linp${estado === "error" ? " lerr" : ""}`} type="email"
+            <input className={`linp${isErr ? " lerr" : ""}`} type="email"
               placeholder="tu@email.com" value={email}
-              onChange={(e) => { setEmail(e.target.value); if(estado==="error"){setEstado("idle");setErrorMsg("");} }}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              disabled={estado === "sending" || estado === "sent"}
+              onChange={e => { setEmail(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              disabled={isLoading}
             />
           </div>
 
-          {estado !== "sent" && (
-            <button className="lbtn" onClick={handleSend} disabled={estado === "sending"}>
-              {estado === "sending" ? (
-                <><span className="lspinner" /> Enviando...</>
-              ) : (
-                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg> Enviar link de acceso</>
-              )}
-            </button>
+          {/* Contraseña */}
+          {modo !== "reset" && (
+            <div className="linpwrap">
+              <div className="linpicon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input className={`linp${isErr ? " lerr" : ""}`}
+                type={showPass ? "text" : "password"}
+                placeholder="Contraseña (mín. 6 caracteres)" value={pass}
+                onChange={e => { setPass(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
+                onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                disabled={isLoading}
+                style={{ paddingRight: "44px" }}
+              />
+              <button className="linptoggle" onClick={() => setShowPass(p => !p)} tabIndex={-1}>
+                {showPass
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
           )}
 
-          <div className={`ltoast${estado === "sent" ? " show" : ""}`}>
-            <div className="ldot" />
-            <div>
-              <p style={{fontSize:13,fontWeight:700,color:"#065f46",margin:"0 0 3px"}}>Link enviado a {email}</p>
-              <p style={{fontSize:12,color:"#047857",margin:0}}>Revisá tu casilla y hacé click en el link. Expira en 15 min.</p>
+          {/* Confirmar contraseña (solo registro) */}
+          {modo === "register" && (
+            <div className="linpwrap">
+              <div className="linpicon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input className={`linp${isErr ? " lerr" : ""}`}
+                type={showPass ? "text" : "password"}
+                placeholder="Repetí la contraseña" value={pass2}
+                onChange={e => { setPass2(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
+                onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                disabled={isLoading}
+                style={{ paddingRight: "44px" }}
+              />
             </div>
-          </div>
+          )}
 
-          <div className={`lerrmsg${estado === "error" ? " show" : ""}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
-            {errorMsg}
-          </div>
+          {/* Botón principal */}
+          <button className="lbtn" onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? (
+              <><span className="lspinner" /> {modo === "login" ? "Ingresando..." : modo === "register" ? "Registrando..." : "Enviando..."}</>
+            ) : (
+              modo === "login"    ? "Ingresar →" :
+              modo === "register" ? "Crear cuenta →" :
+                                    "Enviar email de recuperación →"
+            )}
+          </button>
 
-          <div className="lfeats">
-            <div className="lfeat"><div className="lfeaticon" style={{background:"#ecfdf5"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><span className="lfeatlabel">Sin<br/>contraseña</span></div>
-            <div className="lfeat"><div className="lfeaticon" style={{background:"#eff6ff"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div><span className="lfeatlabel">Acceso<br/>exclusivo</span></div>
-            <div className="lfeat"><div className="lfeaticon" style={{background:"#fef3c7"}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><span className="lfeatlabel">Acceso<br/>inmediato</span></div>
-          </div>
+          {/* Mensajes */}
+          {isErr && (
+            <div className="lerrmsg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+              {errorMsg}
+            </div>
+          )}
+          {resetOk && (
+            <div className="lokmsg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Email enviado a {email}. Revisá tu casilla.
+            </div>
+          )}
 
-          <p className="lnote">Solo los emails autorizados pueden ingresar.<br/>Si no recibís el link, revisá spam.</p>
+          <p className="lnote">Solo los emails autorizados pueden ingresar.<br/>SoyPekun · Gestión Ganadera Profesional</p>
         </div>
       </div>
     </>
@@ -7695,22 +7789,6 @@ export default function App() {
       setLoading(false);
     });
     return unsub;
-  }, []);
-
-  // ── Completar login desde magic link ─────────────────────────────────────
-  useEffect(() => {
-    if (!isSignInWithEmailLink(auth, window.location.href)) return;
-    let email = window.localStorage.getItem("emailParaLogin");
-    if (!email) {
-      email = window.prompt("Confirmá tu email para completar el acceso:");
-    }
-    if (!email) return;
-    signInWithEmailLink(auth, email, window.location.href)
-      .then(() => {
-        window.localStorage.removeItem("emailParaLogin");
-        window.history.replaceState(null, "", "/");
-      })
-      .catch((err) => console.error("Error completando magic link:", err));
   }, []);
 
   const handleLogout = () => signOut(auth);
