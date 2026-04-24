@@ -7466,13 +7466,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
 
-  // ── Cargar estado de Firestore al iniciar ─────────────────────────────────
-  useEffect(() => {
-    if (!userEmail) return;
-    cargarEstado(userEmail).then(ok => {
-      if (ok) setUltimoGuardado("cargado");
-    }).catch(err => console.error("Error cargando estado:", err));
-  }, [userEmail]);
+  // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
 
   // ── Guardar estado en Firestore ───────────────────────────────────────────
   const handleGuardar = async () => {
@@ -7810,13 +7804,23 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 // APP — Wrapper con autenticación Firebase
 // ═══════════════════════════════════════════════════════════════════════════
 export default function App() {
-  const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,         setUser]         = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [datosListos,  setDatosListos]  = useState(false);
 
   // ── Escuchar cambios de auth ──────────────────────────────────────────────
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        // Cargar datos de Firestore antes de mostrar la app
+        try {
+          await cargarEstado(u.email);
+        } catch(e) {
+          console.warn("No se pudo cargar de Firestore:", e.message);
+        }
+        setDatosListos(true);
+      }
       setLoading(false);
     });
     return unsub;
@@ -7825,7 +7829,7 @@ export default function App() {
   const handleLogout = () => signOut(auth);
 
   // ── Loading ───────────────────────────────────────────────────────────────
-  if (loading) {
+  if (loading || (user && !datosListos)) {
     return (
       <>
         <style dangerouslySetInnerHTML={{ __html: `
@@ -7844,6 +7848,7 @@ export default function App() {
             border:"3px solid rgba(255,255,255,0.3)",
             borderTopColor:"#fff", borderRadius:"50%",
           }} />
+          <p style={{color:"rgba(255,255,255,0.6)", fontSize:"13px"}}>Cargando datos...</p>
         </div>
       </>
     );
