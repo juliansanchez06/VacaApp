@@ -5885,8 +5885,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [modal, setModal] = useState(null);
   const [precioNov, setPrecioNov] = useState(precioNovillo);
   const [tropaEgreso, setTropaEgreso] = useState(null);
-  const [tropaSuplemento, setTropaSuplemento] = useState(null); // tropa a editar suplemento
+  const [tropaSuplemento, setTropaSuplemento] = useState(null);
 
+  // ── Estados de VistaCobros (elevados al nivel del componente) ─────────────
+  const hoy = new Date().toISOString().slice(0, 10);
+  const [modoCobro,    setModoCobro]    = useState("semestral");
+  const [fechaHasta,   setFechaHasta]   = useState(hoy);
+  const [showLiquidar, setShowLiquidar] = useState(false);
+  const [expandPag,    setExpandPag]    = useState(false);
+  const [expandId,     setExpandId]     = useState(null);
   const tropas   = pastaje?.tropas   ?? [];
   const periodos = pastaje?.periodos ?? [];
   const precios  = pastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 };
@@ -5947,6 +5954,24 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const kgTotalesHoy = tropas.reduce((s, t) => s + kgDevengados(t, null), 0);
   const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const totalCabPastaje = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+
+  // ── Fecha de inicio del próximo período (el ultimoCobro más antiguo) ──────
+  const fechaDesdeAuto = useMemo(() => {
+    if (tropas.length === 0) return hoy;
+    return [...tropas].map(t => t.ultimoCobro || t.fechaIngreso).sort()[0];
+  }, [tropas]);
+
+  // Fecha hasta efectiva: derivada del modo o libre si el usuario eligió "fecha"
+  const calcFechaHastaAuto = (modo, desde) => {
+    const d = new Date(desde);
+    if (modo === "trimestral") d.setMonth(d.getMonth() + 3);
+    else if (modo === "semestral") d.setMonth(d.getMonth() + 6);
+    else if (modo === "anual") d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+  const fechaHastaEfectiva = modoCobro !== "fecha"
+    ? calcFechaHastaAuto(modoCobro, fechaDesdeAuto)
+    : fechaHasta;
 
   // ── Cálculo de suplemento de una tropa en un rango de fechas ─────────────
   // Retorna { kgSup, pesosSup, detallesMes } para el período [desde, hasta]
@@ -6576,33 +6601,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   //   + tramos de egresos que cayeron dentro del período (pro-rateados)
   // El último corte de cobro queda guardado en cada tropa como "ultimoCobro".
   const VistaCobros = () => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const [modoCobro, setModoCobro] = useState("semestral");
-    const [fechaHasta, setFechaHasta] = useState(hoy);
-    const [showLiquidar, setShowLiquidar] = useState(false);
-    const [expandPag, setExpandPag] = useState(false);
-
-    // Fecha de inicio del próximo período = el ultimoCobro más antiguo entre todas las tropas
-    // (o la fecha de ingreso más antigua si ninguna tiene cobro previo)
-    const fechaDesdeAuto = useMemo(() => {
-      if (tropas.length === 0) return hoy;
-      const fechas = tropas.map(t => t.ultimoCobro || t.fechaIngreso);
-      return fechas.sort()[0]; // la más antigua
-    }, [tropas]);
-
-    // Calcular fecha hasta según el modo seleccionado
-    const calcFechaHastaAuto = (modo) => {
-      const d = new Date(fechaDesdeAuto);
-      if (modo === "trimestral") d.setMonth(d.getMonth() + 3);
-      else if (modo === "semestral") d.setMonth(d.getMonth() + 6);
-      else if (modo === "anual") d.setFullYear(d.getFullYear() + 1);
-      return d.toISOString().slice(0, 10);
-    };
-
-    // fechaHasta efectiva: si el modo no es "fecha libre", se deriva del modo
-    // El usuario solo edita cuando elige "fecha" — en los demás casos se calcula
-    const fechaHastaEfectiva = modoCobro !== "fecha" ? calcFechaHastaAuto(modoCobro) : fechaHasta;
-
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     // Por cada tropa calcula los kg devengados entre su ultimoCobro y fechaHasta,
     // considerando los tramos de egresos parciales dentro de ese intervalo.
@@ -6637,7 +6635,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         const diasTotalesPeriodo = diasEntre(desde, fHasta);
 
         // ── Suplemento ──────────────────────────────────────────────────────
-        const { kgSup, pesosSup, diasConSup } = calcSuplemento(tropa, desde, fHasta);
+        const { kgSup, pesosSup, diasConSup, detallesMes } = calcSuplemento(tropa, desde, fHasta);
 
         return {
           tropaId: tropa.id,
@@ -6667,7 +6665,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       }).filter(l => l.kgTotal > 0 || l.kgSup > 0);
     };
 
-    const preview = useMemo(() => calcLiquidacion(fechaHastaEfectiva), [tropas, fechaHastaEfectiva, precios, precioNov]);
+    const preview       = calcLiquidacion(fechaHastaEfectiva);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
@@ -6709,7 +6707,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       toast(`✅ Liquidación: ${fmtN(Math.round(kgPreview))} kg pastaje + ${fmtPesos(supPreview)} suplemento = ${fmtPesos(totalPreview)} total`, "success");
     };
 
-    const [expandId, setExpandId] = useState(null);
 
     const marcarPagado = (id) => {
       setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: hoy } : p));
@@ -7146,7 +7143,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Vista Resumen ─────────────────────────────────────────────────────────
   const VistaResumen = () => {
-    const porOrigen = useMemo(() => {
+    const porOrigen = (() => {
       const map = {};
       tropas.forEach(t => {
         if (!map[t.origen]) map[t.origen] = { origen: t.origen, cat: t.cat, cab: 0, kgDev: 0 };
@@ -7154,7 +7151,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         map[t.origen].kgDev += kgDevengados(t, null);
       });
       return Object.values(map).sort((a, b) => b.kgDev - a.kgDev);
-    }, [tropas, precios]);
+    })();
 
     const totalCab = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
     const totalKgDev = porOrigen.reduce((s, o) => s + o.kgDev, 0);
