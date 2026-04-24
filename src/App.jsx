@@ -101,8 +101,8 @@ const EMAILS_AUTORIZADOS = [
   "juliansanchez06@gmail.com",
 ];
 
-// ── DEV BYPASS — solo para desarrollo, sacar antes de producción ──────────
-const DEV_BYPASS = true;
+// ── DEV BYPASS — DESACTIVADO en producción ───────────────────────────────
+const DEV_BYPASS = false;
 const DEV_USER   = { email: "juliansanchez06@gmail.com" };
 
 // ── Magic link settings removed — usando email+contraseña ────────────────────
@@ -7769,16 +7769,6 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 // APP — Wrapper con autenticación Firebase
 // ═══════════════════════════════════════════════════════════════════════════
 export default function App() {
-  // ── DEV BYPASS: saltear Firebase cuando está activo ───────────────────────
-  if (DEV_BYPASS) {
-    return (
-      <EstrategiaComercial
-        userEmail={DEV_USER.email}
-        onLogout={() => alert("Bypass activo — para salir desactivá DEV_BYPASS en el código.")}
-      />
-    );
-  }
-
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
