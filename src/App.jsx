@@ -54,6 +54,12 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db   = getFirestore(firebaseApp);
+
+// Deshabilitar heartbeat y analytics automáticos que causan errores 404
+try {
+  firebaseApp.automaticDataCollectionEnabled = false;
+} catch(e) {}
+
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 
 // ── Guardar / cargar estado en Firestore ─────────────────────────────────────
@@ -7453,17 +7459,15 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const handleGuardar = async () => {
     setGuardando(true);
     try {
-      console.log("🔵 Iniciando guardado para:", userEmail);
-      console.log("🔵 Auth user:", auth.currentUser?.email);
-      console.log("🔵 DB:", db);
+      console.log("🔵 Guardando para:", userEmail, "| auth:", auth.currentUser?.email);
       await guardarEstado(userEmail);
       const ahora = new Date();
       setUltimoGuardado(`${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2,"0")}`);
-      console.log("✅ Guardado exitoso");
       pushToast("✅ Datos guardados en la nube", "success");
+      console.log("✅ Guardado OK");
     } catch (err) {
-      console.error("❌ Error guardando:", err);
-      pushToast("❌ Error al guardar. Revisá la conexión.", "warn");
+      console.error("❌ Error guardando:", err.code, err.message);
+      pushToast(`❌ Error: ${err.code || err.message}`, "warn");
     } finally {
       setGuardando(false);
     }
