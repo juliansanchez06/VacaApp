@@ -6596,14 +6596,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       if (modo === "trimestral") d.setMonth(d.getMonth() + 3);
       else if (modo === "semestral") d.setMonth(d.getMonth() + 6);
       else if (modo === "anual") d.setFullYear(d.getFullYear() + 1);
-      // Para "fecha" el usuario la elige
       return d.toISOString().slice(0, 10);
     };
 
-    // Cuando cambia el modo, actualiza fecha hasta (excepto si es "fecha" libre)
-    useEffect(() => {
-      if (modoCobro !== "fecha") setFechaHasta(calcFechaHastaAuto(modoCobro));
-    }, [modoCobro, fechaDesdeAuto]);
+    // fechaHasta efectiva: si el modo no es "fecha libre", se deriva del modo
+    // El usuario solo edita cuando elige "fecha" — en los demás casos se calcula
+    const fechaHastaEfectiva = modoCobro !== "fecha" ? calcFechaHastaAuto(modoCobro) : fechaHasta;
 
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     // Por cada tropa calcula los kg devengados entre su ultimoCobro y fechaHasta,
@@ -6669,7 +6667,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       }).filter(l => l.kgTotal > 0 || l.kgSup > 0);
     };
 
-    const preview = useMemo(() => calcLiquidacion(fechaHasta), [tropas, fechaHasta, precios, precioNov]);
+    const preview = useMemo(() => calcLiquidacion(fechaHastaEfectiva), [tropas, fechaHastaEfectiva, precios, precioNov]);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
@@ -6687,7 +6685,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       // Crear el registro de cobro
       const nuevoCobro = {
         id: Date.now(), tipo: "cobro-periodo",
-        modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta,
+        modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta: fechaHastaEfectiva,
         lineas: preview,
         kgTotal: Math.round(kgPreview * 10) / 10,
         precioNov, pesos: pesosPreview,
@@ -6703,13 +6701,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         if (!linea) return t;
         return {
           ...t,
-          ultimoCobro: fechaHasta,
-          tramosEgreso: (t.tramosEgreso || []).filter(te => te.fecha > fechaHasta),
+          ultimoCobro: fechaHastaEfectiva,
+          tramosEgreso: (t.tramosEgreso || []).filter(te => te.fecha > fechaHastaEfectiva),
         };
       }));
       setShowLiquidar(false);
       toast(`✅ Liquidación: ${fmtN(Math.round(kgPreview))} kg pastaje + ${fmtPesos(supPreview)} suplemento = ${fmtPesos(totalPreview)} total`, "success");
     };
+
+    const [expandId, setExpandId] = useState(null);
 
     const marcarPagado = (id) => {
       setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: hoy } : p));
@@ -6831,7 +6831,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
 
     const CobRow = ({ c }) => {
-      const [expand, setExpand] = useState(false);
+      const expand = expandId === c.id;
       return (
         <div className={`rounded-2xl border-2 space-y-2 overflow-hidden ${c.estado === "pagado" ? "border-emerald-200" : "border-amber-200"}`}>
           {/* Header */}
@@ -6842,10 +6842,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${c.estado === "pagado" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
                     {c.estado === "pagado" ? "✓ Cobrado" : "⏳ Pendiente"}
                   </span>
-                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-bold">{MODO_LABELS[c.modo] ?? c.modo}</span>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-bold">{MODO_LABELS[c.modo] ?? c.modo ?? "—"}</span>
                 </div>
                 <p className="text-xs text-slate-500">{fmtFecha(c.fechaDesde)} → {fmtFecha(c.fechaHasta)}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{c.lineas?.length ?? 0} tropas · precio nov ${fmtN(c.precioNov)}/kg</p>
+                <p className="text-xs text-slate-400 mt-0.5">{c.lineas?.length ?? 0} tropas · nov ${fmtN(c.precioNov)}/kg</p>
                 {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pagado {fmtFecha(c.fechaPago)}</p>}
               </div>
               <div className="text-right shrink-0">
@@ -6855,7 +6855,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               </div>
             </div>
             <div className="flex gap-2 mt-2">
-              <button onClick={() => setExpand(p => !p)}
+              <button onClick={() => setExpandId(expand ? null : c.id)}
                 className="flex-1 text-xs font-bold py-1.5 rounded-xl border border-slate-200 bg-white/80 text-slate-600 hover:bg-white transition-all">
                 {expand ? "▾ Ocultar detalle" : "▸ Ver por tropa"}
               </button>
@@ -6878,26 +6878,52 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               {c.lineas.map((l, i) => {
                 const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
                 return (
-                  <div key={i} className={`rounded-xl p-2.5 border ${col.bg} ${col.border}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`font-black text-sm ${col.text}`}>{l.origen}</span>
-                      <span className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg</span>
-                    </div>
-                    <div className="flex gap-3 mt-1 text-xs text-slate-500">
-                      <span>{l.cabActual} cab actuales</span>
-                      <span>{l.diasTotalesPeriodo} días</span>
+                  <div key={i} className={`rounded-xl border overflow-hidden ${col.bg} ${col.border}`}>
+                    <div className="p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className={`font-black text-sm ${col.text}`}>{l.origen}</span>
+                        <span className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg pastaje · {fmtPesos(l.pesos)}</span>
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-slate-500 flex-wrap">
+                        <span>{l.cabActual} cab</span>
+                        <span>{fmtFecha(l.desde)} → {fmtFecha(l.hasta)}</span>
+                        <span>{l.diasTotalesPeriodo} días</span>
+                        {l.tramosEnPeriodo?.length > 0 && (
+                          <span className="text-orange-600 font-semibold">+ {l.tramosEnPeriodo.length} egreso(s)</span>
+                        )}
+                      </div>
                       {l.tramosEnPeriodo?.length > 0 && (
-                        <span className="text-orange-600 font-semibold">+ {l.tramosEnPeriodo.length} egreso(s) pro-rateado(s)</span>
+                        <div className="mt-1 space-y-0.5">
+                          {l.tramosEnPeriodo.map((te, j) => (
+                            <p key={j} className="text-xs text-orange-600 italic">
+                              Egreso {fmtFecha(te.fecha)}: {te.cab} cab × {te.dias}d = {fmtN(te.kgTramo)} kg
+                            </p>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {l.tramosEnPeriodo?.length > 0 && (
-                      <div className="mt-1.5 space-y-0.5">
-                        {l.tramosEnPeriodo.map((te, j) => (
-                          <p key={j} className="text-xs text-orange-600 italic">
-                            Egreso {fmtFecha(te.fecha)}: {te.cab} cab × {te.dias} días = {fmtN(te.kgTramo)} kg
-                          </p>
-                        ))}
-                        <p className="text-xs text-slate-500">Restantes {l.cabActual} cab × {diasEntre(l.tramosEnPeriodo[l.tramosEnPeriodo.length-1]?.fecha, l.hasta)} días = {fmtN(l.kgRestantes)} kg</p>
+                    {l.supActivo && l.kgSup > 0 && (
+                      <div className="bg-amber-50 border-t border-amber-200 px-2.5 py-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-black text-amber-700">💊 Suplemento · {l.diasConSup} días</span>
+                          <span className="font-black text-sm text-amber-700">{fmtPesos(l.pesosSup)}</span>
+                        </div>
+                        {l.detallesMes?.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {l.detallesMes.map((dm, j) => (
+                              <span key={j} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                                {dm.label}: {dm.kgDia}kg/d × {dm.dias}d
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-amber-500 mt-1">{fmtN(l.kgSup)} kg × {fmtPesos(l.supPrecio)}/kg</p>
+                      </div>
+                    )}
+                    {l.supActivo && l.kgSup > 0 && (
+                      <div className="bg-slate-100 border-t border-slate-200 px-2.5 py-1.5 flex justify-between">
+                        <span className="text-xs font-black text-slate-600">Total tropa</span>
+                        <span className="font-black text-sm text-slate-800">{fmtPesos(l.totalPesos)}</span>
                       </div>
                     )}
                   </div>
@@ -7057,7 +7083,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-white/60">Total período</p>
-                      <p className="text-xs text-white/50">corte al {fmtFecha(fechaHasta)}</p>
+                      <p className="text-xs text-white/50">corte al {fmtFecha(fechaHastaEfectiva)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black">{fmtPesos(totalPreview)}</p>
