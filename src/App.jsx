@@ -65,7 +65,10 @@ setPersistence(auth, browserLocalPersistence).catch(console.error);
 // ── Guardar / cargar estado en Firestore ─────────────────────────────────────
 // Guarda todos los datos del store en /usuarios/{email}/estado
 async function guardarEstado(userEmail) {
-  if (!userEmail || !db) return;
+  if (!userEmail || !db) {
+    console.error("❌ guardarEstado: userEmail o db nulo", { userEmail, db });
+    throw new Error("Sin usuario o base de datos");
+  }
   const s = vacaStore.getState();
   const payload = {
     global:           s.global,
@@ -80,8 +83,17 @@ async function guardarEstado(userEmail) {
     savedAt:          new Date().toISOString(),
   };
   const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+  console.log("🔵 Escribiendo en Firestore:", `usuarios/${key}`, "payload keys:", Object.keys(payload));
   const ref = doc(db, "usuarios", key);
   await setDoc(ref, payload, { merge: true });
+  // Verificar que se escribió
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    console.log("✅ Verificado en Firestore - savedAt:", snap.data().savedAt);
+  } else {
+    console.error("❌ El documento NO existe después de setDoc");
+    throw new Error("El documento no se guardó");
+  }
 }
 
 // Carga el estado desde Firestore con reintentos
