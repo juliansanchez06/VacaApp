@@ -45,9 +45,9 @@ import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, 
 // ── Firebase init ─────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyAt_J0nsKI_9X69jgr_Q8R2z-KbO875nhg",
-  authDomain: "soypekun-ff72a.firebaseapp.com",
-  projectId: "soypekun-ff72a",
-  storageBucket: "soypekun-ff72a.firebasestorage.app",
+  authDomain: "vacaapp-ff72a.firebaseapp.com",
+  projectId: "vacaapp-ff72a",
+  storageBucket: "vacaapp-ff72a.firebasestorage.app",
   messagingSenderId: "1089865872169",
   appId: "1:1089865872169:web:836d34d16ef365a7563d38",
 };
