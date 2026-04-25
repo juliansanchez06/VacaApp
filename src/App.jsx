@@ -6654,10 +6654,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   // Cargar datos iniciales — solo si Firestore no trajo nada
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Si Firestore ya cargó datos, no pisar con los datos iniciales
-      if (vacaStore.getState().firestoreCargado) return;
+      if (vacaStore.getState().firestoreCargado) {
+        // Verificar si las fechas de ingreso son todas hoy (datos corrompidos)
+        const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= hoy);
+        if (!todasHoy) return; // datos OK, no pisar
+      }
       const tieneViejos = tropas.length === 0 ||
-        tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21");
+        tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21") ||
+        tropas.every(t => t.fechaIngreso >= hoy);
       if (tieneViejos) {
         const tercerosInic = [
           { id: 1, nombre: "Villar" },
@@ -6697,7 +6701,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   // ── Fecha de inicio del próximo período (el ultimoCobro más antiguo) ──────
   const fechaDesdeAuto = useMemo(() => {
     if (tropas.length === 0) return hoy;
-    return [...tropas].map(t => t.ultimoCobro || t.fechaIngreso).sort()[0];
+    // Usar el ultimoCobro más antiguo, o si no hay, el fechaIngreso más antiguo
+    const fechas = [...tropas].map(t => t.ultimoCobro || t.fechaIngreso).filter(Boolean).sort();
+    const earliest = fechas[0] || hoy;
+    // Si la fecha desde coincide con hoy (no tiene sentido), usar fechaIngreso más antigua
+    if (earliest >= hoy) {
+      const ingresos = [...tropas].map(t => t.fechaIngreso).filter(Boolean).sort();
+      return ingresos[0] || hoy;
+    }
+    return earliest;
   }, [tropas]);
 
   // Fecha hasta efectiva: derivada del modo o libre si el usuario eligió "fecha"
