@@ -6684,8 +6684,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   }, []); // eslint-disable-line
 
   const diasEntre = (desde, hasta) => {
-    const d1 = new Date(desde);
-    const d2 = new Date(hasta || new Date());
+    // Parsear como fecha local (sin zona horaria) para evitar problemas UTC
+    const parseLocal = (s) => {
+      if (!s) return new Date();
+      const [y, m, d] = String(s).slice(0, 10).split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    const d1 = parseLocal(desde);
+    const d2 = parseLocal(hasta);
     return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
   };
   const kgDevengados = (tropa, hasta) => {
