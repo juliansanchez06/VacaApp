@@ -6624,6 +6624,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [showLiquidar, setShowLiquidar] = useState(false);
   const [expandPag,    setExpandPag]    = useState(false);
   const [expandId,     setExpandId]     = useState(null);
+  const [propCobro,    setPropCobro]    = useState(null); // null → se inicializa al primer render
   const tropas   = pastaje?.tropas   ?? [];
   const periodos = pastaje?.periodos ?? [];
   const precios  = pastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 };
@@ -7424,10 +7425,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   //   + tramos de egresos que cayeron dentro del período (pro-rateados)
   // El último corte de cobro queda guardado en cada tropa como "ultimoCobro".
   const VistaCobros = () => {
-    const [propCobro, setPropCobro] = useState(terceros[0]?.id ?? null);
+    // propCobro elevado a PastajeCampo — se inicializa al primer propietario si está null
+    const propCobroActivo = propCobro ?? terceros[0]?.id ?? null;
 
     // Tropas del propietario seleccionado (sin propietario → primer propietario)
-    const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === propCobro);
+    const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === propCobroActivo);
 
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     const calcLiquidacion = (fHasta) => {
@@ -7495,7 +7497,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     const totalPreview  = pesosPreview + supPreview;
 
     // Cobros ya cerrados — filtrados por propietario
-    const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo" && (p.propietarioId ?? terceros[0]?.id) === propCobro);
+    const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo" && (p.propietarioId ?? terceros[0]?.id) === propCobroActivo);
     const pendientes = cobrados.filter(p => p.estado === "pendiente");
     const pagados    = cobrados.filter(p => p.estado === "pagado");
     const kgPend = pendientes.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
@@ -7506,7 +7508,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       // Crear el registro de cobro
       const nuevoCobro = {
         id: Date.now(), tipo: "cobro-periodo",
-        propietarioId: propCobro,
+        propietarioId: propCobroActivo,
         modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta: fechaHastaEfectiva,
         lineas: preview,
         kgTotal: Math.round(kgPreview * 10) / 10,
@@ -7775,7 +7777,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             <div className="flex flex-wrap gap-2">
               {terceros.map(t => (
                 <button key={t.id} onClick={() => setPropCobro(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-sm transition-all border-2 ${propCobro === t.id ? "bg-emerald-700 text-white border-emerald-700 shadow-md" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"}`}>
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-sm transition-all border-2 ${propCobroActivo === t.id ? "bg-emerald-700 text-white border-emerald-700 shadow-md" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"}`}>
                   <span className="w-6 h-6 rounded-full bg-current/20 flex items-center justify-center text-xs">
                     {t.nombre.slice(0,2).toUpperCase()}
                   </span>
@@ -7783,8 +7785,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 </button>
               ))}
             </div>
-            {propCobro && (() => {
-              const prop = terceros.find(x => x.id === propCobro);
+            {propCobroActivo && (() => {
+              const prop = terceros.find(x => x.id === propCobroActivo);
               const cabProp = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
               return prop ? <p className="text-xs text-slate-400 mt-2">{prop.nombre} · {cabProp} cab en campo · {tropasDelProp.length} tropas</p> : null;
             })()}
@@ -7794,7 +7796,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">Configuración de cobro</p>
           {/* Precio novillo — input libre con botones long-press */}
           <div>
-            <p className="text-xs font-bold text-slate-400 mb-2">Índice novillo arrendamiento ($/kg)</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold text-slate-400">Índice novillo arrendamiento ($/kg)</p>
+              <button onClick={() => { guardarEstado(vacaStore.getState().__userEmail); toast("✅ Precio guardado", "success"); }}
+                className="text-xs font-black px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all active:scale-95">
+                ☁ Guardar
+              </button>
+            </div>
             <PrecioNovInput value={precioNov} onChange={setPrecioNov} />
           </div>
           {/* Precios por categoría */}
