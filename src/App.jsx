@@ -255,41 +255,74 @@ const vacaStore = createStore((set, get) => ({
   // PILAR 2 — Cerrar año con dinámica biológica real
   // ════════════════════════════════════════════════════════════════════════════
   cerrarAnoGanadero: () => {
-    const { campoCria: c, campoRecria: r, campoTerminacion: t, anoGanaderoActual, historialAnos } = get();
+    const { campoCria: c, campoRecria: r, campoTerminacion: t, anoGanaderoActual, historialAnos, global: gl, campo: cp } = get();
     const mortCria   = c.pctMortandadCria   / 100;
     const mortRecria = r.pctMortandadRecria  / 100;
     const pctRepos   = c.pctReposicion      / 100;
     const pctMachos  = c.pctMachos          / 100;
 
-    // Terneros del año que cierra (si ya se destetaron, ternerosNoDestetados=0)
-    const preñadas     = Math.round((c.vacas + c.vaquillonas) * c.pctPreniez / 100);
-    const nacidos      = Math.round(preñadas * (1 - mortCria));
+    const preniadas    = Math.round((c.vacas + c.vaquillonas) * c.pctPreniez / 100);
+    const nacidos      = Math.round(preniadas * (1 - mortCria));
     const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
-    // ── CRÍA: envejecimiento biológico ──────────────────────────────────────
-    const vacasMort  = Math.round(c.vacas * mortCria);
+    const vacasMort   = Math.round(c.vacas * mortCria);
     const nuevasVacas = Math.max(0, c.vacas - c.vacias - vacasMort + c.vaquillonas);
-    const nuevasVaq   = hembrasRepos; // reposición del destete del año que cierra
-
-    // ── RECRÍA: terneros machos → novillos ───────────────────────────────────
+    const nuevasVaq   = hembrasRepos;
     const machosSobrev = Math.round((r.ternerosLiquidaMachos + r.ternerosCompraMachos) * (1 - mortRecria));
 
-    // ── TERMINACIÓN: novillos vendidos → salen (vuelven a 0) ─────────────────
+    // Balance economico del ano
+    const precioNov = gl.precioNovilloInmag || 1800;
+    const totalStock = c.vacas + c.vaquillonas + c.ternerosNoDestetados + c.toros + (c.vacias||0)
+      + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
+      + t.novillosCampo + t.novillosFeedlot;
+    const hectareas = (cp&&cp.hectareas) || 1000;
+    const evTotal = c.vacas*1.0 + c.vaquillonas*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
+      + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
+      + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
+
+    const kgDestetados = totalDest * 165;
+    const kgRecria = (r.ternerosLiquidaMachos + r.ternerosCompraMachos + r.novillos) * 320;
+    const kgTerm = (t.novillosCampo + t.novillosFeedlot) * (t.pesoPromedioKg || 420);
+    const kgVacasDescarte = Math.round((c.vacias||0) * 0.65 * 420);
+    const kgTotalAnio = kgDestetados + kgRecria + kgTerm + kgVacasDescarte;
+    const kgHaAnio = hectareas > 0 ? Math.round(kgTotalAnio / hectareas) : 0;
+
+    const empleados = (cp&&cp.empleados) || [];
+    const sanidadMesSnap = totalStock * ((cp&&cp.sanidadPorCabAnio)||40000) / 12;
+    const empCosto = empleados.reduce((s,e) => {
+      const bruto = e.sueldo * e.cantidad;
+      return s + bruto + bruto*(e.cargasSociales/100) + (e.aguinaldo?bruto/12:0) + e.premio*e.cantidad;
+    }, 0);
+    const maqCosto = ((cp&&cp.maquinaria&&cp.maquinaria.tractores)||3) * ((cp&&cp.maquinaria&&cp.maquinaria.mantenimientoMes)||120000);
+    const costoEst = (empCosto + maqCosto + sanidadMesSnap) * 12;
+
+    const ingresoAnio = kgTotalAnio * precioNov;
+    const margenAnio  = ingresoAnio - costoEst;
+    const costoOpAnio = totalStock * ((gl.valorCabPromedio)||1500000) * ((gl.tasaOportunidadUSD||5)/100);
+    const rendimientoReal = margenAnio - costoOpAnio;
+
     const snapshot = {
       ano: anoGanaderoActual,
       cria: { ...c }, recria: { ...r }, terminacion: { ...t },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
-      resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias, machosSobrev },
+      resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev },
+      balance: {
+        kgTotalAnio, kgHaAnio, ingresoAnio, costoEst, margenAnio,
+        costoOpAnio, rendimientoReal,
+        evPorHa: Math.round((evTotal / hectareas) * 100) / 100,
+        pctDestete: Math.round(totalDest / ((c.vacas + c.vaquillonas) || 1) * 100),
+        totalStock, hectareas,
+      },
     };
-    const [añoIn] = anoGanaderoActual.split("/").map(Number);
+    const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
       campoCria:        { ...c, vacas: nuevasVacas, vaquillonas: nuevasVaq, ternerosNoDestetados: 0, vacias: 0 },
       campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
       campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
-      anoGanaderoActual: `${añoIn+1}/${añoIn+2}`,
+      anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
       historialAnos: { ...historialAnos, [anoGanaderoActual]: snapshot },
     });
     return snapshot;
@@ -4386,7 +4419,43 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         })()}
 
 
-        {/* ── Layout: sidebar + contenido ──────────────────────────────── */}
+        {/* ── Balance del año cerrado (solo cuando vemos historial) ────── */}
+        {anoViendo && stockActivo?.balance && (() => {
+          const b = stockActivo.balance;
+          const pos = b.rendimientoReal >= 0;
+          return (
+            <div className="bg-white rounded-2xl border-2 border-violet-200 p-4 mb-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-widest text-violet-700 mb-3">📋 Balance del año {anoViendo}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                {[
+                  { label: "kg nov producidos", value: (b.kgTotalAnio||0).toLocaleString("es-AR") + " kg", color: "text-emerald-700" },
+                  { label: "kg/ha", value: (b.kgHaAnio||0) + " kg/ha", color: "text-sky-700" },
+                  { label: "% destete", value: (b.pctDestete||0) + "%", color: "text-amber-700" },
+                  { label: "EV/ha", value: (b.evPorHa||0).toFixed(2), color: "text-teal-700" },
+                ].map((k,i) => (
+                  <div key={i} className="bg-slate-50 rounded-xl border border-slate-200 p-2.5 text-center">
+                    <p className="text-xs text-slate-400">{k.label}</p>
+                    <p className={`font-black text-base ${k.color}`}>{k.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-emerald-50 rounded-xl p-2.5">
+                  <p className="text-xs text-slate-400">Ingreso</p>
+                  <p className="font-black text-emerald-700">{fmtPesos(b.ingresoAnio||0)}</p>
+                </div>
+                <div className="bg-red-50 rounded-xl p-2.5">
+                  <p className="text-xs text-slate-400">Costo estructura</p>
+                  <p className="font-black text-red-700">−{fmtPesos(b.costoEst||0)}</p>
+                </div>
+                <div className={`rounded-xl p-2.5 ${pos?"bg-emerald-100":"bg-red-100"}`}>
+                  <p className="text-xs text-slate-400">Margen neto real</p>
+                  <p className={`font-black text-base ${pos?"text-emerald-800":"text-red-800"}`}>{fmtPesos(b.rendimientoReal||0)}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         <style>{`
           .campo-sidebar { display:flex; flex-direction:column; gap:4px; width:176px; flex-shrink:0; position:sticky; top:5.5rem; }
           .campo-mobile-nav { display:none; }
@@ -5449,6 +5518,152 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               </div>
   
+
+              {/* Flujo de caja mensual */}
+              {(() => {
+                const MESES_CORTO = ["Jul","Ago","Sep","Oct","Nov","Dic","Ene","Feb","Mar","Abr","May","Jun"];
+                const mesDesteteFC = ((paricionMes + Math.round(criaDatos.mesesDestete ?? 6) - 7 + 12) % 12);
+                const costoMes = totalCostosMes;
+                const precioNovFC = global.precioNovilloInmag ?? 1800;
+                const flujo = MESES_CORTO.map((mes, i) => {
+                  let ingreso = 0;
+                  if (i === mesDesteteFC) ingreso += Math.round(totalDest ?? 0) * 165 * precioNovFC;
+                  if (i === 7) ingreso += (reciaDatos.novillos ?? 0) * 320 * precioNovFC;
+                  if (i === 10) ingreso += ((terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0)) * (terminacionDatos.pesoPromedioKg ?? 420) * precioNovFC;
+                  if (i === 9) ingreso += Math.round((criaDatos.vacias ?? 0) * 0.65 * 420 * precioNovFC);
+                  return { mes, ingreso, egreso: costoMes, saldo: ingreso - costoMes };
+                });
+                const maxVal = Math.max(...flujo.map(f => Math.max(f.ingreso, f.egreso)), 1);
+                const saldoAcum = flujo.reduce((acc, f) => { acc.push({ ...f, acum: (acc.length > 0 ? acc[acc.length-1].acum : 0) + f.saldo }); return acc; }, []);
+                const mesesNeg = flujo.filter(f => f.saldo < 0).length;
+                const peorAcum = Math.min(...saldoAcum.map(f => f.acum));
+                return (
+                  <div className="bg-white border-2 border-sky-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-sky-400 to-blue-500" />
+                    <div className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black uppercase tracking-widest text-sky-700">📅 Flujo de caja mensual</p>
+                        <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${mesesNeg > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}>
+                          {mesesNeg} mes{mesesNeg !== 1 ? "es" : ""} con saldo negativo
+                        </span>
+                      </div>
+                      <div className="flex items-end gap-1" style={{height:"100px"}}>
+                        {flujo.map((f, i) => {
+                          const hIng = (f.ingreso / maxVal) * 100;
+                          const hEgr = (f.egreso  / maxVal) * 100;
+                          const pos  = f.saldo >= 0;
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-0.5 h-full justify-end relative group">
+                              <div className="w-full flex flex-col justify-end" style={{height:"84px"}}>
+                                {f.ingreso > 0 && <div className="w-full rounded-t-sm bg-emerald-400" style={{height: hIng+"%"}} />}
+                                <div className="w-full rounded-t-sm bg-red-300" style={{height: hEgr+"%"}} />
+                              </div>
+                              <span className={`text-[8px] font-bold ${pos?"text-emerald-700":"text-red-600"}`}>{f.mes}</span>
+                              <div className="absolute bottom-full mb-1 hidden group-hover:flex flex-col bg-slate-800 text-white text-xs rounded-lg p-2 whitespace-nowrap z-10 shadow-xl">
+                                <p className="font-black">{f.mes}</p>
+                                {f.ingreso > 0 && <p className="text-emerald-400">+{fmtPesos(f.ingreso)}</p>}
+                                <p className="text-red-300">−{fmtPesos(f.egreso)}</p>
+                                <p className={pos?"text-emerald-300":"text-red-400"}>Saldo: {fmtPesos(f.saldo)}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex gap-4 text-xs text-slate-500">
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-400 inline-block"/>Ingresos</span>
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-300 inline-block"/>Egresos fijos</span>
+                      </div>
+                      {mesesNeg > 0 && peorAcum < 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                          <p className="font-black mb-1">⚠ Pico de necesidad financiera: {fmtPesos(Math.abs(peorAcum))}</p>
+                          <p>Los meses con déficit son: {flujo.filter(f=>f.saldo<0).map(f=>f.mes).join(", ")}. Planificá financiamiento o ventas anticipadas para cubrirlos.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Proyeccion de stock 3 anos */}
+              {(() => {
+                let vac = criaDatos.vacas, vaq = criaDatos.vaquillonas;
+                const proyeccion = [1,2,3].map(n => {
+                  const madres = vac + vaq;
+                  const preniadas = Math.round(madres * criaDatos.pctPreniez / 100);
+                  const nacidos  = Math.round(preniadas * (1 - criaDatos.pctMortandadCria / 100));
+                  const destete  = Math.round(nacidos * criaDatos.pctDestete / 100);
+                  const machos   = Math.round(destete * criaDatos.pctMachos / 100);
+                  const hembras  = destete - machos;
+                  const repos    = Math.round(hembras * criaDatos.pctReposicion / 100);
+                  const mortVac  = Math.round(vac * criaDatos.pctMortandadCria / 100);
+                  const vacias   = Math.round(madres * (100 - criaDatos.pctPreniez) / 100);
+                  const newVac   = Math.max(0, vac - vacias - mortVac + vaq);
+                  const newVaq   = repos;
+                  const evTot    = newVac*1.0 + newVaq*0.85 + criaDatos.toros*1.3 + destete*0.55 + machos*0.95;
+                  const evHa     = hectareas > 0 ? Math.round(evTot/hectareas*100)/100 : 0;
+                  const [a1,a2]  = anoGanadero.split("/").map(Number);
+                  vac = newVac; vaq = newVaq;
+                  return { n, ano: `${a1+n}/${a2+n}`, vacas: newVac, vaquillonas: newVaq, destete, machos, evHa };
+                });
+                const diff3 = proyeccion[2].vacas - criaDatos.vacas;
+                return (
+                  <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-500" />
+                    <div className="p-5 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-violet-700">🔭 Proyección de stock — 3 años</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="border-b-2 border-slate-100">
+                              {["Año","Vacas","Vaquillonas","Terneros dest.","Novillos","EV/ha"].map(h => (
+                                <th key={h} className={`py-2 text-xs font-black uppercase tracking-wider text-slate-400 ${h==="Año"?"text-left pr-3":"text-right pr-2"}`}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-slate-100 bg-slate-50">
+                              <td className="py-2 pr-3 font-black text-slate-500 text-xs">{anoGanadero} <span className="text-slate-400 font-normal">actual</span></td>
+                              <td className="text-right py-2 pr-2 font-mono font-bold text-slate-700">{criaDatos.vacas}</td>
+                              <td className="text-right py-2 pr-2 font-mono text-slate-600">{criaDatos.vaquillonas}</td>
+                              <td className="text-right py-2 pr-2 font-mono text-sky-700">{criaDatos.ternerosNoDestetados}</td>
+                              <td className="text-right py-2 pr-2 font-mono text-violet-700">{reciaDatos.novillos}</td>
+                              <td className="text-right py-2 font-mono font-bold text-emerald-700">{evPorHa.toFixed(2)}</td>
+                            </tr>
+                            {proyeccion.map((p, i) => {
+                              const d = p.vacas - criaDatos.vacas;
+                              return (
+                                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                                  <td className="py-2 pr-3 font-semibold text-violet-700 text-xs">{p.ano}</td>
+                                  <td className="text-right py-2 pr-2 font-mono font-bold text-slate-700">
+                                    {p.vacas} <span className={`text-xs ${d>=0?"text-emerald-600":"text-red-500"}`}>{d>=0?"+":""}{d}</span>
+                                  </td>
+                                  <td className="text-right py-2 pr-2 font-mono text-slate-600">{p.vaquillonas}</td>
+                                  <td className="text-right py-2 pr-2 font-mono text-sky-700">{p.destete}</td>
+                                  <td className="text-right py-2 pr-2 font-mono text-violet-700">{p.machos}</td>
+                                  <td className={`text-right py-2 font-mono font-bold ${p.evHa<0.7?"text-sky-600":p.evHa<1.1?"text-emerald-700":p.evHa<1.4?"text-amber-600":"text-red-600"}`}>{p.evHa}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {diff3 < -criaDatos.vacas * 0.1 && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800">
+                          <p className="font-black">⚠ Rodeo en contracción</p>
+                          <p>A 3 años el rodeo baja un {Math.round((1-proyeccion[2].vacas/criaDatos.vacas)*100)}%. Revisá % preñez ({criaDatos.pctPreniez}%) y reposición ({criaDatos.pctReposicion}%).</p>
+                        </div>
+                      )}
+                      {diff3 > criaDatos.vacas * 0.1 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                          <p className="font-black">📈 Rodeo en expansión</p>
+                          <p>A 3 años crece un {Math.round((proyeccion[2].vacas/criaDatos.vacas-1)*100)}%. Verificá que EV/ha={proyeccion[2].evHa} no supere la receptividad del campo.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
           )}
   
