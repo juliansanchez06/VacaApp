@@ -6613,9 +6613,12 @@ function PrecioNovInput({ value, onChange }) {
 function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
   const [vista, setVista] = useState("tropas");
   const [modal, setModal] = useState(null);
-  const [precioNov, setPrecioNov] = useState(precioNovillo);
   const [tropaEgreso, setTropaEgreso] = useState(null);
   const [tropaSuplemento, setTropaSuplemento] = useState(null);
+
+  // precioNov vive en el store para que persista en Firestore
+  const precioNov    = pastaje?.precioNov ?? precioNovillo;
+  const setPrecioNov = (v) => setPastaje({ precioNov: v });
 
   // ── Estados de VistaCobros (elevados al nivel del componente) ─────────────
   const hoy = new Date().toISOString().slice(0, 10);
@@ -7428,8 +7431,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // propCobro elevado a PastajeCampo — se inicializa al primer propietario si está null
     const propCobroActivo = propCobro ?? terceros[0]?.id ?? null;
 
-    // Tropas del propietario seleccionado (sin propietario → primer propietario)
-    const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === propCobroActivo);
+    // Tropas del propietario seleccionado
+    // Si ninguna tropa tiene terceroId (datos viejos), mostrar todas bajo el primer propietario
+    const algunaTieneId = tropas.some(t => t.terceroId != null);
+    const tropasDelProp = algunaTieneId
+      // eslint-disable-next-line eqeqeq
+      ? tropas.filter(t => (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo)
+      : (propCobroActivo == terceros[0]?.id ? tropas : []);
 
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     const calcLiquidacion = (fHasta) => {
@@ -7497,7 +7505,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     const totalPreview  = pesosPreview + supPreview;
 
     // Cobros ya cerrados — filtrados por propietario
-    const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo" && (p.propietarioId ?? terceros[0]?.id) === propCobroActivo);
+    // eslint-disable-next-line eqeqeq
+    const cobrados   = periodos.filter(p => p.tipo === "cobro-periodo" && (p.propietarioId != null ? p.propietarioId : terceros[0]?.id) == propCobroActivo);
     const pendientes = cobrados.filter(p => p.estado === "pendiente");
     const pagados    = cobrados.filter(p => p.estado === "pagado");
     const kgPend = pendientes.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
@@ -7804,6 +7813,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               </button>
             </div>
             <PrecioNovInput value={precioNov} onChange={setPrecioNov} />
+            {/* Total en vivo */}
+            {kgPreview > 0 && (
+              <div className="mt-2 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                <span className="text-xs text-emerald-700 font-bold">{fmtN(Math.round(kgPreview))} kg nov</span>
+                <span className="text-base font-black text-emerald-800">{fmtPesos(totalPreview)}</span>
+              </div>
+            )}
           </div>
           {/* Precios por categoría */}
           <div>
