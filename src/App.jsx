@@ -7492,6 +7492,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
         const diasTotalesPeriodo = diasEntre(desde, fHasta);
 
+        console.log("🟡 tropa:", tropa.origen, { desde, fHasta, cabActual, kgMes, diasRestantes, kgTramos, kgRestantes, kgTotal });
+
         // ── Suplemento ──────────────────────────────────────────────────────
         const { kgSup, pesosSup, diasConSup, detallesMes } = calcSuplemento(tropa, desde, fHasta);
 
