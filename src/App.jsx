@@ -201,14 +201,15 @@ const vacaStore = createStore((set, get) => ({
     precios:  { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 },
   },
   firestoreCargado: false, // bandera para evitar que datos iniciales pisen Firestore
+  __userEmail: "",         // email del usuario logueado para auto-guardado
 
   // ── Setters ────────────────────────────────────────────────────────────────
   setGlobal:          (p) => set(s => ({ global:          { ...s.global,          ...p } })),
   setGastos:          (p) => set(s => ({ gastos:          { ...s.gastos,          ...p } })),
-  setCampoCria:       (p) => set(s => ({ campoCria:       { ...s.campoCria,       ...p } })),
-  setCampoRecria:     (p) => set(s => ({ campoRecria:     { ...s.campoRecria,     ...p } })),
-  setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...p } })),
-  setCampoPastaje:    (p) => set(s => ({ campoPastaje:    { ...s.campoPastaje,    ...p } })),
+  setCampoCria:       (p) => set(s => ({ campoCria:       { ...s.campoCria,       ...(typeof p === "function" ? p(s.campoCria)       : p) } })),
+  setCampoRecria:     (p) => set(s => ({ campoRecria:     { ...s.campoRecria,     ...(typeof p === "function" ? p(s.campoRecria)     : p) } })),
+  setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...(typeof p === "function" ? p(s.campoTerminacion) : p) } })),
+  setCampoPastaje:    (p) => set(s => ({ campoPastaje:    { ...s.campoPastaje,    ...(typeof p === "function" ? p(s.campoPastaje)    : p) } })),
 
   // ── Agregar al campo desde simulador ─────────────────────────────────────
   agregarAlCampo: ({ categoria, cantidad }) => set(s => {
@@ -3792,7 +3793,36 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MI CAMPO — Gestión del establecimiento
 // ═══════════════════════════════════════════════════════════════════════════
-// ── EditField — componente independiente para editar valores numéricos ────────
+// ── SaveUndoBar — barra de guardar/deshacer para cada sección ────────────────
+function SaveUndoBar({ onGuardar, onDeshacer, modificado }) {
+  const [guardando, setGuardando] = useState(false);
+  const [ok,        setOk]        = useState(false);
+
+  const handleGuardar = async () => {
+    setGuardando(true);
+    try { await onGuardar(); setOk(true); setTimeout(() => setOk(false), 2000); }
+    catch(e) { console.error(e); }
+    finally { setGuardando(false); }
+  };
+
+  if (!modificado) return null;
+
+  return (
+    <div className="flex items-center gap-2 p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl">
+      <span className="text-xs text-amber-700 font-bold flex-1">⚠ Cambios sin guardar</span>
+      <button onClick={onDeshacer}
+        className="text-xs font-black px-3 py-1.5 rounded-xl border-2 border-slate-300 text-slate-600 hover:bg-slate-100 transition-all active:scale-95">
+        ↩ Deshacer
+      </button>
+      <button onClick={handleGuardar} disabled={guardando}
+        className={`text-xs font-black px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${ok ? "bg-emerald-500 border-emerald-500 text-white" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700"}`}>
+        {guardando ? "⟳" : ok ? "✅ Guardado" : "☁ Guardar"}
+      </button>
+    </div>
+  );
+}
+
+
 function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "", hint = "", usdVal = null, minVal = 0 }) {
   const [inputStr, setInputStr] = useState(null);
   const decFn = useCallback(() => { onChange(Math.max(minVal, Math.round((value - step) * 100) / 100)); setInputStr(null); }, [value, step, minVal, onChange]);
@@ -3849,6 +3879,23 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, onToast }) {
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
+
+  // ── Snapshots para deshacer por sección ──────────────────────────────────
+  const [snapCria,       setSnapCria]       = useState(null);
+  const [snapRecria,     setSnapRecria]     = useState(null);
+  const [snapTerminacion,setSnapTerminacion]= useState(null);
+
+  const entrarCria       = () => { setSnapCria(JSON.parse(JSON.stringify(cria)));        setSubStock("cria"); };
+  const entrarRecria     = () => { setSnapRecria(JSON.parse(JSON.stringify(recria)));    setSubStock("recria"); };
+  const entrarTerminacion= () => { setSnapTerminacion(JSON.parse(JSON.stringify(terminacion))); setSubStock("terminacion"); };
+
+  const deshacerCria       = () => { if (snapCria)        { setCria(snapCria);               setSnapCria(null); } };
+  const deshacerRecria     = () => { if (snapRecria)      { setRecria(snapRecria);            setSnapRecria(null); } };
+  const deshacerTerminacion= () => { if (snapTerminacion) { setTerminacion(snapTerminacion);  setSnapTerminacion(null); } };
+
+  const guardarSeccion = async () => {
+    await guardarEstado(vacaStore.getState().__userEmail || "");
+  };
   const [verHistorial, setVerHistorial] = useState(false);
   const [anoViendo, setAnoViendo]   = useState(null);
   // Modal venta state
@@ -4230,7 +4277,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
-                    <button onClick={() => setSubStock("cria")}
+                    <button onClick={entrarCria}
                       className="flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-all">
                       ✏️ Editar
                     </button>
@@ -4287,7 +4334,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
-                    <button onClick={() => setSubStock("recria")}
+                    <button onClick={entrarRecria}
                       className="flex items-center gap-1.5 text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all">
                       ✏️ Editar
                     </button>
@@ -4328,7 +4375,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         <p className="text-3xl font-black text-slate-800">{terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
-                    <button onClick={() => setSubStock("terminacion")}
+                    <button onClick={entrarTerminacion}
                       className="flex items-center gap-1.5 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-2 rounded-xl transition-all">
                       ✏️ Editar
                     </button>
@@ -4355,9 +4402,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* ── DETALLE CRÍA ─────────────────────────────────────────────── */}
           {seccion === "stock" && subStock === "cria" && (
             <div className="sim-zoom-enter space-y-4">
-              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+              <button onClick={() => { setSnapCria(null); setSubStock(null); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
                 <ArrowLeft size={14} /> Volver a stock
               </button>
+              <SaveUndoBar
+                modificado={snapCria !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapCria(null); }}
+                onDeshacer={deshacerCria}
+              />
               <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
                 <div className="p-5 md:p-6 space-y-6">
@@ -4602,9 +4654,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* ── DETALLE RECRÍA ───────────────────────────────────────────── */}
           {seccion === "stock" && subStock === "recria" && (
             <div className="sim-zoom-enter space-y-4">
-              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+              <button onClick={() => { setSnapRecria(null); setSubStock(null); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
                 <ArrowLeft size={14} /> Volver a stock
               </button>
+              <SaveUndoBar
+                modificado={snapRecria !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapRecria(null); }}
+                onDeshacer={deshacerRecria}
+              />
               <div className="bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400" />
                 <div className="p-5 md:p-6">
@@ -4812,9 +4869,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* ── DETALLE TERMINACIÓN ──────────────────────────────────────── */}
           {seccion === "stock" && subStock === "terminacion" && (
             <div className="sim-zoom-enter space-y-4">
-              <button onClick={() => setSubStock(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+              <button onClick={() => { setSnapTerminacion(null); setSubStock(null); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
                 <ArrowLeft size={14} /> Volver a stock
               </button>
+              <SaveUndoBar
+                modificado={snapTerminacion !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapTerminacion(null); }}
+                onDeshacer={deshacerTerminacion}
+              />
               <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
                 <div className="p-5 md:p-6 space-y-5">
@@ -7474,6 +7536,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   // ── Auto-guardar cuando el store cambia (debounce 2s) ────────────────────
   useEffect(() => {
     if (!userEmail) return;
+    vacaStore.setState({ __userEmail: userEmail });
     let timer;
     const unsub = vacaStore.subscribe(() => {
       clearTimeout(timer);
