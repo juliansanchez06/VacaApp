@@ -204,8 +204,8 @@ const vacaStore = createStore((set, get) => ({
   __userEmail: "",         // email del usuario logueado para auto-guardado
 
   // ── Setters ────────────────────────────────────────────────────────────────
-  setGlobal:          (p) => set(s => ({ global:          { ...s.global,          ...p } })),
-  setGastos:          (p) => set(s => ({ gastos:          { ...s.gastos,          ...p } })),
+  setGlobal:          (p) => set(s => ({ global:          { ...s.global,          ...(typeof p === "function" ? p(s.global)          : p) } })),
+  setGastos:          (p) => set(s => ({ gastos:          { ...s.gastos,          ...(typeof p === "function" ? p(s.gastos)          : p) } })),
   setCampoCria:       (p) => set(s => ({ campoCria:       { ...s.campoCria,       ...(typeof p === "function" ? p(s.campoCria)       : p) } })),
   setCampoRecria:     (p) => set(s => ({ campoRecria:     { ...s.campoRecria,     ...(typeof p === "function" ? p(s.campoRecria)     : p) } })),
   setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...(typeof p === "function" ? p(s.campoTerminacion) : p) } })),
@@ -4214,6 +4214,34 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         </div>
       </nav>
 
+      {/* ── Línea de tiempo año ganadero ──────────────────────────────────── */}
+      {(() => {
+        const hoy = new Date();
+        const cierre = new Date(hoy.getFullYear(), 5, 30);
+        if (hoy > cierre) cierre.setFullYear(cierre.getFullYear() + 1);
+        const inicio = new Date(cierre.getFullYear() - 1, 6, 1);
+        const total  = Math.round((cierre - inicio) / 86400000);
+        const trans  = Math.round((hoy - inicio) / 86400000);
+        const restantes = Math.round((cierre - hoy) / 86400000);
+        const pct = Math.min(100, Math.max(0, (trans / total) * 100));
+        const color = restantes < 30 ? "linear-gradient(90deg,#ef4444,#f97316)"
+                    : restantes < 90 ? "linear-gradient(90deg,#f59e0b,#eab308)"
+                    : "linear-gradient(90deg,#10b981,#059669)";
+        return (
+          <div className="px-3 sm:px-6 lg:px-8 py-2 bg-white border-b border-slate-100">
+            <div className="max-w-[1100px] mx-auto flex items-center gap-3">
+              <span className="text-xs text-slate-400 shrink-0">1 jul {inicio.getFullYear()}</span>
+              <div className="flex-1 relative h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div className="h-full rounded-full" style={{ width: pct + "%", background: color }} />
+              </div>
+              <span className={`text-xs font-black shrink-0 ${restantes < 30 ? "text-red-500" : restantes < 90 ? "text-amber-500" : "text-emerald-600"}`}>
+                {restantes}d → 30/06/{cierre.getFullYear()}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="w-full max-w-[1200px] mx-auto px-2 sm:px-4 py-4 md:py-6">
 
         {/* KPI resumen */}
@@ -6730,7 +6758,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     if (propSelec !== null) {
       const prop = terceros.find(t => t.id === propSelec);
       if (!prop) { setPropSelec(null); return null; }
-      const tropasDelProp = tropas.filter(t => t.terceroId === prop.id && (t.cabActual ?? t.cab) > 0);
+      // Tropas sin terceroId se consideran del primer propietario (migración automática)
+      const tropasDelProp = tropas.filter(t => {
+        const tid = t.terceroId ?? terceros[0]?.id;
+        return tid === prop.id && (t.cabActual ?? t.cab) > 0;
+      });
       const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
       const kgTotal  = tropasDelProp.reduce((s, t) => s + kgDevengados(t, null), 0);
       return (
@@ -6857,7 +6889,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
         {/* Tarjetas propietarios */}
         {terceros.map(prop => {
-          const tropasDelProp = tropas.filter(t => t.terceroId === prop.id);
+          const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === prop.id);
           const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
           const kgTotal  = tropasDelProp.reduce((s, t) => s + kgDevengados(t, null), 0);
           return (
