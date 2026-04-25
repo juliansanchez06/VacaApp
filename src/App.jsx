@@ -162,8 +162,10 @@ const vacaStore = createStore((set, get) => ({
     inmagInvernada:     8,
     precioNovilloInmag: 1800,
     inflacionMensual:   4,
-    dolar:              1420,   // $/USD — para mostrar en moneda constante
-    tasaDescuento:      8,      // % anual — costo de oportunidad para VAN
+    dolar:              1420,
+    tasaDescuento:      8,
+    tasaOportunidadUSD: 5,    // % anual en USD — referencia plazo fijo / LECAP en USD
+    valorCabPromedio:   1500000, // $ valor promedio de cabeza para costo oportunidad
   },
   gastos: {
     fleteCompraOn: false, kmCompra: 370, precioKmCompra: 3500,
@@ -200,6 +202,7 @@ const vacaStore = createStore((set, get) => ({
     dolar:   1420,
     gasoil:  1100,
     hectareas: 1000,
+    sanidadPorCabAnio: 40000,  // $/cabeza/año — vacuna + desparasitación + minerales
     gdpTernero: 1.0,
     gdpNovilloInv: 0.5,
     gdpNovilloFaena: 1.1,
@@ -3896,6 +3899,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 }
 
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, onToast }) {
+  const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
 
@@ -3991,10 +3995,72 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const litrosTotalesMes   = viajesState.viajesAlMes * viajesState.kmPorViaje * (viajesState.litrosCada100 / 100);
   const costoViajesMes     = litrosTotalesMes * gasoil;
 
-  const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes;
   const totalStockCampo = criaDatos.vacas + criaDatos.vaquillonas + criaDatos.ternerosNoDestetados + criaDatos.toros
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
     + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
+
+  // ── EV/ha — Equivalente Vaca por hectárea ─────────────────────────────────
+  // Coeficientes EV estándar (INTA): vaca cría con ternero = 1, toro = 1.3,
+  // vaquillona reposición = 0.85, novillo terminación = 1.0, ternero destetado = 0.55
+  const totalEV = (criaDatos.vacas ?? 0) * 1.0
+    + (criaDatos.vaquillonas ?? 0) * 0.85
+    + (criaDatos.toros ?? 0) * 1.3
+    + (criaDatos.ternerosNoDestetados ?? 0) * 0.55
+    + (criaDatos.vacias ?? 0) * 1.0
+    + (reciaDatos.ternerosLiquidaMachos ?? 0) * 0.7
+    + (reciaDatos.ternerosLiquidaHembras ?? 0) * 0.7
+    + (reciaDatos.ternerosCompraMachos ?? 0) * 0.7
+    + (reciaDatos.ternerosCompraHembras ?? 0) * 0.7
+    + (reciaDatos.novillos ?? 0) * 0.95
+    + (terminacionDatos.novillosCampo ?? 0) * 1.0;
+  // EV en feedlot no cuenta porque no consume del campo
+  const evPorHa = hectareas > 0 ? totalEV / hectareas : 0;
+
+  // ── Sanidad — costo $/mes ─────────────────────────────────────────────────
+  const sanidadAnual = totalStockCampo * (campoStore.sanidadPorCabAnio ?? 40000);
+  const sanidadMes   = sanidadAnual / 12;
+
+  // ── Costo de oportunidad del capital invertido en hacienda ───────────────
+  const valorRodeo = totalStockCampo * (global.valorCabPromedio ?? 1500000);
+  // Tasa USD anual → convertir a pesos vía dólar y aplicar
+  const costoOportunidadAnual = valorRodeo * ((global.tasaOportunidadUSD ?? 5) / 100);
+  const costoOportunidadMes   = costoOportunidadAnual / 12;
+
+  // ── Margen bruto por actividad ────────────────────────────────────────────
+  // Cría: produce terneros para destete, ingreso = peso destete × cab × precio nov × factor
+  const precioNovKg     = global.precioNovilloInmag ?? 1800;
+  const cabDestetados   = Math.round((criaDatos.vacas + criaDatos.vaquillonas) * (criaDatos.pctDestete ?? 75) / 100);
+  const pesoDestete2    = Math.round(165); // estimado típico
+  const ingresoCria     = cabDestetados * pesoDestete2 * precioNovKg;
+
+  // Recría: produce novillos invernada, ingreso = peso × cab × precio nov
+  const cabRecriaSale   = Math.round((reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos) * (1 - (reciaDatos.pctMortandadRecria ?? 2) / 100));
+  const pesoRecria      = 320; // promedio salida recría
+  const ingresoRecria   = cabRecriaSale * pesoRecria * precioNovKg;
+
+  // Terminación: cab × peso final × precio
+  const cabTermSale     = (terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0);
+  const pesoTerm        = terminacionDatos.pesoPromedioKg ?? 420;
+  const ingresoTerm     = cabTermSale * pesoTerm * precioNovKg;
+
+  // Costos asignados (proporcional al stock de cada actividad)
+  const cabCria  = (criaDatos.vacas + criaDatos.vaquillonas + criaDatos.toros + criaDatos.ternerosNoDestetados + (criaDatos.vacias ?? 0));
+  const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos;
+  const cabTerm  = cabTermSale;
+  const totalCabAct = Math.max(1, cabCria + cabRec + cabTerm);
+  const costoTotalAnual = (totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes) * 12;
+  const costoCriaAnual  = costoTotalAnual * (cabCria / totalCabAct);
+  const costoRecAnual   = costoTotalAnual * (cabRec  / totalCabAct);
+  const costoTermAnual  = costoTotalAnual * (cabTerm / totalCabAct);
+  // Terminación suma costo de comida y hotelería específico
+  const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
+
+  const margenCria = ingresoCria - costoCriaAnual;
+  const margenRec  = ingresoRecria - costoRecAnual;
+  const margenTerm = ingresoTerm - costoTermAnual - costoFeedlotAnual;
+  const margenTotal = margenCria + margenRec + margenTerm;
+
+  const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
 
   const feedlotMes = terminacionDatos.novillosFeedlot * (terminacionDatos.costoComidaDia + terminacionDatos.costoHoteleriaDia) * 30;
@@ -4279,6 +4345,45 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             </div>
           ))}
         </div>
+
+        {/* ── Carga animal — EV/ha ──────────────────────────────────────── */}
+        {hectareas > 0 && (() => {
+          const cargaIdeal = 1.0; // EV/ha referencia para zona templada
+          const pct = (evPorHa / cargaIdeal) * 100;
+          const estado = evPorHa < 0.7 ? { label: "Subutilizado", color: "bg-sky-100 text-sky-700 border-sky-300", bar: "#0ea5e9" }
+                       : evPorHa < 1.1 ? { label: "Óptimo",        color: "bg-emerald-100 text-emerald-700 border-emerald-300", bar: "#10b981" }
+                       : evPorHa < 1.4 ? { label: "Cargado",       color: "bg-amber-100 text-amber-700 border-amber-300", bar: "#f59e0b" }
+                                       : { label: "Sobrecarga",    color: "bg-red-100 text-red-700 border-red-300", bar: "#ef4444" };
+          return (
+            <div className="bg-white rounded-2xl border-2 border-slate-200 p-4 mb-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🌾</span>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">Carga animal — EV/ha</p>
+                </div>
+                <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${estado.color}`}>{estado.label}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">Total EV</p>
+                  <p className="font-mono font-black text-xl text-slate-700">{Math.round(totalEV)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">Hectáreas</p>
+                  <p className="font-mono font-black text-xl text-slate-700">{hectareas}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">EV/ha</p>
+                  <p className="font-mono font-black text-2xl" style={{ color: estado.bar }}>{evPorHa.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div className="h-full rounded-full transition-all" style={{ width: Math.min(100, pct) + "%", background: estado.bar }} />
+              </div>
+              <p className="text-xs text-slate-400 text-center mt-1.5">Referencia: 1.0 EV/ha · zona templada típica · ajustá según receptividad real</p>
+            </div>
+          );
+        })()}
 
 
         {/* ── Layout: sidebar + contenido ──────────────────────────────── */}
@@ -5022,7 +5127,53 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGlobal(null); }}
                 onDeshacer={deshacerGlobal}
               />
-              {/* GDP por etapa — resumen sincronizado */}
+
+              {/* ── Margen bruto por actividad ──────────────────────────── */}
+              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Margen bruto por actividad</p>
+                    <span className={`text-sm font-black ${margenTotal >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                      Total: {fmtMoney(margenTotal)}/año
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "🐄 Cría", ingreso: ingresoCria, costo: costoCriaAnual, margen: margenCria, cab: cabCria, color: "emerald", detalle: `${cabDestetados} terneros × ${pesoDestete2}kg × $${precioNovKg}` },
+                      { label: "🐂 Recría", ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec, cab: cabRec, color: "blue", detalle: `${cabRecriaSale} cab × ${pesoRecria}kg × $${precioNovKg}` },
+                      { label: "🥩 Terminación", ingreso: ingresoTerm, costo: costoTermAnual + costoFeedlotAnual, margen: margenTerm, cab: cabTerm, color: "amber", detalle: `${cabTermSale} cab × ${pesoTerm}kg × $${precioNovKg}` },
+                    ].map((act, i) => {
+                      const pos = act.margen >= 0;
+                      return (
+                        <div key={i} className={`rounded-2xl border-2 p-3 ${pos ? `bg-${act.color}-50 border-${act.color}-200` : "bg-red-50 border-red-200"}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-black uppercase tracking-widest text-${act.color}-700`}>{act.label}</span>
+                            <span className="text-xs text-slate-500">{act.cab} cab</span>
+                          </div>
+                          <p className="text-xs text-slate-500 mb-2">{act.detalle}</p>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between"><span className="text-slate-500">Ingreso:</span><span className="font-mono font-bold text-emerald-700">+{fmtMoney(act.ingreso)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">Costo:</span><span className="font-mono font-bold text-red-600">−{fmtMoney(act.costo)}</span></div>
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-600">Margen</span>
+                            <span className={`font-mono font-black text-lg ${pos ? "text-emerald-700" : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-3">
+                    <span className="text-xl">💡</span>
+                    <div className="flex-1 text-xs text-indigo-700">
+                      <p className="font-black mb-1">Costo de oportunidad: {fmtMoney(costoOportunidadAnual)}/año</p>
+                      <p>Tu rendimiento real es Margen − Costo de oportunidad = <b>{fmtMoney(margenTotal - costoOportunidadAnual)}</b>. Si es negativo, conviene reducir el rodeo y poner el capital en una alternativa.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
                   <div className="flex items-center justify-between mb-1">
@@ -5308,7 +5459,47 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGastos(null); setSnapCampo(null); }}
                 onDeshacer={() => { deshacerGastos(); deshacerCampo(); }}
               />
-              {/* Empleados */}
+
+              {/* Sanidad y nutrición */}
+              <div className="bg-white border-2 border-rose-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-rose-400 to-pink-400" />
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-rose-700">💉 Sanidad y nutrición</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Total mes</p>
+                      <p className="font-black text-rose-800 text-lg">{fmtMoney(sanidadMes)}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">Vacunación (aftosa, brucelosis, IBR-DVB), desparasitación, minerales y sales por cabeza al año.</p>
+                  <EditField label="Sanidad por cabeza al año" value={campoStore.sanidadPorCabAnio ?? 40000}
+                    onChange={v => setCampoStore({ sanidadPorCabAnio: v })}
+                    step={5000} prefix="$" hint={`${totalStockCampo} cab × $${(campoStore.sanidadPorCabAnio ?? 40000).toLocaleString("es-AR")} = ${fmtMoney(sanidadAnual)}/año`} />
+                </div>
+              </div>
+
+              {/* Costo de oportunidad del capital */}
+              <div className="bg-white border-2 border-indigo-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-indigo-400 to-purple-400" />
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-700">💰 Costo de oportunidad del capital</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Total mes</p>
+                      <p className="font-black text-indigo-800 text-lg">{fmtMoney(costoOportunidadMes)}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">El capital invertido en hacienda tiene un costo de oportunidad — qué dejarías de ganar si lo pusieras en una alternativa segura (LECAP, plazo fijo USD).</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <EditField label="Valor promedio por cabeza" value={global.valorCabPromedio ?? 1500000}
+                      onChange={v => vacaStore.getState().setGlobal({ valorCabPromedio: v })}
+                      step={100000} prefix="$" hint={`Valor rodeo: ${fmtMoney(valorRodeo)}`} />
+                    <EditField label="Tasa anual USD (referencia)" value={global.tasaOportunidadUSD ?? 5}
+                      onChange={v => vacaStore.getState().setGlobal({ tasaOportunidadUSD: v })}
+                      step={0.5} suffix="%" hint={`${fmtMoney(costoOportunidadAnual)}/año perdidos vs alternativa`} />
+                  </div>
+                </div>
+              </div>
               <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-400" />
                 <div className="p-5 space-y-4">
@@ -5424,10 +5615,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-4">Resumen costos anuales</p>
                 <div className="space-y-2 mb-4">
                   {[
-                    ["👷 Empleados",       totalEmpleadosMes*12, "violet"],
-                    ["🚜 Maquinaria",      costoMaqMes*12,       "sky"],
-                    ["🌾 Rolados/pastura", costoRoladoAnual,      "green"],
-                    ["🚗 Viajes",          costoViajesMes*12,    "orange"],
+                    ["👷 Empleados",           totalEmpleadosMes*12,        "violet"],
+                    ["🚜 Maquinaria",           costoMaqMes*12,              "sky"],
+                    ["🌾 Rolados/pastura",      costoRoladoAnual,            "green"],
+                    ["🚗 Viajes",               costoViajesMes*12,           "orange"],
+                    ["💉 Sanidad y nutrición",  sanidadAnual,                "rose"],
                   ].map(([l,v,c]) => (
                     <div key={l} className="flex items-center justify-between py-1.5 border-b border-slate-100">
                       <span className="text-sm text-slate-600">{l}</span>
@@ -5437,12 +5629,25 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       </div>
                     </div>
                   ))}
+                  <div className="flex items-center justify-between py-1.5 border-b border-dashed border-indigo-200">
+                    <span className="text-sm text-indigo-600">💰 Costo oportunidad capital</span>
+                    <div className="text-right">
+                      <span className="font-mono font-black text-indigo-700">{fmtMoney(costoOportunidadAnual)}</span>
+                      <span className="text-xs text-indigo-400 ml-2 italic">no operativo</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm font-black text-emerald-800">Total anual</span>
+                  <span className="text-sm font-black text-emerald-800">Total operativo anual</span>
                   <div className="text-right">
-                    <p className="font-black text-emerald-900 text-2xl">{fmtMoney((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
-                    <p className="text-sm text-emerald-700 font-bold">{usd((totalEmpleadosMes+costoMaqMes+costoViajesMes)*12+costoRoladoAnual)}</p>
+                    <p className="font-black text-emerald-900 text-2xl">{fmtMoney(totalCostosMes * 12)}</p>
+                    <p className="text-sm text-emerald-700 font-bold">{usd(totalCostosMes * 12)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-dashed border-indigo-200 mt-2">
+                  <span className="text-sm font-black text-indigo-700">Total incl. oportunidad</span>
+                  <div className="text-right">
+                    <p className="font-black text-indigo-800 text-xl">{fmtMoney(totalCostosMes * 12 + costoOportunidadAnual)}</p>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
