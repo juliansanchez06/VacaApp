@@ -7689,6 +7689,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       };
       logoImg.onerror = descargarCanvas; // si falla el logo, descargar igual
       logoImg.src = `data:image/png;base64,${LOGO_B64}`;
+    }; // fin generarImagenCobro
 
     const CobRow = ({ c }) => {
       const expand = expandId === c.id;
