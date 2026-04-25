@@ -6709,37 +6709,127 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   );
 
   // ── Vista Tropas ──────────────────────────────────────────────────────────
+  // ── Vista Tropas ──────────────────────────────────────────────────────────
   const VistaTropas = () => {
-    const hoyDate   = new Date();
-    const hoyStr    = hoyDate.toLocaleDateString("es-AR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-    const cierreAno = new Date(hoyDate.getFullYear(), 5, 30); // 30 junio
+    const [propSelec, setPropSelec] = useState(null);
+
+    const hoyDate = new Date();
+    const hoyStr  = hoyDate.toLocaleDateString("es-AR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    const cierreAno = new Date(hoyDate.getFullYear(), 5, 30);
     if (hoyDate > cierreAno) cierreAno.setFullYear(cierreAno.getFullYear() + 1);
-    const aperturaAno = new Date(cierreAno.getFullYear(), 0, 1); // 1 enero del año del cierre (aprox inicio)
-    // Inicio del año ganadero: 1 julio del año anterior
-    const inicioAno = new Date(cierreAno.getFullYear() - 1, 6, 1); // 1 julio año anterior
-    const diasTotales   = Math.round((cierreAno - inicioAno) / 86400000);
-    const diasTranscurridos = Math.round((hoyDate - inicioAno) / 86400000);
-    const diasRestantes = Math.round((cierreAno - hoyDate) / 86400000);
-    const pctAvance     = Math.min(100, Math.max(0, (diasTranscurridos / diasTotales) * 100));
+    const inicioAno = new Date(cierreAno.getFullYear() - 1, 6, 1);
+    const diasTotales      = Math.round((cierreAno - inicioAno) / 86400000);
+    const diasTranscurridos= Math.round((hoyDate - inicioAno) / 86400000);
+    const diasRestantes    = Math.round((cierreAno - hoyDate) / 86400000);
+    const pctAvance        = Math.min(100, Math.max(0, (diasTranscurridos / diasTotales) * 100));
 
     const svcLabel = { verano: "Serv. verano", "otoño": "Serv. otoño" };
     const svcColor = { verano: "bg-sky-100 text-sky-700 border-sky-200", "otoño": "bg-amber-100 text-amber-700 border-amber-200" };
 
-    // Agrupar tropas por propietario
-    const porPropietario = terceros.map(prop => ({
-      ...prop,
-      tropas: tropas.filter(t => t.terceroId === prop.id && (t.cabActual ?? t.cab) > 0),
-      cabTotal: tropas.filter(t => t.terceroId === prop.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0),
-      kgTotal:  tropas.filter(t => t.terceroId === prop.id).reduce((s, t) => s + kgDevengados(t, null), 0),
-    })).filter(p => p.cabTotal > 0);
+    // ── DETALLE propietario ────────────────────────────────────────────────
+    if (propSelec !== null) {
+      const prop = terceros.find(t => t.id === propSelec);
+      if (!prop) { setPropSelec(null); return null; }
+      const tropasDelProp = tropas.filter(t => t.terceroId === prop.id && (t.cabActual ?? t.cab) > 0);
+      const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+      const kgTotal  = tropasDelProp.reduce((s, t) => s + kgDevengados(t, null), 0);
+      return (
+        <div className="space-y-4">
+          <button onClick={() => setPropSelec(null)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-widest transition-colors">
+            ← Volver a propietarios
+          </button>
+          <div className="bg-emerald-700 rounded-3xl p-4 text-white shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 font-black text-lg flex items-center justify-center">
+                {prop.nombre.slice(0,2).toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <p className="font-black text-xl">👤 {prop.nombre}</p>
+                <p className="text-emerald-200 text-xs">{cabTotal} cab · {fmtN(Math.round(kgTotal))} kg nov devengados</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-emerald-300">Total devengado</p>
+                <p className="font-black text-2xl">{fmtPesos(kgTotal * precioNov)}</p>
+              </div>
+            </div>
+          </div>
+          {CATS.filter(c => tropasDelProp.some(t => t.cat === c.id)).map(cat => {
+            const col = CAT_COLORS[cat.id];
+            const tropasDeEstacat = tropasDelProp.filter(t => t.cat === cat.id);
+            return (
+              <div key={cat.id} className={`rounded-3xl border-2 overflow-hidden shadow-sm ${col.border} ${col.bg}`}>
+                <div className={`h-1.5 ${col.strip}`} />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{cat.emoji}</span>
+                      <span className={`text-xs font-black uppercase tracking-widest ${col.text}`}>{cat.label}</span>
+                    </div>
+                    <span className={`text-sm font-black ${col.text}`}>{tropasDeEstacat.reduce((s,t) => s+(t.cabActual??t.cab),0)} cab</span>
+                  </div>
+                  <div className="space-y-2">
+                    {tropasDeEstacat.map(t => {
+                      const cabAct = t.cabActual ?? t.cab;
+                      const kgHoy  = kgDevengados(t, null);
+                      return (
+                        <div key={t.id} className="bg-white/80 rounded-2xl border border-white p-3 flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="font-black text-slate-800 text-sm">{t.origen}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
+                                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
+                                {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
+                                {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
+                                {t.suplemento?.activo && (
+                                  <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
+                                    💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-slate-400">pastaje dev.</p>
+                              <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgHoy))} kg</p>
+                              <p className="text-xs text-slate-400">{fmtPesos(kgHoy * precioNov)}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-1 border-t border-slate-100">
+                            <button onClick={() => setTropaSuplemento(t)}
+                              className={`flex-1 text-xs font-black py-1.5 rounded-xl border transition-all active:scale-95 ${t.suplemento?.activo ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"}`}>
+                              💊 Suplemento
+                            </button>
+                            <button onClick={() => setTropaEgreso(t)}
+                              className="flex-1 text-xs font-black py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95">
+                              ↑ Egreso
+                            </button>
+                            <button onClick={() => { if (!window.confirm("¿Eliminar tropa " + t.origen + "?")) return; setTropas(prev => prev.filter(x => x.id !== t.id)); toast("🗑 Tropa " + t.origen + " eliminada", "warn"); }}
+                              className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">✕</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {tropasDelProp.length === 0 && (
+            <div className="text-center py-10 text-slate-400"><p className="text-3xl mb-2">🐄</p><p className="text-sm">Sin tropas asignadas a {prop.nombre}</p></div>
+          )}
+          <button onClick={() => setModal("tropa")}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 hover:border-emerald-400 transition-all">
+            + Agregar tropa a {prop.nombre}
+          </button>
+        </div>
+      );
+    }
 
-    // Tropas sin propietario asignado
-    const sinProp = tropas.filter(t => !t.terceroId && (t.cabActual ?? t.cab) > 0);
-
+    // ── LISTA propietarios ─────────────────────────────────────────────────
     return (
       <div className="space-y-4">
-
-        {/* ── Fecha actual + línea de tiempo ──────────────────────────── */}
+        {/* Fecha + línea de tiempo */}
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -6749,157 +6839,76 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             <div className="text-right">
               <p className="text-xs text-slate-400">Cierre de año</p>
               <p className="text-sm font-black text-rose-600">30/06/{cierreAno.getFullYear()}</p>
-              <p className="text-xs text-rose-500 font-semibold">{diasRestantes} días restantes</p>
+              <p className="text-xs text-rose-500 font-semibold">{diasRestantes} días</p>
             </div>
           </div>
-          {/* Barra de progreso */}
-          <div className="relative">
-            <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${pctAvance}%`,
-                  background: diasRestantes < 30
-                    ? "linear-gradient(90deg,#ef4444,#f97316)"
-                    : diasRestantes < 90
-                    ? "linear-gradient(90deg,#f59e0b,#eab308)"
-                    : "linear-gradient(90deg,#10b981,#059669)",
-                }}
-              />
-            </div>
-            {/* Marcador hoy */}
-            <div className="absolute top-0 h-4 flex items-center" style={{ left: `${pctAvance}%`, transform: "translateX(-50%)" }}>
-              <div className="w-1.5 h-6 bg-slate-700 rounded-full -mt-1" />
-            </div>
+          <div className="h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+            <div className="h-full rounded-full transition-all" style={{
+              width: pctAvance + "%",
+              background: diasRestantes < 30 ? "linear-gradient(90deg,#ef4444,#f97316)" : diasRestantes < 90 ? "linear-gradient(90deg,#f59e0b,#eab308)" : "linear-gradient(90deg,#10b981,#059669)"
+            }} />
           </div>
-          <div className="flex justify-between mt-1.5">
-            <span className="text-xs text-slate-400">1 jul {inicioAno.getFullYear()}</span>
-            <span className="text-xs font-bold text-slate-600">{Math.round(pctAvance)}% del año</span>
-            <span className="text-xs text-rose-500 font-bold">30 jun {cierreAno.getFullYear()}</span>
+          <div className="flex justify-between mt-1.5 text-xs">
+            <span className="text-slate-400">1 jul {inicioAno.getFullYear()}</span>
+            <span className="font-bold text-slate-600">{Math.round(pctAvance)}% del año</span>
+            <span className="text-rose-500 font-bold">30 jun {cierreAno.getFullYear()}</span>
           </div>
-          {/* Apertura */}
-          <p className="text-xs text-slate-400 text-center mt-1.5">
-            Próxima apertura: <span className="font-bold text-emerald-600">1 jul {cierreAno.getFullYear()}</span>
-          </p>
         </div>
 
-        {/* ── Tropas agrupadas por propietario ────────────────────────── */}
-        {porPropietario.map(prop => (
-          <div key={prop.id} className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 overflow-hidden shadow-sm">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
-            <div className="p-4">
-              {/* Header propietario */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center">
-                    {prop.nombre.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-emerald-800">👤 {prop.nombre}</p>
-                    <p className="text-xs text-emerald-600">{prop.cabTotal} cab · {fmtN(Math.round(prop.kgTotal))} kg dev.</p>
-                  </div>
+        {/* Tarjetas propietarios */}
+        {terceros.map(prop => {
+          const tropasDelProp = tropas.filter(t => t.terceroId === prop.id);
+          const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+          const kgTotal  = tropasDelProp.reduce((s, t) => s + kgDevengados(t, null), 0);
+          return (
+            <button key={prop.id} onClick={() => setPropSelec(prop.id)}
+              className="w-full text-left bg-white rounded-3xl border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-md p-4 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-700 text-white font-black text-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                  {prop.nombre.slice(0,2).toUpperCase()}
                 </div>
-                <p className="text-sm font-black text-emerald-700">{fmtPesos(prop.kgTotal * precioNov)}</p>
+                <div className="flex-1">
+                  <p className="font-black text-slate-800 text-base">👤 {prop.nombre}</p>
+                  <p className="text-xs text-slate-500">{cabTotal} cab · {tropasDelProp.length} tropas</p>
+                  <p className="text-xs text-emerald-600 font-semibold">{fmtN(Math.round(kgTotal))} kg nov devengados</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">devengado</p>
+                  <p className="font-black text-emerald-700 text-lg">{fmtPesos(kgTotal * precioNov)}</p>
+                  <p className="text-xs text-slate-400 group-hover:text-emerald-600 transition-colors">Ver tropas →</p>
+                </div>
               </div>
+            </button>
+          );
+        })}
 
-              {/* Tropas del propietario agrupadas por categoría */}
-              {CATS.filter(c => prop.tropas.some(t => t.cat === c.id)).map(cat => {
-                const tropasDeEstacat = prop.tropas.filter(t => t.cat === cat.id);
-                const col = CAT_COLORS[cat.id];
-                return (
-                  <div key={cat.id} className={`rounded-2xl border-2 overflow-hidden mb-2 ${col.border} ${col.bg}`}>
-                    <div className="px-3 py-2 flex items-center justify-between">
-                      <span className={`text-xs font-black uppercase tracking-widest ${col.text}`}>{cat.emoji} {cat.label}</span>
-                      <span className={`text-xs font-black ${col.text}`}>{tropasDeEstacat.reduce((s, t) => s + (t.cabActual ?? t.cab), 0)} cab</span>
-                    </div>
-                    <div className="space-y-2 px-3 pb-3">
-                      {tropasDeEstacat.map(t => {
-                        const cabAct = t.cabActual ?? t.cab;
-                        const kgHoy  = kgDevengados(t, null);
-                        return (
-                          <div key={t.id} className="bg-white/80 rounded-2xl border border-white p-3 flex flex-col gap-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <p className="font-black text-slate-800 text-sm">{t.origen}</p>
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
-                                  <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
-                                  {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
-                                  {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
-                                  {t.suplemento?.activo && (
-                                    <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
-                                      💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs text-slate-400">pastaje dev.</p>
-                                <p className="font-black text-emerald-700 text-sm">{fmtN(Math.round(kgHoy))} kg</p>
-                                <p className="text-xs text-slate-400">{fmtPesos(kgHoy * precioNov)}</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 pt-1 border-t border-slate-100">
-                              <button onClick={() => setTropaSuplemento(t)}
-                                className={`flex-1 text-xs font-black py-1.5 rounded-xl border transition-all active:scale-95 ${t.suplemento?.activo ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"}`}>
-                                💊 Suplemento
-                              </button>
-                              <button onClick={() => setTropaEgreso(t)}
-                                className="flex-1 text-xs font-black py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95">
-                                ↑ Egreso
-                              </button>
-                              <button onClick={() => { if (!window.confirm(`¿Eliminar tropa "${t.origen}"?`)) return; setTropas(prev => prev.filter(x => x.id !== t.id)); toast(`🗑 Tropa ${t.origen} eliminada`, "warn"); }}
-                                className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">✕</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Tropas sin propietario */}
-        {sinProp.length > 0 && (
-          <div className="rounded-3xl border-2 border-slate-200 bg-slate-50 overflow-hidden shadow-sm">
-            <div className="h-1.5 bg-slate-300" />
-            <div className="p-4">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">⚠ Sin propietario asignado</p>
-              <div className="space-y-2">
-                {sinProp.map(t => (
-                  <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-3 text-sm font-semibold text-slate-600 flex justify-between">
-                    <span>{t.origen} — {t.cabActual ?? t.cab} cab</span>
-                    <span className="text-xs text-slate-400">{CATS.find(c => c.id === t.cat)?.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {terceros.length === 0 && (
+          <div className="text-center py-10 text-slate-400">
+            <p className="text-3xl mb-2">👤</p>
+            <p className="text-sm">Sin propietarios. Agregá uno primero.</p>
           </div>
         )}
 
-        <button onClick={() => setModal("tropa")}
-          className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 hover:border-emerald-400 transition-all">
-          + Agregar tropa
+        <button onClick={() => setModal("tercero")}
+          className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 font-black text-sm hover:bg-slate-50 transition-all">
+          + Agregar propietario
         </button>
-        {/* Apartado stock propio */}
+
         {stockPropio && (
           <div className="rounded-3xl border-2 border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">📦 Stock propio (referencia)</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
-                ["Vacas propias",       stockPropio.cria?.vacas ?? 0,           "text-emerald-700"],
-                ["Vaquillonas",         stockPropio.cria?.vaquillonas ?? 0,      "text-emerald-600"],
-                ["Terneros al pie",     stockPropio.cria?.ternerosNoDestetados ?? 0, "text-amber-700"],
-                ["Toros propios",       stockPropio.cria?.toros ?? 0,            "text-sky-700"],
-                ["Recría propia",       (stockPropio.recria?.ternerosLiquidaMachos ?? 0) + (stockPropio.recria?.novillos ?? 0), "text-violet-700"],
-                ["Terminación",         (stockPropio.terminacion?.novillosCampo ?? 0) + (stockPropio.terminacion?.novillosFeedlot ?? 0), "text-orange-700"],
+                ["Vacas propias", stockPropio.cria?.vacas ?? 0, "text-emerald-700"],
+                ["Vaquillonas", stockPropio.cria?.vaquillonas ?? 0, "text-emerald-600"],
+                ["Terneros al pie", stockPropio.cria?.ternerosNoDestetados ?? 0, "text-amber-700"],
+                ["Toros propios", stockPropio.cria?.toros ?? 0, "text-sky-700"],
+                ["Recría propia", (stockPropio.recria?.ternerosLiquidaMachos ?? 0) + (stockPropio.recria?.novillos ?? 0), "text-violet-700"],
+                ["Terminación", (stockPropio.terminacion?.novillosCampo ?? 0) + (stockPropio.terminacion?.novillosFeedlot ?? 0), "text-orange-700"],
               ].map(([lbl, val, col]) => (
                 <div key={lbl} className="bg-white rounded-xl border border-slate-200 p-2.5 text-center">
                   <p className="text-xs text-slate-400">{lbl}</p>
-                  <p className={`font-black text-base ${col}`}>{val} cab</p>
+                  <p className={"font-black text-base " + col}>{val} cab</p>
                 </div>
               ))}
             </div>
@@ -6914,6 +6923,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       </div>
     );
   };
+
 
   // ── Vista Eventos ─────────────────────────────────────────────────────────
   const VistaEventos = () => {
