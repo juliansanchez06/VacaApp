@@ -6651,44 +6651,26 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
   };
 
-  // Cargar datos iniciales solo si no hay nada en absoluto
   const HOY_FIJO = new Date().toISOString().slice(0, 10);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (tropas.length === 0) {
-        const tercerosInic = [{ id: 1, nombre: "Villar" }];
-        const inicial = [
-          { id: 1,  cat: "vacas",    cab: 21,  cabActual: 21,  origen: "Londero",               terceroId: 1, fechaIngreso: "2026-04-21", servicio: "verano"  },
-          { id: 2,  cat: "vacas",    cab: 26,  cabActual: 26,  origen: "Vacas viejas",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 3,  cat: "vacas",    cab: 30,  cabActual: 30,  origen: "Vaquillonas compra",     terceroId: 1, fechaIngreso: "2026-04-21", servicio: "otoño"   },
-          { id: 4,  cat: "vacas",    cab: 15,  cabActual: 15,  origen: "Vaquillonas marca líq.", terceroId: 1, fechaIngreso: "2026-04-21", servicio: "otoño"   },
-          { id: 5,  cat: "toros",    cab: 2,   cabActual: 2,   origen: "Toros viejos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 6,  cat: "toros",    cab: 4,   cabActual: 4,   origen: "Toros nuevos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",                terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 8,  cat: "recria",   cab: 6,   cabActual: 6,   origen: "Novillos compra",        terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        ];
-        setPastaje({ tropas: inicial, terceros: tercerosInic, periodos: [], precios: { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 } });
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line
 
-  // Función para corregir fechas manualmente (una sola vez)
-  const corregirFechas = () => {
+  // Corregir fechaIngreso corruptas automáticamente al montar
+  useEffect(() => {
+    if (tropas.length === 0) return;
+    const necesitaFix = tropas.some(t => !t.fechaIngreso || t.fechaIngreso === HOY_FIJO || t.fechaIngreso > "2026-04-21");
+    if (!necesitaFix) return;
     const tropasCorregidas = tropas.map(t => ({
       ...t,
-      fechaIngreso: t.fechaIngreso >= HOY_FIJO ? "2026-04-21" : t.fechaIngreso,
+      fechaIngreso: (!t.fechaIngreso || t.fechaIngreso >= HOY_FIJO) ? "2026-04-21" : t.fechaIngreso,
       terceroId: t.terceroId ?? 1,
     }));
     setPastaje({ tropas: tropasCorregidas });
     setTimeout(() => {
       const email = vacaStore.getState().__userEmail;
-      if (email) guardarEstado(email).then(() => onToast("✅ Fechas corregidas y guardadas", "success")).catch(console.error);
-    }, 300);
-  };
+      if (email) guardarEstado(email).catch(console.error);
+    }, 500);
+  }, [tropas.length]); // solo cuando cambia la cantidad de tropas
 
-  const necesitaCorreccion = tropas.some(t => t.fechaIngreso >= HOY_FIJO);
+  const necesitaCorreccion = false; // ya no necesitamos el banner manual
 
   const diasEntre = (desde, hasta) => {
     // Parsear como fecha local (sin zona horaria) para evitar problemas UTC
