@@ -77,6 +77,7 @@ async function guardarEstado(userEmail) {
     campoRecria:      s.campoRecria,
     campoTerminacion: s.campoTerminacion,
     campoPastaje:     s.campoPastaje,
+    campo:            s.campo,
     simulaciones:     s.simulaciones,
     anoGanaderoActual: s.anoGanaderoActual,
     historialAnos:    s.historialAnos,
@@ -113,6 +114,7 @@ async function cargarEstado(userEmail, intentos = 3) {
       if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
       if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
       if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
+      if (data.campo)            s.setCampo(data.campo);
       if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
       if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
       vacaStore.setState({ firestoreCargado: true });
@@ -193,7 +195,23 @@ const vacaStore = createStore((set, get) => ({
   anoGanaderoActual: getAnoGanadero(),
   historialAnos: {},
 
-  // ── Pastaje ───────────────────────────────────────────────────────────────
+  // ── Campo — costos de estructura y parámetros productivos ───────────────
+  campo: {
+    dolar:   1420,
+    gasoil:  1100,
+    hectareas: 1000,
+    gdpTernero: 1.0,
+    gdpNovilloInv: 0.5,
+    gdpNovilloFaena: 1.1,
+    gdpVaquillonaDesc: 0.5,
+    empleados: [
+      { rol: "Encargado", cantidad: 1, sueldo: 1500000, aguinaldo: true, cargasSociales: 45, premio: 200000 },
+      { rol: "Peón",      cantidad: 2, sueldo:  900000, aguinaldo: true, cargasSociales: 45, premio:  80000 },
+    ],
+    maquinaria: { tractores: 3, mantenimientoMes: 120000 },
+    rolado: { hectareas: 800, litrosGasoilHa: 80, siembraHa: 200, costoSiembraHa: 25000 },
+    viajes: { viajesAlMes: 4, kmPorViaje: 120, litrosCada100: 12 },
+  },
   campoPastaje: {
     tropas:   [],
     periodos: [],
@@ -210,6 +228,7 @@ const vacaStore = createStore((set, get) => ({
   setCampoRecria:     (p) => set(s => ({ campoRecria:     { ...s.campoRecria,     ...(typeof p === "function" ? p(s.campoRecria)     : p) } })),
   setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...(typeof p === "function" ? p(s.campoTerminacion) : p) } })),
   setCampoPastaje:    (p) => set(s => ({ campoPastaje:    { ...s.campoPastaje,    ...(typeof p === "function" ? p(s.campoPastaje)    : p) } })),
+  setCampo:           (p) => set(s => ({ campo:           { ...s.campo,           ...(typeof p === "function" ? p(s.campo)           : p) } })),
 
   // ── Agregar al campo desde simulador ─────────────────────────────────────
   agregarAlCampo: ({ categoria, cantidad }) => set(s => {
@@ -3886,6 +3905,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const [snapTerminacion,setSnapTerminacion]= useState(null);
   const [snapGastos,     setSnapGastos]     = useState(null);
   const [snapGlobal,     setSnapGlobal]     = useState(null);
+  const [snapCampo,      setSnapCampo]      = useState(null);
 
   const entrarCria       = () => { setSnapCria(JSON.parse(JSON.stringify(cria)));        setSubStock("cria"); };
   const entrarRecria     = () => { setSnapRecria(JSON.parse(JSON.stringify(recria)));    setSubStock("recria"); };
@@ -3896,10 +3916,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const deshacerTerminacion= () => { if (snapTerminacion) { setTerminacion(snapTerminacion);  setSnapTerminacion(null); } };
   const deshacerGastos     = () => { if (snapGastos)      { vacaStore.getState().setGastos(snapGastos);  setSnapGastos(null); } };
   const deshacerGlobal     = () => { if (snapGlobal)      { vacaStore.getState().setGlobal(snapGlobal);  setSnapGlobal(null); } };
+  const deshacerCampo      = () => { if (snapCampo)       { vacaStore.getState().setCampo(snapCampo);    setSnapCampo(null); } };
 
   const handleSetSeccion = (id) => {
     const g = vacaStore.getState();
-    if (id === "costos")        setSnapGastos(JSON.parse(JSON.stringify(g.gastos)));
+    if (id === "costos") {
+      setSnapGastos(JSON.parse(JSON.stringify(vacaStore.getState().gastos)));
+      setSnapCampo(JSON.parse(JSON.stringify(vacaStore.getState().campo)));
+    }
     if (id === "rendimiento")   setSnapGlobal(JSON.parse(JSON.stringify(g.global)));
     if (id === "config")        setSnapGlobal(JSON.parse(JSON.stringify(g.global)));
     if (id === "stock")         { setSnapCria(null); setSnapRecria(null); setSnapTerminacion(null); }
@@ -3911,8 +3935,34 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Modal venta state
 
   // ── Cotizaciones globales ─────────────────────────────────────────────────
-  const [dolar,   setDolar]   = useState(1420);
-  const [gasoil,  setGasoil]  = useState(1100);
+  // ── Estado del campo desde el store (persiste en Firestore) ──────────────
+  const campoStore = useStore(vacaStore, s => s.campo);
+  const setCampoStore = (p) => vacaStore.getState().setCampo(p);
+
+  const dolar              = campoStore.dolar;
+  const gasoil             = campoStore.gasoil;
+  const setDolar           = (v) => setCampoStore({ dolar: v });
+  const setGasoil          = (v) => setCampoStore({ gasoil: v });
+  const hectareas          = campoStore.hectareas;
+  const setHectareas       = (v) => setCampoStore({ hectareas: v });
+  const gdpTernero         = campoStore.gdpTernero;
+  const setGdpTernero      = (v) => setCampoStore({ gdpTernero: v });
+  const gdpNovilloInv      = campoStore.gdpNovilloInv;
+  const setGdpNovilloInv   = (v) => setCampoStore({ gdpNovilloInv: v });
+  const gdpNovilloFaena    = campoStore.gdpNovilloFaena;
+  const setGdpNovilloFaena = (v) => setCampoStore({ gdpNovilloFaena: v });
+  const gdpVaquillonaDesc  = campoStore.gdpVaquillonaDesc;
+  const setGdpVaquillonaDesc = (v) => setCampoStore({ gdpVaquillonaDesc: v });
+  const empleados          = campoStore.empleados;
+  const setEmpleados       = (fn) => setCampoStore({ empleados: typeof fn === "function" ? fn(campoStore.empleados) : fn });
+  const maquinaria         = campoStore.maquinaria;
+  const setMaquinaria      = (p) => setCampoStore({ maquinaria: { ...campoStore.maquinaria, ...(typeof p === "function" ? p(campoStore.maquinaria) : p) } });
+  const roladoState        = campoStore.rolado;
+  const setRolado          = (p) => setCampoStore({ rolado: { ...campoStore.rolado, ...(typeof p === "function" ? p(campoStore.rolado) : p) } });
+  const viajesState        = campoStore.viajes;
+  const setViajes          = (p) => setCampoStore({ viajes: { ...campoStore.viajes, ...(typeof p === "function" ? p(campoStore.viajes) : p) } });
+
+  const setEmp = (i, k) => (v) => setEmpleados(prev => prev.map((e, idx) => idx === i ? {...e, [k]: v} : e));
 
   const usd = (pesos) => pesos > 0 ? `U$D ${fmt(Math.round(pesos / dolar))}` : "—";
 
@@ -3926,43 +3976,20 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const setTermActiva   = anoViendo ? () => {} : setTerminacion;
 
   // ── Costos estructura detallados ──────────────────────────────────────────
-  const [empleados, setEmpleados] = useState([
-    { rol: "Encargado", cantidad: 1, sueldo: 1500000, aguinaldo: true, cargasSociales: 45, premio: 200000 },
-    { rol: "Peón",      cantidad: 2, sueldo:  900000, aguinaldo: true, cargasSociales: 45, premio:  80000 },
-  ]);
-  const setEmp = (i, k) => (v) => setEmpleados(prev => prev.map((e, idx) => idx === i ? {...e, [k]: v} : e));
   const costoMensualEmpleado = (e) => {
     const bruto = e.sueldo * e.cantidad;
     const cs    = bruto * (e.cargasSociales / 100);
     const ag    = e.aguinaldo ? bruto / 12 : 0;
     return bruto + cs + ag + e.premio * e.cantidad;
   };
-  const totalEmpleadosMes = empleados.reduce((a, e) => a + costoMensualEmpleado(e), 0);
-
-  const [maquinaria, setMaquinaria] = useState({
-    tractores:          3,
-    mantenimientoMes: 120000,
-  });
-  const costoMaqMes = maquinaria.tractores * maquinaria.mantenimientoMes;
-
-  const [roladoState, setRolado] = useState({
-    hectareas:       800,
-    litrosGasoilHa:   80,
-    siembraHa:       200,
-    costoSiembraHa: 25000,
-  });
-  const costoGasoilRolado = roladoState.hectareas * roladoState.litrosGasoilHa * gasoil;
-  const costoSiembra      = roladoState.siembraHa * roladoState.costoSiembraHa;
-  const costoRoladoAnual  = costoGasoilRolado + costoSiembra;
-  const costoRoladoMes    = costoRoladoAnual / 12;
-
-  const [viajesState, setViajes] = useState({
-    viajesAlMes: 4,
-    kmPorViaje:  120,
-    litrosCada100: 12,
-  });
-  const litrosTotalesMes  = viajesState.viajesAlMes * viajesState.kmPorViaje * (viajesState.litrosCada100 / 100);
-  const costoViajesMes    = litrosTotalesMes * gasoil;
+  const totalEmpleadosMes  = empleados.reduce((a, e) => a + costoMensualEmpleado(e), 0);
+  const costoMaqMes        = maquinaria.tractores * maquinaria.mantenimientoMes;
+  const costoGasoilRolado  = roladoState.hectareas * roladoState.litrosGasoilHa * gasoil;
+  const costoSiembra       = roladoState.siembraHa * roladoState.costoSiembraHa;
+  const costoRoladoAnual   = costoGasoilRolado + costoSiembra;
+  const costoRoladoMes     = costoRoladoAnual / 12;
+  const litrosTotalesMes   = viajesState.viajesAlMes * viajesState.kmPorViaje * (viajesState.litrosCada100 / 100);
+  const costoViajesMes     = litrosTotalesMes * gasoil;
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes;
   const totalStockCampo = criaDatos.vacas + criaDatos.vaquillonas + criaDatos.ternerosNoDestetados + criaDatos.toros
@@ -3980,15 +4007,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   };
 
   // ── Rendimiento kg/ha — usa datos de Cría + GDP ──────────────────────────
-  const [hectareas, setHectareas] = useState(1000);
   const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const hoy = new Date();
-
-  // GDP por categoría (kg/día) — compartido entre Cría, Recría, Terminación y Rendimiento
-  const [gdpTernero,       setGdpTernero]       = useState(1.0);   // nacimiento → destete
-  const [gdpNovilloInv,    setGdpNovilloInv]     = useState(0.5);   // recría campo
-  const [gdpNovilloFaena,  setGdpNovilloFaena]   = useState(1.1);   // feedlot
-  const [gdpVaquillonaDesc,setGdpVaquillonaDesc] = useState(0.5);   // recría hembras
 
   // Todo lo demás viene de criaDatos (sincronizado con Stock → Cría)
   const paricionMes  = criaDatos.paricionMes  ?? 9;
@@ -5284,9 +5304,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {seccion === "costos" && (
             <div className="space-y-5 sim-zoom-enter">
               <SaveUndoBar
-                modificado={snapGastos !== null}
-                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGastos(null); }}
-                onDeshacer={deshacerGastos}
+                modificado={snapGastos !== null || snapCampo !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGastos(null); setSnapCampo(null); }}
+                onDeshacer={() => { deshacerGastos(); deshacerCampo(); }}
               />
               {/* Empleados */}
               <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
