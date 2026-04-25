@@ -6654,14 +6654,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   // Cargar datos iniciales — solo si Firestore no trajo nada
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (vacaStore.getState().firestoreCargado) {
-        // Verificar si las fechas de ingreso son todas hoy (datos corrompidos)
-        const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= hoy);
-        if (!todasHoy) return; // datos OK, no pisar
-      }
+      // Resetear si las fechaIngreso son todas de hoy (datos corrompidos en Firestore)
+      const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= hoy);
       const tieneViejos = tropas.length === 0 ||
         tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21") ||
-        tropas.every(t => t.fechaIngreso >= hoy);
+        todasHoy;
       if (tieneViejos) {
         const tercerosInic = [
           { id: 1, nombre: "Villar" },
