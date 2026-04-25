@@ -5527,7 +5527,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const precioNovFC = global.precioNovilloInmag ?? 1800;
                 const flujo = MESES_CORTO.map((mes, i) => {
                   let ingreso = 0;
-                  if (i === mesDesteteFC) ingreso += Math.round(totalDest ?? 0) * 165 * precioNovFC;
+                  if (i === mesDesteteFC) ingreso += Math.round(totalDestete ?? 0) * 165 * precioNovFC;
                   if (i === 7) ingreso += (reciaDatos.novillos ?? 0) * 320 * precioNovFC;
                   if (i === 10) ingreso += ((terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0)) * (terminacionDatos.pesoPromedioKg ?? 420) * precioNovFC;
                   if (i === 9) ingreso += Math.round((criaDatos.vacias ?? 0) * 0.65 * 420 * precioNovFC);
