@@ -6651,19 +6651,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
   };
 
-  // Cargar datos iniciales — solo si Firestore no trajo nada o trajo datos corruptos
-  const HOY_FIJO = new Date().toISOString().slice(0, 10); // constante, no cambia
+  // Cargar datos iniciales solo si no hay nada en absoluto
+  const HOY_FIJO = new Date().toISOString().slice(0, 10);
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Resetear si las fechaIngreso son todas de hoy (datos corrompidos en Firestore)
-      const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= HOY_FIJO);
-      const tieneViejos = tropas.length === 0 ||
-        tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21") ||
-        todasHoy;
-      if (!tieneViejos) return; // datos OK
-        const tercerosInic = [
-          { id: 1, nombre: "Villar" },
-        ];
+      if (tropas.length === 0) {
+        const tercerosInic = [{ id: 1, nombre: "Villar" }];
         const inicial = [
           { id: 1,  cat: "vacas",    cab: 21,  cabActual: 21,  origen: "Londero",               terceroId: 1, fechaIngreso: "2026-04-21", servicio: "verano"  },
           { id: 2,  cat: "vacas",    cab: 26,  cabActual: 26,  origen: "Vacas viejas",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
@@ -6671,19 +6664,31 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           { id: 4,  cat: "vacas",    cab: 15,  cabActual: 15,  origen: "Vaquillonas marca líq.", terceroId: 1, fechaIngreso: "2026-04-21", servicio: "otoño"   },
           { id: 5,  cat: "toros",    cab: 2,   cabActual: 2,   origen: "Toros viejos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
           { id: 6,  cat: "toros",    cab: 4,   cabActual: 4,   origen: "Toros nuevos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",               terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",                terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
           { id: 8,  cat: "recria",   cab: 6,   cabActual: 6,   origen: "Novillos compra",        terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
           { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
         ];
         setPastaje({ tropas: inicial, terceros: tercerosInic, periodos: [], precios: { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 } });
-        // Guardar inmediatamente en Firestore para corregir datos corruptos
-        setTimeout(() => {
-          const email = vacaStore.getState().__userEmail;
-          if (email) guardarEstado(email).catch(console.error);
-        }, 500);
+      }
     }, 3000);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line
+
+  // Función para corregir fechas manualmente (una sola vez)
+  const corregirFechas = () => {
+    const tropasCorregidas = tropas.map(t => ({
+      ...t,
+      fechaIngreso: t.fechaIngreso >= HOY_FIJO ? "2026-04-21" : t.fechaIngreso,
+      terceroId: t.terceroId ?? 1,
+    }));
+    setPastaje({ tropas: tropasCorregidas });
+    setTimeout(() => {
+      const email = vacaStore.getState().__userEmail;
+      if (email) guardarEstado(email).then(() => onToast("✅ Fechas corregidas y guardadas", "success")).catch(console.error);
+    }, 300);
+  };
+
+  const necesitaCorreccion = tropas.some(t => t.fechaIngreso >= HOY_FIJO);
 
   const diasEntre = (desde, hasta) => {
     // Parsear como fecha local (sin zona horaria) para evitar problemas UTC
@@ -8186,6 +8191,20 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {TABS.map(t => <TabBtn key={t.id} {...t} />)}
       </div>
       <div key={vista}>
+        {/* Banner de corrección de fechas */}
+        {necesitaCorreccion && (
+          <div className="mx-4 mb-3 bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 flex items-center gap-3">
+            <span className="text-lg">⚠️</span>
+            <div className="flex-1">
+              <p className="text-xs font-black text-amber-800">Fechas de ingreso incorrectas detectadas</p>
+              <p className="text-xs text-amber-600">Las tropas tienen fecha de hoy en lugar del 21/04/2026.</p>
+            </div>
+            <button onClick={corregirFechas}
+              className="text-xs font-black px-3 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all active:scale-95 shrink-0">
+              🔧 Corregir
+            </button>
+          </div>
+        )}
         {vista === "tropas"  && <VistaTropas />}
         {vista === "eventos" && <VistaEventos />}
         {vista === "cobros"  && <VistaCobros />}
