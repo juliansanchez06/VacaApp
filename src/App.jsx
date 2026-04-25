@@ -7456,7 +7456,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
-        const desde = tropa.ultimoCobro || tropa.fechaIngreso;
+        // Si fechaIngreso es >= fHasta (dato corrupto), usar fechaDesdeAuto
+        const rawDesde = tropa.ultimoCobro || tropa.fechaIngreso || fechaDesdeAuto;
+        const desde = rawDesde >= fHasta ? fechaDesdeAuto : rawDesde;
         const kgMes = precios[tropa.cat] ?? 6;
         const cabActual = tropa.cabActual ?? tropa.cab;
         const tramosEgreso = tropa.tramosEgreso || [];
