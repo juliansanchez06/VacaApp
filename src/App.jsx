@@ -7446,14 +7446,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       ? tropas.filter(t => (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo)
       : (propCobroActivo == terceros[0]?.id ? tropas : []);
 
-    console.log("🔵 VistaCobros debug:", {
-      propCobroActivo, algunaTieneId,
-      totalTropas: tropas.length, tropasDelProp: tropasDelProp.length,
-      terceros: terceros.map(t => ({ id: t.id, nombre: t.nombre })),
-      terceroId0: tropas[0]?.terceroId,
-    });
-
-    // ── Motor de cálculo de liquidación ──────────────────────────────────────
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
         // Si fechaIngreso es >= fHasta (dato corrupto), usar fechaDesdeAuto
@@ -7483,7 +7475,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
         const diasTotalesPeriodo = diasEntre(desde, fHasta);
 
-        console.log("🟡 tropa:", tropa.origen, { desde, fHasta, cabActual, kgMes, diasRestantes, kgTramos, kgRestantes, kgTotal });
 
         // ── Suplemento ──────────────────────────────────────────────────────
         const { kgSup, pesosSup, diasConSup, detallesMes } = calcSuplemento(tropa, desde, fHasta);
@@ -7517,7 +7508,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
-    console.log("🔵 preview debug:", { fechaHastaEfectiva, fechaDesdeAuto, tropasDelPropCount: tropasDelProp.length, preview: preview.slice(0,2), previewLength: preview.length });
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
