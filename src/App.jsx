@@ -4442,15 +4442,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-emerald-50 rounded-xl p-2.5">
                   <p className="text-xs text-slate-400">Ingreso</p>
-                  <p className="font-black text-emerald-700">{fmtPesos(b.ingresoAnio||0)}</p>
+                  <p className="font-black text-emerald-700">{fmtMoney(b.ingresoAnio||0)}</p>
                 </div>
                 <div className="bg-red-50 rounded-xl p-2.5">
                   <p className="text-xs text-slate-400">Costo estructura</p>
-                  <p className="font-black text-red-700">−{fmtPesos(b.costoEst||0)}</p>
+                  <p className="font-black text-red-700">−{fmtMoney(b.costoEst||0)}</p>
                 </div>
                 <div className={`rounded-xl p-2.5 ${pos?"bg-emerald-100":"bg-red-100"}`}>
                   <p className="text-xs text-slate-400">Margen neto real</p>
-                  <p className={`font-black text-base ${pos?"text-emerald-800":"text-red-800"}`}>{fmtPesos(b.rendimientoReal||0)}</p>
+                  <p className={`font-black text-base ${pos?"text-emerald-800":"text-red-800"}`}>{fmtMoney(b.rendimientoReal||0)}</p>
                 </div>
               </div>
             </div>
@@ -5561,9 +5561,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               <span className={`text-[8px] font-bold ${pos?"text-emerald-700":"text-red-600"}`}>{f.mes}</span>
                               <div className="absolute bottom-full mb-1 hidden group-hover:flex flex-col bg-slate-800 text-white text-xs rounded-lg p-2 whitespace-nowrap z-10 shadow-xl">
                                 <p className="font-black">{f.mes}</p>
-                                {f.ingreso > 0 && <p className="text-emerald-400">+{fmtPesos(f.ingreso)}</p>}
-                                <p className="text-red-300">−{fmtPesos(f.egreso)}</p>
-                                <p className={pos?"text-emerald-300":"text-red-400"}>Saldo: {fmtPesos(f.saldo)}</p>
+                                {f.ingreso > 0 && <p className="text-emerald-400">+{fmtMoney(f.ingreso)}</p>}
+                                <p className="text-red-300">−{fmtMoney(f.egreso)}</p>
+                                <p className={pos?"text-emerald-300":"text-red-400"}>Saldo: {fmtMoney(f.saldo)}</p>
                               </div>
                             </div>
                           );
@@ -5575,7 +5575,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       </div>
                       {mesesNeg > 0 && peorAcum < 0 && (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                          <p className="font-black mb-1">⚠ Pico de necesidad financiera: {fmtPesos(Math.abs(peorAcum))}</p>
+                          <p className="font-black mb-1">⚠ Pico de necesidad financiera: {fmtMoney(Math.abs(peorAcum))}</p>
                           <p>Los meses con déficit son: {flujo.filter(f=>f.saldo<0).map(f=>f.mes).join(", ")}. Planificá financiamiento o ventas anticipadas para cubrirlos.</p>
                         </div>
                       )}
