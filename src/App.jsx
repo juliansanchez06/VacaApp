@@ -7563,9 +7563,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     const generarImagenCobro = (cobro) => {
       const canvas = document.createElement("canvas");
       const W = 800, padding = 48;
-      // Calcular altura según cantidad de líneas
       const lineas = cobro.lineas ?? [];
-      const H = 280 + lineas.length * 72 + 120;
+      const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
+      const H = 300 + lineas.length * 72 + (tieneSuplemento ? 160 : 120);
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
@@ -7575,61 +7575,63 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
       // Franja superior verde
       ctx.fillStyle = "#064e3b";
-      ctx.fillRect(0, 0, W, 80);
+      ctx.fillRect(0, 0, W, 100);
 
       // Título
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 28px system-ui, sans-serif";
-      ctx.fillText("🤝 Liquidación de Pastaje", padding, 50);
+      ctx.fillText("🤝 Liquidación de Pastaje", padding, 45);
 
       // Subtítulo fecha
-      ctx.font = "16px system-ui, sans-serif";
+      ctx.font = "15px system-ui, sans-serif";
       ctx.fillStyle = "#6ee7b7";
-      ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}  ·  generado ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, padding, 70);
+      ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}  ·  generado ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, padding, 68);
+
+      // Propietario
+      const prop = terceros.find(t => t.id == cobro.propietarioId);
+      if (prop) {
+        ctx.fillStyle = "#a7f3d0";
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillText(`Propietario: ${prop.nombre}`, padding, 88);
+      }
 
       // Precio novillo
       ctx.fillStyle = "#1e293b";
       ctx.font = "14px system-ui, sans-serif";
-      ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 110);
+      ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 128);
 
       // Tabla de líneas
-      let y = 140;
+      let y = 155;
       lineas.forEach((l, i) => {
-        // Fila alternada
         ctx.fillStyle = i % 2 === 0 ? "#f1f5f9" : "#ffffff";
         ctx.fillRect(padding, y - 18, W - padding * 2, 64);
 
-        // Origen
         ctx.fillStyle = "#0f172a";
         ctx.font = "bold 16px system-ui, sans-serif";
         ctx.fillText(l.origen, padding + 10, y + 2);
 
-        // Cabezas + días
         ctx.fillStyle = "#475569";
         ctx.font = "13px system-ui, sans-serif";
         ctx.fillText(`${l.cabActual} cab · desde ${fmtFecha(l.desde)} · ${l.diasTotalesPeriodo} días`, padding + 10, y + 22);
 
-        // Egresos si hay
         if (l.tramosEnPeriodo?.length > 0) {
           ctx.fillStyle = "#ea580c";
           ctx.font = "12px system-ui, sans-serif";
           ctx.fillText(l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab (${te.dias}d)`).join("  "), padding + 10, y + 40);
         }
 
-        // kg y pesos — derecha
         ctx.fillStyle = "#065f46";
         ctx.font = "bold 16px system-ui, sans-serif";
-        const kgStr = `${fmtN(l.kgTotal)} kg nov`;
-        ctx.fillText(kgStr, W - padding - 260, y + 2);
+        ctx.fillText(`${fmtN(l.kgTotal)} kg nov`, W - padding - 220, y + 2);
 
         ctx.fillStyle = "#0f172a";
         ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText(`Pastaje: ${fmtPesos(l.pesos)}`, W - padding - 260, y + 22);
+        ctx.fillText(`Pastaje: ${fmtPesos(l.pesos)}`, W - padding - 220, y + 22);
 
         if (l.supActivo && l.kgSup > 0) {
           ctx.fillStyle = "#b45309";
           ctx.font = "13px system-ui, sans-serif";
-          ctx.fillText(`💊 Sup: ${fmtN(l.kgSup)} kg · ${fmtPesos(l.pesosSup)}`, W - padding - 260, y + 40);
+          ctx.fillText(`💊 Sup: ${fmtN(l.kgSup)} kg · ${fmtPesos(l.pesosSup)}`, W - padding - 220, y + 40);
         }
 
         y += 68;
@@ -7641,35 +7643,52 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       ctx.beginPath(); ctx.moveTo(padding, y + 8); ctx.lineTo(W - padding, y + 8); ctx.stroke();
       y += 24;
 
-      // Total
+      // Total — caja verde
+      const totalH = tieneSuplemento ? 90 : 72;
       ctx.fillStyle = "#064e3b";
-      ctx.fillRect(padding, y, W - padding * 2, 72);
+      ctx.fillRect(padding, y, W - padding * 2, totalH);
+
+      // "TOTAL kg nov pastaje" — en una sola línea con fuente más pequeña
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px system-ui, sans-serif";
-      ctx.fillText("TOTAL", padding + 16, y + 26);
-      ctx.font = "28px system-ui, sans-serif";
-      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding + 16, y + 40);
-      if ((cobro.pesosSup ?? 0) > 0) {
-        ctx.font = "16px system-ui, sans-serif";
+      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.fillText("TOTAL", padding + 16, y + 22);
+      ctx.font = "18px system-ui, sans-serif";
+      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding + 16, y + 44);
+
+      if (tieneSuplemento) {
+        ctx.font = "14px system-ui, sans-serif";
         ctx.fillStyle = "#fcd34d";
-        ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding + 16, y + 62);
+        ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding + 16, y + 68);
       }
-      ctx.font = "bold 26px system-ui, sans-serif";
+
+      // Monto total — derecha, bien centrado verticalmente
+      ctx.font = "bold 30px system-ui, sans-serif";
       ctx.fillStyle = "#6ee7b7";
-      ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding - 260, y + 50);
+      ctx.textAlign = "right";
+      ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding - 16, y + (tieneSuplemento ? 52 : 44));
+      ctx.textAlign = "left";
 
-      // Footer
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "12px system-ui, sans-serif";
-      ctx.fillText("SoyPekun · Gestión Ganadera Profesional", padding, H - 16);
-
-      // Descargar
-      const link = document.createElement("a");
-      link.download = `pastaje_${cobro.fechaHasta}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      toast("📥 Imagen descargada", "success");
-    };
+      // Logo — cargar y dibujar, luego descargar
+      const logoImg = new Image();
+      const descargarCanvas = () => {
+        // Footer
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.fillText("SoyPekun · Gestión Ganadera Profesional", padding, H - 16);
+        // Descargar
+        const link = document.createElement("a");
+        link.download = `pastaje_${cobro.fechaHasta}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        toast("📥 Imagen descargada", "success");
+      };
+      logoImg.onload = () => {
+        const logoH = 55, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
+        ctx.drawImage(logoImg, W - padding - logoW, 22, logoW, logoH);
+        descargarCanvas();
+      };
+      logoImg.onerror = descargarCanvas; // si falla el logo, descargar igual
+      logoImg.src = `data:image/png;base64,${LOGO_B64}`;
 
     const CobRow = ({ c }) => {
       const expand = expandId === c.id;
