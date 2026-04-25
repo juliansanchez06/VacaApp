@@ -3805,13 +3805,13 @@ function SaveUndoBar({ onGuardar, onDeshacer, modificado }) {
     finally { setGuardando(false); }
   };
 
-  if (!modificado) return null;
-
   return (
-    <div className="flex items-center gap-2 p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl">
-      <span className="text-xs text-amber-700 font-bold flex-1">⚠ Cambios sin guardar</span>
-      <button onClick={onDeshacer}
-        className="text-xs font-black px-3 py-1.5 rounded-xl border-2 border-slate-300 text-slate-600 hover:bg-slate-100 transition-all active:scale-95">
+    <div className={`flex items-center gap-2 p-3 rounded-2xl border-2 transition-all ${modificado ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+      <span className={`text-xs font-bold flex-1 ${modificado ? "text-amber-700" : "text-slate-400"}`}>
+        {modificado ? "⚠ Cambios sin guardar" : "✓ Sin cambios pendientes"}
+      </span>
+      <button onClick={onDeshacer} disabled={!modificado}
+        className={`text-xs font-black px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${modificado ? "border-slate-300 text-slate-600 hover:bg-slate-100 cursor-pointer" : "border-slate-200 text-slate-300 cursor-not-allowed"}`}>
         ↩ Deshacer
       </button>
       <button onClick={handleGuardar} disabled={guardando}
@@ -3884,6 +3884,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const [snapCria,       setSnapCria]       = useState(null);
   const [snapRecria,     setSnapRecria]     = useState(null);
   const [snapTerminacion,setSnapTerminacion]= useState(null);
+  const [snapGastos,     setSnapGastos]     = useState(null);
+  const [snapGlobal,     setSnapGlobal]     = useState(null);
 
   const entrarCria       = () => { setSnapCria(JSON.parse(JSON.stringify(cria)));        setSubStock("cria"); };
   const entrarRecria     = () => { setSnapRecria(JSON.parse(JSON.stringify(recria)));    setSubStock("recria"); };
@@ -3892,9 +3894,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const deshacerCria       = () => { if (snapCria)        { setCria(snapCria);               setSnapCria(null); } };
   const deshacerRecria     = () => { if (snapRecria)      { setRecria(snapRecria);            setSnapRecria(null); } };
   const deshacerTerminacion= () => { if (snapTerminacion) { setTerminacion(snapTerminacion);  setSnapTerminacion(null); } };
+  const deshacerGastos     = () => { if (snapGastos)      { vacaStore.getState().setGastos(snapGastos);  setSnapGastos(null); } };
+  const deshacerGlobal     = () => { if (snapGlobal)      { vacaStore.getState().setGlobal(snapGlobal);  setSnapGlobal(null); } };
 
-  const guardarSeccion = async () => {
-    await guardarEstado(vacaStore.getState().__userEmail || "");
+  const handleSetSeccion = (id) => {
+    const g = vacaStore.getState();
+    if (id === "costos")        setSnapGastos(JSON.parse(JSON.stringify(g.gastos)));
+    if (id === "rendimiento")   setSnapGlobal(JSON.parse(JSON.stringify(g.global)));
+    if (id === "config")        setSnapGlobal(JSON.parse(JSON.stringify(g.global)));
+    if (id === "stock")         { setSnapCria(null); setSnapRecria(null); setSnapTerminacion(null); }
+    setSeccion(id);
+    setSubStock(null);
   };
   const [verHistorial, setVerHistorial] = useState(false);
   const [anoViendo, setAnoViendo]   = useState(null);
@@ -4237,7 +4247,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* Sidebar desktop — no se renderiza en resultado */}
           <div className="campo-sidebar">
             {SECCIONES.map(s => (
-              <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
+              <button key={s.id} onClick={() => handleSetSeccion(s.id)}
                 style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
                 <span style={{fontSize:"16px", lineHeight:1}}>{s.icon}</span>
                 <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
@@ -4251,7 +4261,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             {/* Grilla mobile */}
             <div className="campo-mobile-nav">
               {SECCIONES.map(s => (
-                <button key={s.id} onClick={() => { setSeccion(s.id); setSubStock(null); }}
+                <button key={s.id} onClick={() => handleSetSeccion(s.id)}
                   style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
                   <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
                   <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
@@ -4959,7 +4969,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ══════════════════════════════════════════════════════════════ */}
           {seccion === "rendimiento" && (
             <div className="space-y-5 sim-zoom-enter">
-  
+              <SaveUndoBar
+                modificado={snapGlobal !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGlobal(null); }}
+                onDeshacer={deshacerGlobal}
+              />
               {/* GDP por etapa — resumen sincronizado */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
@@ -5241,7 +5255,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   
           {seccion === "costos" && (
             <div className="space-y-5 sim-zoom-enter">
-  
+              <SaveUndoBar
+                modificado={snapGastos !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGastos(null); }}
+                onDeshacer={deshacerGastos}
+              />
               {/* Empleados */}
               <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-400" />
@@ -5399,7 +5417,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               COTIZACIONES
           ══════════════════════════════════════════════════════════════ */}
           {seccion === "config" && (
-            <div className="sim-zoom-enter">
+            <div className="sim-zoom-enter space-y-4">
+              <SaveUndoBar
+                modificado={snapGlobal !== null}
+                onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGlobal(null); }}
+                onDeshacer={deshacerGlobal}
+              />
               <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg max-w-lg">
                 <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
                 <div className="p-5 space-y-5">
@@ -6164,21 +6187,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const tieneViejos = tropas.length === 0 ||
         tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21");
       if (tieneViejos) {
-        const inicial = [
-          { id: 1,  cat: "vacas",    cab: 21,  cabActual: 21,  origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "verano"  },
-          { id: 2,  cat: "vacas",    cab: 26,  cabActual: 26,  origen: "Vacas viejas",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 3,  cat: "vacas",    cab: 30,  cabActual: 30,  origen: "Vaquillonas compra",     fechaIngreso: "2026-04-21", servicio: "otoño"   },
-          { id: 4,  cat: "vacas",    cab: 15,  cabActual: 15,  origen: "Vaquillonas marca líq.", fechaIngreso: "2026-04-21", servicio: "otoño"   },
-          { id: 5,  cat: "toros",    cab: 2,   cabActual: 2,   origen: "Toros viejos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 6,  cat: "toros",    cab: 4,   cabActual: 4,   origen: "Toros nuevos",           fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",               fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 8,  cat: "recria",   cab: 6,   cabActual: 6,   origen: "Novillos compra",        fechaIngreso: "2026-04-21", servicio: "ninguno" },
-          { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    fechaIngreso: "2026-04-21", servicio: "ninguno" },
-        ];
         const tercerosInic = [
-          { id: 1, nombre: "Londero" },
-          { id: 2, nombre: "Marca líquida" },
-          { id: 3, nombre: "Compra propia" },
+          { id: 1, nombre: "Villar" },
+        ];
+        const inicial = [
+          { id: 1,  cat: "vacas",    cab: 21,  cabActual: 21,  origen: "Londero",               terceroId: 1, fechaIngreso: "2026-04-21", servicio: "verano"  },
+          { id: 2,  cat: "vacas",    cab: 26,  cabActual: 26,  origen: "Vacas viejas",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 3,  cat: "vacas",    cab: 30,  cabActual: 30,  origen: "Vaquillonas compra",     terceroId: 1, fechaIngreso: "2026-04-21", servicio: "otoño"   },
+          { id: 4,  cat: "vacas",    cab: 15,  cabActual: 15,  origen: "Vaquillonas marca líq.", terceroId: 1, fechaIngreso: "2026-04-21", servicio: "otoño"   },
+          { id: 5,  cat: "toros",    cab: 2,   cabActual: 2,   origen: "Toros viejos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 6,  cat: "toros",    cab: 4,   cabActual: 4,   origen: "Toros nuevos",           terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 7,  cat: "terneras", cab: 7,   cabActual: 7,   origen: "Londero",               terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 8,  cat: "recria",   cab: 6,   cabActual: 6,   origen: "Novillos compra",        terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
+          { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
         ];
         setPastaje({ tropas: inicial, terceros: tercerosInic, periodos: [], precios: { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 } });
       }
@@ -6287,11 +6308,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
   const ModalNuevaTropa = ({ onClose }) => {
-    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno" });
+    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno" });
     const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
     const guardar = () => {
       if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
-      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), id: Date.now() }]);
+      if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
+      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), id: Date.now() }]);
       toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
       onClose();
     };
@@ -6300,8 +6322,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
-            <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, García…"
+            <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, Marca líquida, Compra…"
               className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Propietario (tercero)</label>
+            <select value={form.terceroId} onChange={set("terceroId")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="">— Seleccioná propietario —</option>
+              {terceros.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+            </select>
+            {terceros.length === 0 && <p className="text-xs text-amber-600 mt-1">⚠ Primero agregá un propietario en la pestaña Tropas</p>}
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
@@ -6710,6 +6741,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <p className="font-black text-slate-800 text-sm">{t.origen}</p>
+                            {t.terceroId && (() => { const prop = terceros.find(x => x.id === t.terceroId); return prop ? <p className="text-xs text-emerald-700 font-semibold">👤 {prop.nombre}</p> : null; })()}
                             <div className="flex flex-wrap gap-1.5 mt-1">
                               <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
                               <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
@@ -7469,22 +7501,29 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {/* Gestión de terceros */}
         <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Terceros registrados</p>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Propietarios</p>
             <button onClick={() => setModal("tercero")}
               className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-all">
               + Agregar
             </button>
           </div>
-          {terceros.length === 0 && <p className="text-xs text-slate-400 italic">Sin terceros cargados</p>}
+          {terceros.length === 0 && <p className="text-xs text-slate-400 italic">Sin propietarios cargados</p>}
           <div className="space-y-1.5">
-            {terceros.map(t => (
-              <div key={t.id} className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
-                <div className="w-7 h-7 rounded-full bg-slate-800 text-white font-black text-xs flex items-center justify-center">{t.nombre.slice(0, 2).toUpperCase()}</div>
-                <span className="flex-1 text-sm font-semibold text-slate-700">{t.nombre}</span>
-                <button onClick={() => { if (!window.confirm(`¿Eliminar tercero "${t.nombre}"?`)) return; setTerceros(prev => prev.filter(x => x.id !== t.id)); }}
-                  className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors">✕</button>
-              </div>
-            ))}
+            {terceros.map(t => {
+              const tropasDelTercero = tropas.filter(tr => tr.terceroId === t.id);
+              const cabTotal = tropasDelTercero.reduce((s, tr) => s + (tr.cabActual ?? tr.cab), 0);
+              return (
+                <div key={t.id} className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                  <div className="w-7 h-7 rounded-full bg-slate-800 text-white font-black text-xs flex items-center justify-center">{t.nombre.slice(0, 2).toUpperCase()}</div>
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-slate-700">{t.nombre}</span>
+                    {cabTotal > 0 && <span className="text-xs text-slate-400 ml-2">{cabTotal} cab</span>}
+                  </div>
+                  <button onClick={() => { if (!window.confirm(`¿Eliminar propietario "${t.nombre}"?`)) return; setTerceros(prev => prev.filter(x => x.id !== t.id)); }}
+                    className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors">✕</button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
