@@ -6651,15 +6651,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
   };
 
-  // Cargar datos iniciales — solo si Firestore no trajo nada
+  // Cargar datos iniciales — solo si Firestore no trajo nada o trajo datos corruptos
+  const HOY_FIJO = new Date().toISOString().slice(0, 10); // constante, no cambia
   useEffect(() => {
     const timer = setTimeout(() => {
       // Resetear si las fechaIngreso son todas de hoy (datos corrompidos en Firestore)
-      const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= hoy);
+      const todasHoy = tropas.length > 0 && tropas.every(t => t.fechaIngreso >= HOY_FIJO);
       const tieneViejos = tropas.length === 0 ||
         tropas.some(t => t.fechaIngreso && t.fechaIngreso < "2026-04-21") ||
         todasHoy;
-      if (tieneViejos) {
+      if (!tieneViejos) return; // datos OK
         const tercerosInic = [
           { id: 1, nombre: "Villar" },
         ];
@@ -6675,7 +6676,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           { id: 9,  cat: "recria",   cab: 111, cabActual: 111, origen: "Terneros marca líq.",    terceroId: 1, fechaIngreso: "2026-04-21", servicio: "ninguno" },
         ];
         setPastaje({ tropas: inicial, terceros: tercerosInic, periodos: [], precios: { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 } });
-      }
+        // Guardar inmediatamente en Firestore para corregir datos corruptos
+        setTimeout(() => {
+          const email = vacaStore.getState().__userEmail;
+          if (email) guardarEstado(email).catch(console.error);
+        }, 500);
     }, 3000);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line
