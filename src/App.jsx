@@ -6741,16 +6741,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const VistaTropas = () => {
     const [propSelec, setPropSelec] = useState(null);
 
-    const hoyDate = new Date();
-    const hoyStr  = hoyDate.toLocaleDateString("es-AR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-    const cierreAno = new Date(hoyDate.getFullYear(), 5, 30);
-    if (hoyDate > cierreAno) cierreAno.setFullYear(cierreAno.getFullYear() + 1);
-    const inicioAno = new Date(cierreAno.getFullYear() - 1, 6, 1);
-    const diasTotales      = Math.round((cierreAno - inicioAno) / 86400000);
-    const diasTranscurridos= Math.round((hoyDate - inicioAno) / 86400000);
-    const diasRestantes    = Math.round((cierreAno - hoyDate) / 86400000);
-    const pctAvance        = Math.min(100, Math.max(0, (diasTranscurridos / diasTotales) * 100));
-
     const svcLabel = { verano: "Serv. verano", "otoño": "Serv. otoño" };
     const svcColor = { verano: "bg-sky-100 text-sky-700 border-sky-200", "otoño": "bg-amber-100 text-amber-700 border-amber-200" };
 
@@ -6861,32 +6851,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // ── LISTA propietarios ─────────────────────────────────────────────────
     return (
       <div className="space-y-4">
-        {/* Fecha + línea de tiempo */}
-        <div className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Hoy</p>
-              <p className="text-sm font-black text-slate-800 capitalize">{hoyStr}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Cierre de año</p>
-              <p className="text-sm font-black text-rose-600">30/06/{cierreAno.getFullYear()}</p>
-              <p className="text-xs text-rose-500 font-semibold">{diasRestantes} días</p>
-            </div>
-          </div>
-          <div className="h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-            <div className="h-full rounded-full transition-all" style={{
-              width: pctAvance + "%",
-              background: diasRestantes < 30 ? "linear-gradient(90deg,#ef4444,#f97316)" : diasRestantes < 90 ? "linear-gradient(90deg,#f59e0b,#eab308)" : "linear-gradient(90deg,#10b981,#059669)"
-            }} />
-          </div>
-          <div className="flex justify-between mt-1.5 text-xs">
-            <span className="text-slate-400">1 jul {inicioAno.getFullYear()}</span>
-            <span className="font-bold text-slate-600">{Math.round(pctAvance)}% del año</span>
-            <span className="text-rose-500 font-bold">30 jun {cierreAno.getFullYear()}</span>
-          </div>
-        </div>
-
         {/* Tarjetas propietarios */}
         {terceros.map(prop => {
           const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === prop.id);
@@ -7285,6 +7249,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   Marcar cobrado ✓
                 </button>
               )}
+              <button onClick={() => {
+                if (!window.confirm("¿Eliminar este cobro? Esta acción no se puede deshacer.")) return;
+                setPeriodos(prev => prev.filter(p => p.id !== c.id));
+                toast("🗑 Cobro eliminado", "warn");
+              }}
+                className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">
+                ✕
+              </button>
             </div>
           </div>
           {/* Detalle por tropa */}
@@ -7542,11 +7514,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
         {/* Historial pagados */}
         {pagados.length > 0 && (
-          <div>
-            <button onClick={() => setExpandPag(p => !p)} className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-slate-600 transition-colors">
-              {expandPag ? "▾" : "▸"} Historial cobrado ({pagados.length})
+          <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+            <button onClick={() => setExpandPag(p => !p)} className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📜</span>
+                <span className="text-xs font-black uppercase tracking-widest text-slate-600">Historial de cobros</span>
+                <span className="text-xs bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full">{pagados.length}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-400">{fmtPesos(pagados.reduce((s,p) => s + (p.totalPesos ?? p.pesos ?? 0), 0))} cobrado total</span>
+                <span className="text-xs text-slate-400">{expandPag ? "▾" : "▸"}</span>
+              </div>
             </button>
-            {expandPag && <div className="mt-2 space-y-2">{pagados.map(c => <CobRow key={c.id} c={c} />)}</div>}
+            {expandPag && <div className="mt-3 space-y-2">{pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <CobRow key={c.id} c={c} />)}</div>}
           </div>
         )}
 
