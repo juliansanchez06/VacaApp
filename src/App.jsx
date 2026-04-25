@@ -7506,6 +7506,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
+    console.log("🔵 preview debug:", { fechaHastaEfectiva, fechaDesdeAuto, tropasDelPropCount: tropasDelProp.length, preview: preview.slice(0,2), previewLength: preview.length });
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
