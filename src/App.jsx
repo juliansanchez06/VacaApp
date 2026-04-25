@@ -7439,6 +7439,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       ? tropas.filter(t => (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo)
       : (propCobroActivo == terceros[0]?.id ? tropas : []);
 
+    console.log("🔵 VistaCobros debug:", {
+      propCobroActivo, algunaTieneId,
+      totalTropas: tropas.length, tropasDelProp: tropasDelProp.length,
+      terceros: terceros.map(t => ({ id: t.id, nombre: t.nombre })),
+      terceroId0: tropas[0]?.terceroId,
+    });
+
     // ── Motor de cálculo de liquidación ──────────────────────────────────────
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
