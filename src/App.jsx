@@ -189,6 +189,10 @@ const vacaStore = createStore((set, get) => ({
     ternerosCompraMachos: 0,  ternerosCompraHembras: 0,
     novillos: 16, pctMortandadRecria: 2,
     gdpNovilloInv: 0.5, gdpVaquillonaDesc: 0.5,
+    // Reposición — costo de compra del ciclo actual
+    precioCompraKgRecria: 0,   // $/kg de entrada (0 = no compra externa, son del destete propio)
+    pesoEntradaRecria:    180,  // kg promedio al ingreso
+    cabCompradasRecria:   0,    // cab compradas externamente este año
   },
   campoTerminacion: {
     novillosCampo: 0, novillosFeedlot: 0,
@@ -3936,7 +3940,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 }
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
-function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, fmtMoney }) {
+function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, fmtMoney }) {
   const [expandedAct, setExpandedAct] = React.useState(null);
 
   const acts = [
@@ -3953,11 +3957,14 @@ function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnu
     },
     {
       id: "recria", label: "🐂 Recría", cab: cabRec, color: "blue",
-      ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec,
+      ingreso: ingresoRecria, costo: costoRecAnual + costoReposicionTotal, margen: margenRec,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Novillos invernada", valor: `${cabRecriaSale} cab × ${pesoRecria} kg × $${precioNovKg.toLocaleString("es-AR")}/kg`, total: ingresoRecria, positivo: true },
-        { label: "Costos", tipo: "header" },
+        { label: "Novillos invernada vendidos", valor: `${cabRecriaSale} cab × ${pesoRecria} kg × $${precioNovKg.toLocaleString("es-AR")}/kg`, total: ingresoRecria, positivo: true },
+        { label: "Costos de reposición", tipo: "header" },
+        ...(cabCompradasRecria > 0 ? [{ label: "Compra terneros externos", valor: `${cabCompradasRecria} cab × ${pesoEntradaRecria} kg × $${precioCompraRecria.toLocaleString("es-AR")}/kg`, total: -costoReposicionExterna, positivo: false }] : []),
+        ...(cabPropiaRecria > 0 ? [{ label: "Terneros propios (costo oportunidad)", valor: `${cabPropiaRecria} cab × ${pesoDestete2} kg × $${precioInvKg.toLocaleString("es-AR")}/kg`, total: -costoReposicionPropia, positivo: false }] : []),
+        { label: "Costos de estructura", tipo: "header" },
         { label: "Sanidad y nutrición", valor: `${cabRec} cab × $${(sanidadPorCabAnio??40000).toLocaleString("es-AR")}/año`, total: -(cabRec * (sanidadPorCabAnio??40000)), positivo: false },
         { label: "Estructura proporcional", valor: `${Math.round(cabRec/Math.max(1,totalCabAct)*100)}% de los costos totales`, total: -costoRecAnual, positivo: false },
       ],
@@ -4407,7 +4414,20 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
 
   const margenCria = ingresoCria - costoCriaAnual;
-  const margenRec  = ingresoRecria - costoRecAnual;
+  // ── Costo de reposición recría (compra terneros para el ciclo) ───────────
+  // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
+  const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
+  const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
+  const pesoEntradaRecria   = reciaDatos.pesoEntradaRecria   ?? 180;
+  // Costo compra externa: cab × kg entrada × precio compra
+  const costoReposicionExterna = cabCompradasRecria * pesoEntradaRecria * precioCompraRecria;
+  // Costo terneros propios del destete (los que no se vendieron, se mandan a recría)
+  const cabPropiaRecria = Math.max(0, cabRecriaSale - cabCompradasRecria);
+  const costoReposicionPropia  = cabPropiaRecria * pesoDestete2 * precioInvKg;
+  // Total costo reposición = lo que pagaste para tener los animales que vas a vender este año
+  const costoReposicionTotal   = costoReposicionExterna + costoReposicionPropia;
+
+  const margenRec  = ingresoRecria - costoRecAnual - costoReposicionTotal;
   const margenTerm = ingresoTerm - costoTermAnual - costoFeedlotAnual;
   const margenTotal = margenCria + margenRec + margenTerm;
 
@@ -5260,6 +5280,21 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     </div>
                   </div>
                   <EditField label="% Mortandad recría" value={reciaDatos.pctMortandadRecria??2} onChange={v=>setRecriaActiva(p=>({...p,pctMortandadRecria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10% · afecta rendimiento" />
+
+                  {/* ── Reposición — costo de compra del ciclo ── */}
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-amber-700">🔄 Reposición — compra de terneros</p>
+                    <p className="text-xs text-amber-600">Cargá cuántos terneros compraste externamente y a qué precio para cerrar el ciclo anual. Impacta directamente en el margen de Recría.</p>
+                    <EditField label="Cabezas compradas" value={reciaDatos.cabCompradasRecria??0} onChange={v=>setRecriaActiva(p=>({...p,cabCompradasRecria:Math.max(0,v)}))} step={1} hint="0 si todos vienen del destete propio" />
+                    <EditField label="Peso entrada (kg/cab)" value={reciaDatos.pesoEntradaRecria??180} onChange={v=>setRecriaActiva(p=>({...p,pesoEntradaRecria:Math.max(100,v)}))} step={5} suffix="kg" hint="Peso promedio al ingreso a recría" />
+                    <EditField label="Precio de compra ($/kg)" value={reciaDatos.precioCompraKgRecria??0} onChange={v=>setRecriaActiva(p=>({...p,precioCompraKgRecria:Math.max(0,v)}))} step={50} prefix="$" hint="Precio ternero entrada · 0 = solo destete propio" />
+                    {(reciaDatos.cabCompradasRecria??0) > 0 && (reciaDatos.precioCompraKgRecria??0) > 0 && (
+                      <div className="bg-white rounded-xl px-3 py-2 flex justify-between items-center border border-amber-200">
+                        <span className="text-xs text-amber-700 font-bold">Costo reposición total</span>
+                        <span className="font-black text-amber-800">${Math.round((reciaDatos.cabCompradasRecria??0) * (reciaDatos.pesoEntradaRecria??180) * (reciaDatos.precioCompraKgRecria??0)).toLocaleString("es-AR")}</span>
+                      </div>
+                    )}
+                  </div>
                   </div>
                   <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -5550,6 +5585,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 sanidadPorCabAnio={campoStore.sanidadPorCabAnio}
                 totalCabAct={totalCabAct} totalCostosMes={totalCostosMes} totalEmpleadosMes={totalEmpleadosMes}
                 terminacionDatos={terminacionDatos}
+                costoReposicionTotal={costoReposicionTotal}
+                costoReposicionExterna={costoReposicionExterna}
+                costoReposicionPropia={costoReposicionPropia}
+                cabCompradasRecria={cabCompradasRecria}
+                pesoEntradaRecria={pesoEntradaRecria}
+                precioCompraRecria={precioCompraRecria}
+                cabPropiaRecria={cabPropiaRecria}
                 fmtMoney={fmtMoney}
               />
 
