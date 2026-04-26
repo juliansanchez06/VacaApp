@@ -182,6 +182,8 @@ const vacaStore = createStore((set, get) => ({
     pctPreniez: 85, pctDestete: 75, pctMortandadCria: 2,
     pctMachos: 50, pctReposicion: 70,
     paricionMes: 9, paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1, mesesDestete: 6,
+    pesoDesteteKg: 187, // kg promedio al destete (175-200 típico)
+    pesoVacaDescarte: 380, // kg promedio vaca de descarte al momento de faena
     gdpTernero: 1.0,
   },
   campoRecria: {
@@ -4437,7 +4439,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const precioNovKg     = global.precioNovilloInmag ?? 1800;
   const precioInvKg     = global.precioInvernada    ?? 1600;  // terneros/invernada
   const cabDestetados   = Math.round((criaDatos.vacas + criaDatos.vaquillonas) * (criaDatos.pctDestete ?? 75) / 100);
-  const pesoDestete2    = Math.round(165); // estimado típico
+  const pesoDestete2    = criaDatos.pesoDesteteKg ?? 187; // kg al destete — editable en Stock → Cría
   const ingresoCria     = cabDestetados * pesoDestete2 * precioInvKg;   // terneros al destete → precio invernada
 
   // Recría: produce novillos invernada, ingreso = peso × cab × precio invernada
@@ -4602,7 +4604,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const cabVaquillonaDesc  = Math.round((hembrasRecriaSale + hembrasVenta) * (1 - mortRecria));
 
   // Pesos de venta calculados (GDP × meses)
-  const pVacaDescarte      = 380;
+  const pVacaDescarte      = criaDatos.pesoVacaDescarte ?? 380;
   const pTerneroInvernada  = pesoTerneroAlCierre;
   const pNovilloInvernada  = pesoNovilloInvAlCierre;
   const pNovilloFaena      = pesoNovilloFaenaAlCierre;
@@ -5084,6 +5086,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
                     <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
                     <EditField label="Vacas vacías (descarte)" value={criaDatos.vacias||0} onChange={v=>setCriaActiva(p=>({...p,vacias:v}))} hint="Van al rendimiento como descarte" />
+                    <EditField label="Peso vaca descarte (kg)" value={criaDatos.pesoVacaDescarte??380} onChange={v=>setCriaActiva(p=>({...p,pesoVacaDescarte:Math.max(200,Math.min(600,v))}))} step={10} suffix="kg" hint="Peso promedio vaca al momento de faena. Impacta en kg/ha del campo." />
                     <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
                     <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
                   </div>
@@ -5094,6 +5097,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <EditField label="% Preñez" value={criaDatos.pctPreniez??85} onChange={v=>setCriaActiva(p=>({...p,pctPreniez:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`${Math.round((criaDatos.vacas+criaDatos.vaquillonas)*(criaDatos.pctPreniez??85)/100)} madres preñadas`} />
                       <EditField label="% Destete" value={criaDatos.pctDestete??75} onChange={v=>setCriaActiva(p=>({...p,pctDestete:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`Valor final para rendimiento`} />
+                      <EditField label="Peso al destete (kg)" value={criaDatos.pesoDesteteKg??187} onChange={v=>setCriaActiva(p=>({...p,pesoDesteteKg:Math.max(100,Math.min(300,v))}))} step={5} suffix="kg" hint="175-200 kg típico para Argentina. Impacta en margen de Cría y costo de reposición de Recría." />
                       <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
                     </div>
                     {/* GDP Ternero */}
@@ -5848,53 +5852,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
               {/* ── Rendimiento total campo (propio + pastaje) ── */}
               {ingresoPastaje > 0 && (() => {
-                // kg nov equivalentes que representa el ingreso de pastaje
-                const kgPastajeEq  = precioNovKg > 0 ? Math.round(ingresoPastaje / precioNovKg) : 0;
-                const kgHaPastaje  = hectareas > 0 ? Math.round(kgPastajeEq / hectareas) : 0;
+                // Kg producidos por animales de pastaje = GDP real por categoría × días en campo
+                // Vacas y toros: GDP ≈ 0 (mantienen peso, no producen kg netos)
+                // Terneros/terneras: GDP ≈ 0.7 kg/día (crecimiento destete → recría)
+                // Novillos recría/compra: GDP ≈ 0.5-0.7 kg/día (engorde a pasto)
+                const gdpPorCat = { vacas: 0, toros: 0, terneras: 0.7, recria: 0.6 };
+                const tropas = campoPastaje?.tropas ?? [];
+                const kgPastajeReal = tropas.reduce((sum, t) => {
+                  const cab  = t.cabActual ?? t.cab ?? 0;
+                  const gdp  = gdpPorCat[t.cat] ?? 0;
+                  // Días reales en campo desde fechaIngreso hasta hoy
+                  const fi   = t.fechaIngreso ? new Date(...t.fechaIngreso.split('-').map((v,i)=>i===1?v-1:+v)) : new Date();
+                  const dias = Math.max(0, Math.round((new Date() - fi) / 86400000));
+                  return sum + (cab * gdp * dias);
+                }, 0);
+                const kgHaPastaje  = hectareas > 0 ? Math.round(kgPastajeReal / hectareas) : 0;
                 const kgHaTotal    = kgHaAct + kgHaPastaje;
+
                 return (
                   <div className="bg-white border-2 border-teal-200 rounded-3xl overflow-hidden shadow-lg">
                     <div className="h-1.5 bg-gradient-to-r from-teal-400 to-emerald-500" />
                     <div className="p-5">
                       <p className="text-xs font-black uppercase tracking-widest text-teal-700 mb-4">🌾 Rendimiento total del campo</p>
                       <div className="space-y-3">
-                        {/* Hacienda propia */}
                         <div className="flex items-center justify-between py-2 border-b border-slate-100">
                           <div>
                             <p className="text-sm font-black text-slate-700">Hacienda propia</p>
-                            <p className="text-xs text-slate-400">{fmt(kgTotalAct)} kg producidos · {fmt(hectareas)} ha</p>
+                            <p className="text-xs text-slate-400">Terneros + novillos propios · {hectareas} ha</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-black text-xl text-emerald-700">{kgHaAct} kg/ha</p>
-                            <p className="text-xs text-slate-400">rendimiento base</p>
+                            <p className="text-xs text-slate-400">comparable con otros campos</p>
                           </div>
                         </div>
-                        {/* Pastaje — equivalente en kg */}
                         <div className="flex items-center justify-between py-2 border-b border-slate-100">
                           <div>
-                            <p className="text-sm font-black text-slate-700">Pastaje {cabPastaje > 0 ? `(${cabPastaje} cab terceros)` : ""}</p>
-                            <p className="text-xs text-slate-400">{fmtMoney(ingresoPastaje)} ingreso ÷ ${fmtMoney(precioNovKg).replace("$","")} /kg = {fmt(kgPastajeEq)} kg eq.</p>
-                            <p className="text-xs text-slate-400 italic">Equivalencia: cuántos kg de carne propia equivale el ingreso de pastaje</p>
+                            <p className="text-sm font-black text-slate-700">Animales de pastaje {cabPastaje > 0 ? `(${cabPastaje} cab)` : ""}</p>
+                            <p className="text-xs text-slate-400">GDP estimado: terneras 0.7 kg/d · novillos 0.6 kg/d · vacas/toros 0 kg/d</p>
+                            <p className="text-xs text-slate-400 italic">Las vacas no producen kg — su producto es el ternero que se queda en el campo de origen</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-black text-xl text-teal-700">+{kgHaPastaje} kg/ha</p>
-                            <p className="text-xs text-slate-400">kg nov equiv.</p>
+                            <p className="text-xs text-slate-400">{Math.round(kgPastajeReal).toLocaleString("es-AR")} kg totales</p>
                           </div>
                         </div>
-                        {/* Total */}
                         <div className="flex items-center justify-between pt-2">
                           <div>
                             <p className="text-sm font-black text-slate-800">Rendimiento total campo</p>
-                            <p className="text-xs text-slate-400">Producción propia + equivalente pastaje</p>
+                            <p className="text-xs text-slate-400">Producción propia + animales de terceros en campo</p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-mono font-black text-3xl text-emerald-700">{kgHaTotal} kg/ha</p>
-                          </div>
+                          <p className="font-mono font-black text-3xl text-emerald-700">{kgHaTotal} kg/ha</p>
                         </div>
                       </div>
                       <div className="mt-4 bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-700">
-                        <p className="font-black mb-1">¿Por qué separado?</p>
-                        <p>El kg/ha propio ({kgHaAct} kg/ha) es comparable con otros campos. El pastaje no genera kg de carne propia — genera plata que convertimos a kg equivalentes para tener una visión total del aprovechamiento del campo.</p>
+                        <p className="font-black mb-1">💡 ¿Por qué GDP=0 en vacas y toros?</p>
+                        <p>Las vacas mantienen su peso — no producen kg netos en tu campo. Lo que producen es el ternero, que se queda en el campo del propietario (no en el tuyo). Los terneros y novillos de pastaje sí generan kg reales que tu pasto transformó en carne.</p>
                       </div>
                     </div>
                   </div>
@@ -6121,7 +6133,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   if (i === mesDesteteFC) ingreso += Math.round(totalDestete ?? 0) * 165 * precioNovFC;
                   if (i === 7) ingreso += (reciaDatos.novillos ?? 0) * 320 * precioNovFC;
                   if (i === 10) ingreso += ((terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0)) * (terminacionDatos.pesoPromedioKg ?? 420) * precioNovFC;
-                  if (i === 9) ingreso += Math.round((criaDatos.vacias ?? 0) * 0.65 * 420 * precioNovFC);
+                  if (i === 9) ingreso += Math.round((criaDatos.vacias ?? 0) * 0.65 * (criaDatos.pesoVacaDescarte ?? 380) * precioNovFC);
                   return { mes, ingreso, egreso: costoMes, saldo: ingreso - costoMes };
                 });
                 const maxVal = Math.max(...flujo.map(f => Math.max(f.ingreso, f.egreso)), 1);
