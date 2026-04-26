@@ -3940,7 +3940,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 }
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
-function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, fmtMoney }) {
+function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, ingresoPastaje, kgPastaje, cabPastaje, fmtMoney }) {
   const [expandedAct, setExpandedAct] = React.useState(null);
 
   const acts = [
@@ -3981,12 +3981,23 @@ function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnu
         { label: "Estructura proporcional", valor: `${Math.round(cabTerm/Math.max(1,totalCabAct)*100)}% de los costos totales`, total: -costoTermAnual, positivo: false },
       ],
     },
+    {
+      id: "pastaje", label: "🤝 Pastaje", cab: cabPastaje, color: "teal",
+      ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
+      desglose: [
+        { label: "Ingresos", tipo: "header" },
+        { label: "Cobros de pastaje del período", valor: `${Math.round(kgPastaje)} kg nov × precio novillo`, total: ingresoPastaje, positivo: true },
+        { label: "Costos", tipo: "header" },
+        { label: "Sin costo adicional", valor: "El pastaje usa infraestructura ya costeada en estructura", total: 0, positivo: false },
+      ],
+    },
   ];
 
   const colorMap = {
     emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", hdr: "bg-emerald-100" },
     blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    hdr: "bg-blue-100" },
     amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   hdr: "bg-amber-100" },
+    teal:    { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-700",    hdr: "bg-teal-100" },
   };
 
   return (
@@ -4414,7 +4425,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
 
   const margenCria = ingresoCria - costoCriaAnual;
-  // ── Costo de reposición recría (compra terneros para el ciclo) ───────────
+  // ── Ingreso pastaje del año ganadero ─────────────────────────────────────
+  const periodosPastaje = campoPastaje?.periodos ?? [];
+  const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
+  // Todos los cobros (pendientes + pagados) = ingreso devengado del año
+  const ingresoPastaje  = cobrosPastaje.reduce((s, p) => s + (p.totalPesos ?? p.pesos ?? 0), 0);
+  const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+  const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
   // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
   const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
   const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
@@ -4429,7 +4446,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const margenRec  = ingresoRecria - costoRecAnual - costoReposicionTotal;
   const margenTerm = ingresoTerm - costoTermAnual - costoFeedlotAnual;
-  const margenTotal = margenCria + margenRec + margenTerm;
+  const margenTotal = margenCria + margenRec + margenTerm + ingresoPastaje;
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
@@ -5592,6 +5609,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 pesoEntradaRecria={pesoEntradaRecria}
                 precioCompraRecria={precioCompraRecria}
                 cabPropiaRecria={cabPropiaRecria}
+                ingresoPastaje={ingresoPastaje}
+                kgPastaje={kgPastaje}
+                cabPastaje={cabPastaje}
                 fmtMoney={fmtMoney}
               />
 
