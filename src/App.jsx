@@ -6112,6 +6112,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
                 <div className="p-5 space-y-5">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-600">Variables de referencia global</p>
+                  <EditField label="Precio novillo referencia ($/kg)" value={global.precioNovilloInmag ?? 1800}
+                    onChange={v => { vacaStore.getState().setGlobal({ precioNovilloInmag: v }); }}
+                    step={50} prefix="$" suffix="/kg"
+                    hint="Usado en margen bruto, EV/ha y proyecciones. Precio actual del mercado." />
                   <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Se usa para mostrar valores en dólares" />
                   <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
