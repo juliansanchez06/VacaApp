@@ -4266,7 +4266,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Recría: produce novillos invernada, ingreso = peso × cab × precio invernada
   const cabRecriaSale   = Math.round((reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos) * (1 - (reciaDatos.pctMortandadRecria ?? 2) / 100));
   const pesoRecria      = 320; // promedio salida recría
-  const ingresoRecria   = cabRecriaSale * pesoRecria * precioInvKg;     // novillos invernada → precio invernada
+  const ingresoRecria   = cabRecriaSale * pesoRecria * precioNovKg;     // novillos invernada → precio novillo gordo
 
   // Terminación: cab × peso final × precio
   const cabTermSale     = (terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0);
@@ -5429,7 +5429,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
                       { label: "🐄 Cría", ingreso: ingresoCria, costo: costoCriaAnual, margen: margenCria, cab: cabCria, color: "emerald", detalle: `${cabDestetados} terneros × ${pesoDestete2}kg × $${precioInvKg}` },
-                      { label: "🐂 Recría", ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec, cab: cabRec, color: "blue", detalle: `${cabRecriaSale} cab × ${pesoRecria}kg × $${precioInvKg}` },
+                      { label: "🐂 Recría", ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec, cab: cabRec, color: "blue", detalle: `${cabRecriaSale} cab × ${pesoRecria}kg × $${precioNovKg}` },
                       { label: "🥩 Terminación", ingreso: ingresoTerm, costo: costoTermAnual + costoFeedlotAnual, margen: margenTerm, cab: cabTerm, color: "amber", detalle: `${cabTermSale} cab × ${pesoTerm}kg × $${precioNovKg}` },
                     ].map((act, i) => {
                       const pos = act.margen >= 0;
@@ -6114,14 +6114,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
                 <div className="p-5 space-y-5">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-600">Variables de referencia global</p>
-                  <EditField label="Precio novillo gordo referencia ($/kg)" value={global.precioNovilloInmag ?? 1800}
+                  <EditField label="Precio novillo gordo ($/kg)" value={global.precioNovilloInmag ?? 1800}
                     onChange={v => { vacaStore.getState().setGlobal({ precioNovilloInmag: v }); }}
                     step={50} prefix="$" suffix="/kg"
-                    hint="Precio novillo terminado — usado en Terminación y proyecciones." />
+                    hint="Usado en Recría, Terminación y proyecciones. Precio novillo pesado." />
                   <EditField label="Precio invernada / ternero ($/kg)" value={global.precioInvernada ?? 1600}
                     onChange={v => { vacaStore.getState().setGlobal({ precioInvernada: v }); }}
                     step={50} prefix="$" suffix="/kg"
-                    hint="Precio ternero destetado o novillo invernada — usado en Cría y Recría." />
+                    hint="Usado en Cría (terneros al destete). Precio ternero destete / invernada liviana." />
                   <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Se usa para mostrar valores en dólares" />
                   <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
