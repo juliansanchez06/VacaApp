@@ -4466,7 +4466,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // Todo lo demás viene de criaDatos (sincronizado con Stock → Cría)
   const paricionMes  = criaDatos.paricionMes  ?? 9;
-  const paricionAnio = criaDatos.paricionAnio ?? hoy.getFullYear();
+  // Auto-corregir año de parición: si el destete calculado está a más de 180 días,
+  // el año probablemente está mal — restar 1 año automáticamente
+  const paricionAnioRaw = criaDatos.paricionAnio ?? (hoy.getMonth() >= 9 ? hoy.getFullYear() : hoy.getFullYear() - 1);
+  const mDestAuto = criaDatos.mesesDestete ?? 6;
+  const destTestMes = (paricionMes + mDestAuto) % 12;
+  const destTestAnio = (paricionMes + mDestAuto) >= 12 ? paricionAnioRaw + 1 : paricionAnioRaw;
+  const diasParaDestTest = Math.round((new Date(destTestAnio, destTestMes, 1) - hoy) / 86400000);
+  const paricionAnio = diasParaDestTest > 180 ? paricionAnioRaw - 1 : paricionAnioRaw;
   const meseDestete  = criaDatos.mesesDestete ?? 6;
   const pctMachos    = criaDatos.pctMachos    ?? 50;
   const pctReposicion= criaDatos.pctReposicion?? 30;
