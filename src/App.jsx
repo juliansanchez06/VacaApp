@@ -78,6 +78,7 @@ async function guardarEstado(userEmail) {
     campoTerminacion: s.campoTerminacion,
     campoPastaje:     s.campoPastaje,
     campo:            s.campo,
+    movimientos:      s.movimientos,
     simulaciones:     s.simulaciones,
     anoGanaderoActual: s.anoGanaderoActual,
     historialAnos:    s.historialAnos,
@@ -115,6 +116,7 @@ async function cargarEstado(userEmail, intentos = 3) {
       if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
       if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
       if (data.campo)            s.setCampo(data.campo);
+      if (data.movimientos)      vacaStore.setState({ movimientos: data.movimientos });
       if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
       if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
       vacaStore.setState({ firestoreCargado: true });
@@ -221,7 +223,7 @@ const vacaStore = createStore((set, get) => ({
     terceros: [],
     precios:  { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 },
   },
-  firestoreCargado: false, // bandera para evitar que datos iniciales pisen Firestore
+  movimientos: [], // registro de compras y ventas del año ganadero
   __userEmail: "",         // email del usuario logueado para auto-guardado
 
   // ── Setters ────────────────────────────────────────────────────────────────
@@ -232,6 +234,7 @@ const vacaStore = createStore((set, get) => ({
   setCampoTerminacion:(p) => set(s => ({ campoTerminacion:{ ...s.campoTerminacion,...(typeof p === "function" ? p(s.campoTerminacion) : p) } })),
   setCampoPastaje:    (p) => set(s => ({ campoPastaje:    { ...s.campoPastaje,    ...(typeof p === "function" ? p(s.campoPastaje)    : p) } })),
   setCampo:           (p) => set(s => ({ campo:           { ...s.campo,           ...(typeof p === "function" ? p(s.campo)           : p) } })),
+  setMovimientos:     (fn) => set(s => ({ movimientos: typeof fn === "function" ? fn(s.movimientos) : fn })),
 
   // ── Agregar al campo desde simulador ─────────────────────────────────────
   agregarAlCampo: ({ categoria, cantidad }) => set(s => {
@@ -3931,7 +3934,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
   );
 }
 
-function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, onToast }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
@@ -4031,6 +4034,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const totalStockCampo = criaDatos.vacas + criaDatos.vaquillonas + criaDatos.ternerosNoDestetados + criaDatos.toros
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
     + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
+
+  // ── Movimientos del año ───────────────────────────────────────────────────
+  const movimientosAnio = movimientos.filter(m => m.anoGanadero === anoGanadero || !m.anoGanadero);
+  const ventas   = movimientosAnio.filter(m => m.tipo === "venta");
+  const compras  = movimientosAnio.filter(m => m.tipo === "compra");
+  const kgVendidosTotal  = ventas.reduce((s, m) => s + (m.cab * m.kgProm), 0);
+  const kgCompradosTotal = compras.reduce((s, m) => s + (m.cab * m.kgProm), 0);
+  const ingresoVentas    = ventas.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
+  const costoCompras     = compras.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
 
   // ── EV/ha — Equivalente Vaca por hectárea ─────────────────────────────────
   // Coeficientes EV estándar (INTA): vaca cría con ternero = 1, toro = 1.3,
@@ -4181,7 +4193,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgNovillosInv      = cabNovillosInv     * pNovilloInvernada;
   const kgNovillosFaena    = cabNovillosFaena   * pNovilloFaena;
   const kgVaquillonaDesc   = cabVaquillonaDesc  * pVaquillonaDesc;
-  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc;
+  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc + Math.round(kgVendidosTotal);
   const kgHaAct            = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
 
   // Proyección año siguiente — con GDP proyectada 12 meses completos
@@ -4268,6 +4280,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const SECCIONES = [
     { id: "stock",        label: "Stock hacienda",    icon: "🐄" },
+    { id: "movimientos",  label: "Movimientos",        icon: "🔄" },
     { id: "rendimiento",  label: "Rendimiento",        icon: "📊" },
     { id: "costos",       label: "Costos estructura",  icon: "💰" },
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
@@ -5189,6 +5202,190 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           {/* ══════════════════════════════════════════════════════════════
               COSTOS ESTRUCTURA
           ══════════════════════════════════════════════════════════════ */}
+          {/* ══ MOVIMIENTOS ══════════════════════════════════════════════ */}
+          {seccion === "movimientos" && (() => {
+            const TIPOS_MOV = [
+              { id: "venta-novillos",   label: "Venta novillos",      tipo: "venta",   emoji: "💚", cat: "terminacion" },
+              { id: "venta-vacas",      label: "Venta vacas descarte", tipo: "venta",   emoji: "💚", cat: "cria" },
+              { id: "venta-terneros",   label: "Venta terneros",       tipo: "venta",   emoji: "💚", cat: "cria" },
+              { id: "compra-terneros",  label: "Compra terneros recría",tipo: "compra", emoji: "🔴", cat: "recria" },
+              { id: "compra-novillos",  label: "Compra novillos engorde",tipo:"compra", emoji: "🔴", cat: "terminacion" },
+            ];
+
+            const [showForm, setShowForm] = useState(false);
+            const [form, setForm] = useState({ tipoId: "venta-novillos", fecha: hoy, cab: 10, kgProm: 330, precioKg: global.precioNovilloInmag ?? 1800, obs: "" });
+            const setF = (k) => (v) => setForm(p => ({ ...p, [k]: typeof v === "object" && v.target ? (isNaN(v.target.value) ? v.target.value : Number(v.target.value)) : v }));
+
+            const agregarMovimiento = () => {
+              const tipoMov = TIPOS_MOV.find(t => t.id === form.tipoId);
+              const nuevo = { ...form, id: Date.now(), tipo: tipoMov.tipo, label: tipoMov.label, anoGanadero, kgTotal: form.cab * form.kgProm, montoTotal: form.cab * form.kgProm * form.precioKg };
+              setMovimientos(prev => [...prev, nuevo]);
+              setShowForm(false);
+              onToast(`✅ ${tipoMov.label}: ${form.cab} cab · ${fmtMoney(nuevo.montoTotal)}`, "success");
+            };
+
+            // KPIs del año
+            const kgProdEstimado = Math.round(totalDestete * 165 + (reciaDatos.novillos + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos) * 320 + (terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot) * (terminacionDatos.pesoPromedioKg ?? 420));
+            const kgProdTotal = kgProdEstimado + kgVendidosTotal;
+            const kgHaTotal = hectareas > 0 ? Math.round(kgProdTotal / hectareas) : 0;
+            const margenMov = ingresoVentas - costoCompras;
+
+            return (
+              <div className="space-y-5 sim-zoom-enter">
+                {/* KPIs */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "kg vendidos", value: fmtN(Math.round(kgVendidosTotal)) + " kg", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+                    { label: "Ingresos ventas", value: fmtMoney(ingresoVentas), color: "text-emerald-800", bg: "bg-emerald-50 border-emerald-200" },
+                    { label: "Costo compras", value: fmtMoney(costoCompras), color: "text-red-700", bg: "bg-red-50 border-red-200" },
+                    { label: "kg/ha c/ ventas", value: kgHaTotal + " kg/ha", color: "text-sky-700", bg: "bg-sky-50 border-sky-200" },
+                  ].map((k, i) => (
+                    <div key={i} className={`rounded-2xl border-2 p-3 ${k.bg} text-center`}>
+                      <p className="text-xs text-slate-500 font-semibold">{k.label}</p>
+                      <p className={`font-black text-lg ${k.color}`}>{k.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comparativo kg */}
+                <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">📦 Producción vs ventas — {anoGanadero}</p>
+                  <div className="space-y-2">
+                    {[
+                      { label: "Kg producidos estimados (stock actual)", val: kgProdEstimado, color: "#3b82f6" },
+                      { label: "Kg vendidos registrados", val: Math.round(kgVendidosTotal), color: "#10b981" },
+                      { label: "Total kg campo (prod + ventas)", val: Math.round(kgProdTotal), color: "#064e3b" },
+                    ].map((row, i) => {
+                      const pct = kgProdTotal > 0 ? Math.round(row.val / kgProdTotal * 100) : 0;
+                      return (
+                        <div key={i}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-slate-600">{row.label}</span>
+                            <span className="font-black" style={{ color: row.color }}>{fmtN(row.val)} kg · {pct}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: pct + "%", background: row.color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs">
+                    <span className="text-slate-500">Rendimiento sin ventas</span>
+                    <span className="font-black text-slate-600">{hectareas > 0 ? Math.round(kgProdEstimado / hectareas) : 0} kg/ha</span>
+                    <span className="text-slate-500">Con ventas registradas</span>
+                    <span className="font-black text-sky-700">{kgHaTotal} kg/ha</span>
+                  </div>
+                </div>
+
+                {/* Margen movimientos */}
+                {(ingresoVentas > 0 || costoCompras > 0) && (
+                  <div className={`rounded-2xl border-2 p-4 ${margenMov >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Balance movimientos</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Ingresos ventas − Costo compras</p>
+                      </div>
+                      <p className={`font-black text-2xl ${margenMov >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtMoney(margenMov)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botón agregar */}
+                <button onClick={() => setShowForm(s => !s)}
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 transition-all">
+                  {showForm ? "✕ Cancelar" : "+ Registrar movimiento"}
+                </button>
+
+                {/* Formulario */}
+                {showForm && (
+                  <div className="bg-white rounded-2xl border-2 border-emerald-200 p-4 space-y-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">Nuevo movimiento</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Tipo</label>
+                        <select value={form.tipoId} onChange={e => setForm(p => ({...p, tipoId: e.target.value}))}
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+                          {TIPOS_MOV.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Fecha</label>
+                        <input type="date" value={form.fecha} onChange={e => setForm(p => ({...p, fecha: e.target.value}))}
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Cabezas</label>
+                        <input type="number" min="1" value={form.cab} onChange={setF("cab")}
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Peso promedio (kg/cab)</label>
+                        <input type="number" min="1" value={form.kgProm} onChange={setF("kgProm")}
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Precio ($/kg vivo)</label>
+                        <input type="number" min="1" value={form.precioKg} onChange={setF("precioKg")}
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Total</label>
+                        <div className="mt-1 w-full border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 font-black text-emerald-700">
+                          {form.cab} cab × {form.kgProm} kg × ${fmtN(form.precioKg)} = {fmtMoney(form.cab * form.kgProm * form.precioKg)}
+                        </div>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold text-slate-500">Observaciones (opcional)</label>
+                        <input type="text" value={form.obs} onChange={e => setForm(p => ({...p, obs: e.target.value}))} placeholder="Ej: Campo La Loma, feria Liniers…"
+                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+                      </div>
+                    </div>
+                    <button onClick={agregarMovimiento}
+                      className="w-full py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all active:scale-95">
+                      ✅ Guardar movimiento
+                    </button>
+                  </div>
+                )}
+
+                {/* Lista de movimientos */}
+                {movimientosAnio.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">Movimientos {anoGanadero}</p>
+                    {[...movimientosAnio].sort((a,b) => b.fecha?.localeCompare(a.fecha)).map(m => {
+                      const tipoInfo = TIPOS_MOV.find(t => t.id === m.tipoId) ?? {};
+                      const esVenta = m.tipo === "venta";
+                      return (
+                        <div key={m.id} className={`rounded-2xl border-2 p-3 flex items-center gap-3 ${esVenta ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                          <span className="text-2xl">{tipoInfo.emoji ?? (esVenta ? "💚" : "🔴")}</span>
+                          <div className="flex-1">
+                            <p className="font-black text-sm text-slate-800">{m.label}</p>
+                            <p className="text-xs text-slate-500">{fmtFecha(m.fecha)} · {m.cab} cab · {fmtN(m.kgProm)} kg/cab · ${fmtN(m.precioKg)}/kg</p>
+                            {m.obs && <p className="text-xs text-slate-400 italic">{m.obs}</p>}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-slate-400">{fmtN(Math.round(m.kgTotal))} kg</p>
+                            <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtMoney(m.montoTotal)}</p>
+                          </div>
+                          <button onClick={() => { if (window.confirm("¿Eliminar este movimiento?")) setMovimientos(prev => prev.filter(x => x.id !== m.id)); }}
+                            className="text-slate-300 hover:text-red-500 font-black transition-colors ml-1">✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {movimientosAnio.length === 0 && !showForm && (
+                  <div className="text-center py-10 text-slate-400">
+                    <p className="text-3xl mb-2">🔄</p>
+                    <p className="text-sm">Sin movimientos registrados en {anoGanadero}</p>
+                    <p className="text-xs mt-1">Registrá ventas y compras para que impacten en el rendimiento kg/ha</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {seccion === "rendimiento" && (
             <div className="space-y-5 sim-zoom-enter">
               <SaveUndoBar
@@ -7562,134 +7759,200 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // ── Generador de imagen PNG del cobro ─────────────────────────────────────
     const generarImagenCobro = (cobro) => {
       const canvas = document.createElement("canvas");
-      const W = 800, padding = 48;
+      const W = 800, padding = 40;
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
-      const H = 300 + lineas.length * 72 + (tieneSuplemento ? 160 : 120);
+      const H = 320 + lineas.length * 72 + (tieneSuplemento ? 160 : 120);
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
-      // Fondo
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(0, 0, W, H);
-
-      // Franja superior verde
-      ctx.fillStyle = "#064e3b";
-      ctx.fillRect(0, 0, W, 100);
-
-      // Título
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 28px system-ui, sans-serif";
-      ctx.fillText("🤝 Liquidación de Pastaje", padding, 45);
-
-      // Subtítulo fecha
-      ctx.font = "15px system-ui, sans-serif";
-      ctx.fillStyle = "#6ee7b7";
-      ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}  ·  generado ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, padding, 68);
-
-      // Propietario
-      const prop = terceros.find(t => t.id == cobro.propietarioId);
-      if (prop) {
-        ctx.fillStyle = "#a7f3d0";
-        ctx.font = "14px system-ui, sans-serif";
-        ctx.fillText(`Propietario: ${prop.nombre}`, padding, 88);
-      }
-
-      // Precio novillo
-      ctx.fillStyle = "#1e293b";
-      ctx.font = "14px system-ui, sans-serif";
-      ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 128);
-
-      // Tabla de líneas
-      let y = 155;
-      lineas.forEach((l, i) => {
-        ctx.fillStyle = i % 2 === 0 ? "#f1f5f9" : "#ffffff";
-        ctx.fillRect(padding, y - 18, W - padding * 2, 64);
-
-        ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 16px system-ui, sans-serif";
-        ctx.fillText(l.origen, padding + 10, y + 2);
-
-        ctx.fillStyle = "#475569";
-        ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText(`${l.cabActual} cab · desde ${fmtFecha(l.desde)} · ${l.diasTotalesPeriodo} días`, padding + 10, y + 22);
-
-        if (l.tramosEnPeriodo?.length > 0) {
-          ctx.fillStyle = "#ea580c";
-          ctx.font = "12px system-ui, sans-serif";
-          ctx.fillText(l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab (${te.dias}d)`).join("  "), padding + 10, y + 40);
-        }
-
-        ctx.fillStyle = "#065f46";
-        ctx.font = "bold 16px system-ui, sans-serif";
-        ctx.fillText(`${fmtN(l.kgTotal)} kg nov`, W - padding - 220, y + 2);
-
-        ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText(`Pastaje: ${fmtPesos(l.pesos)}`, W - padding - 220, y + 22);
-
-        if (l.supActivo && l.kgSup > 0) {
-          ctx.fillStyle = "#b45309";
-          ctx.font = "13px system-ui, sans-serif";
-          ctx.fillText(`💊 Sup: ${fmtN(l.kgSup)} kg · ${fmtPesos(l.pesosSup)}`, W - padding - 220, y + 40);
-        }
-
-        y += 68;
-      });
-
-      // Línea separadora
-      ctx.strokeStyle = "#334155";
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(padding, y + 8); ctx.lineTo(W - padding, y + 8); ctx.stroke();
-      y += 24;
-
-      // Total — caja verde
-      const totalH = tieneSuplemento ? 90 : 72;
-      ctx.fillStyle = "#064e3b";
-      ctx.fillRect(padding, y, W - padding * 2, totalH);
-
-      // "TOTAL kg nov pastaje" — en una sola línea con fuente más pequeña
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 13px system-ui, sans-serif";
-      ctx.fillText("TOTAL", padding + 16, y + 22);
-      ctx.font = "18px system-ui, sans-serif";
-      ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding + 16, y + 44);
-
-      if (tieneSuplemento) {
-        ctx.font = "14px system-ui, sans-serif";
-        ctx.fillStyle = "#fcd34d";
-        ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding + 16, y + 68);
-      }
-
-      // Monto total — derecha, bien centrado verticalmente
-      ctx.font = "bold 30px system-ui, sans-serif";
-      ctx.fillStyle = "#6ee7b7";
-      ctx.textAlign = "right";
-      ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding - 16, y + (tieneSuplemento ? 52 : 44));
-      ctx.textAlign = "left";
-
-      // Logo — cargar y dibujar, luego descargar
-      const logoImg = new Image();
-      const descargarCanvas = () => {
-        // Footer
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "12px system-ui, sans-serif";
-        ctx.fillText("SoyPekun · Gestión Ganadera Profesional", padding, H - 16);
-        // Descargar
+      const doDownload = () => {
         const link = document.createElement("a");
         link.download = `pastaje_${cobro.fechaHasta}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
         toast("📥 Imagen descargada", "success");
       };
-      logoImg.onload = () => {
-        const logoH = 55, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
-        ctx.drawImage(logoImg, W - padding - logoW, 22, logoW, logoH);
-        descargarCanvas();
+
+      const dibujar = (logoImg) => {
+        // ── Fondo general ────────────────────────────────────────────────
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, 0, W, H);
+
+        // ── Header blanco con logo (altura 90) ───────────────────────────
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, 90);
+
+        // Línea divisoria sutil
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, 90); ctx.lineTo(W, 90); ctx.stroke();
+
+        // Logo centrado verticalmente en la franja blanca
+        if (logoImg) {
+          const logoH = 58, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
+          ctx.drawImage(logoImg, padding, 16, logoW, logoH);
+        }
+
+        // Texto derecha del header
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#064e3b";
+        ctx.font = "bold 13px system-ui, sans-serif";
+        ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 40);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText("soypekun.vercel.app", W - padding, 58);
+        ctx.fillStyle = "#475569";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 76);
+        ctx.textAlign = "left";
+
+        // ── Banda verde — título ──────────────────────────────────────────
+        ctx.fillStyle = "#064e3b";
+        ctx.fillRect(0, 90, W, 70);
+
+        // Título
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px system-ui, sans-serif";
+        ctx.fillText("Liquidación de Pastaje", padding, 128);
+
+        // Fecha corte
+        ctx.fillStyle = "#6ee7b7";
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 150);
+
+        // Propietario
+        const prop = terceros.find(t => t.id == cobro.propietarioId);
+        if (prop) {
+          ctx.fillStyle = "#a7f3d0";
+          ctx.textAlign = "right";
+          ctx.font = "bold 14px system-ui, sans-serif";
+          ctx.fillText(`👤 ${prop.nombre}`, W - padding, 128);
+          ctx.textAlign = "left";
+        }
+
+        // ── Info de configuración ─────────────────────────────────────────
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 160, W, 36);
+        ctx.fillStyle = "#334155";
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 183);
+
+        // ── Tabla header ──────────────────────────────────────────────────
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, 196, W, 28);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.fillText("TROPA / ORIGEN", padding + 8, 215);
+        ctx.textAlign = "right";
+        ctx.fillText("KG NOV", W - padding - 120, 215);
+        ctx.fillText("MONTO", W - padding - 8, 215);
+        ctx.textAlign = "left";
+
+        // ── Filas de tropas ───────────────────────────────────────────────
+        let y = 224;
+        lineas.forEach((l, i) => {
+          ctx.fillStyle = i % 2 === 0 ? "#f8fafc" : "#ffffff";
+          ctx.fillRect(0, y, W, 68);
+
+          // Borde izquierdo de color
+          ctx.fillStyle = "#10b981";
+          ctx.fillRect(0, y, 3, 68);
+
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 15px system-ui, sans-serif";
+          ctx.fillText(l.origen, padding + 8, y + 20);
+
+          ctx.fillStyle = "#64748b";
+          ctx.font = "12px system-ui, sans-serif";
+          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 8, y + 38);
+
+          if (l.tramosEnPeriodo?.length > 0) {
+            ctx.fillStyle = "#ea580c";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 8, y + 56);
+          }
+
+          // Columna kg
+          ctx.fillStyle = "#065f46";
+          ctx.font = "bold 14px system-ui, sans-serif";
+          ctx.textAlign = "right";
+          ctx.fillText(`${fmtN(l.kgTotal)} kg`, W - padding - 120, y + 22);
+
+          if (l.supActivo && l.kgSup > 0) {
+            ctx.fillStyle = "#b45309";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText(`+${fmtN(l.kgSup)} sup`, W - padding - 120, y + 40);
+          }
+
+          // Columna monto
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 15px system-ui, sans-serif";
+          ctx.fillText(fmtPesos(l.pesos), W - padding - 8, y + 22);
+
+          if (l.supActivo && l.kgSup > 0) {
+            ctx.fillStyle = "#b45309";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText(fmtPesos(l.pesosSup), W - padding - 8, y + 40);
+          }
+
+          ctx.textAlign = "left";
+          y += 68;
+        });
+
+        // ── Separador ─────────────────────────────────────────────────────
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        y += 2;
+
+        // ── Total — fondo degradado ───────────────────────────────────────
+        const totalH = tieneSuplemento ? 90 : 72;
+        const grad = ctx.createLinearGradient(0, y, W, y);
+        grad.addColorStop(0, "#064e3b");
+        grad.addColorStop(1, "#065f46");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y, W, totalH);
+
+        // Borde superior
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+
+        ctx.fillStyle = "#a7f3d0";
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillText("TOTAL PERÍODO", padding, y + 22);
+
+        ctx.fillStyle = "#d1fae5";
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 44);
+
+        if (tieneSuplemento) {
+          ctx.fillStyle = "#fcd34d";
+          ctx.font = "13px system-ui, sans-serif";
+          ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 66);
+        }
+
+        // Monto total — grande a la derecha
+        ctx.textAlign = "right";
+        ctx.font = "bold 34px system-ui, sans-serif";
+        ctx.fillStyle = "#6ee7b7";
+        ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 52 : 46));
+        ctx.textAlign = "left";
+
+        // ── Footer ────────────────────────────────────────────────────────
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 12);
+
+        doDownload();
       };
-      logoImg.onerror = descargarCanvas; // si falla el logo, descargar igual
+
+      // Cargar logo y dibujar
+      const logoImg = new Image();
+      logoImg.onload = () => dibujar(logoImg);
+      logoImg.onerror = () => dibujar(null);
       logoImg.src = `data:image/png;base64,${LOGO_B64}`;
-    }; // fin generarImagenCobro
 
     const CobRow = ({ c }) => {
       const expand = expandId === c.id;
@@ -8272,10 +8535,12 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const campoRecria         = useStore(vacaStore, s => s.campoRecria);
   const campoTerminacion    = useStore(vacaStore, s => s.campoTerminacion);
   const campoPastaje        = useStore(vacaStore, s => s.campoPastaje);
+  const movimientos         = useStore(vacaStore, s => s.movimientos) ?? [];
   const setCampoCria        = (p) => vacaStore.getState().setCampoCria(p);
   const setCampoRecria      = (p) => vacaStore.getState().setCampoRecria(p);
   const setCampoTerminacion = (p) => vacaStore.getState().setCampoTerminacion(p);
   const setCampoPastaje     = (p) => vacaStore.getState().setCampoPastaje(p);
+  const setMovimientos      = (fn) => vacaStore.getState().setMovimientos(fn);
 
   // ── Agregar al campo desde simulador — usa el store ─────────────────────
   const handleAgregarAlCampo = (datos) => {
@@ -8434,6 +8699,8 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           campoPastaje={campoPastaje}
           setCampoPastaje={setCampoPastaje}
           precioNovilloGlobal={global.precioNovilloInmag}
+          movimientos={movimientos}
+          setMovimientos={setMovimientos}
           onToast={pushToast}
         />
       </>
