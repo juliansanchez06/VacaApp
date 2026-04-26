@@ -3934,6 +3934,189 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
   );
 }
 
+// ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
+function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
+  const TIPOS_MOV = [
+    { id: "venta-novillos",   label: "Venta novillos",        tipo: "venta",  emoji: "💚" },
+    { id: "venta-vacas",      label: "Venta vacas descarte",  tipo: "venta",  emoji: "💚" },
+    { id: "venta-terneros",   label: "Venta terneros",        tipo: "venta",  emoji: "💚" },
+    { id: "compra-terneros",  label: "Compra terneros recría",tipo: "compra", emoji: "🔴" },
+    { id: "compra-novillos",  label: "Compra novillos engorde",tipo:"compra", emoji: "🔴" },
+  ];
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ tipoId: "venta-novillos", fecha: hoy, cab: 10, kgProm: 330, precioKg: global?.precioNovilloInmag ?? 1800, obs: "" });
+
+  const agregarMovimiento = () => {
+    const tipoMov = TIPOS_MOV.find(t => t.id === form.tipoId);
+    const cab = Number(form.cab), kgProm = Number(form.kgProm), precioKg = Number(form.precioKg);
+    const nuevo = { ...form, cab, kgProm, precioKg, id: Date.now(), tipo: tipoMov.tipo, label: tipoMov.label, anoGanadero, kgTotal: cab * kgProm, montoTotal: cab * kgProm * precioKg };
+    setMovimientos(prev => [...prev, nuevo]);
+    setShowForm(false);
+    onToast?.(`✅ ${tipoMov.label}: ${cab} cab · $${(nuevo.montoTotal).toLocaleString("es-AR")}`, "success");
+  };
+
+  const kgProdEstimado = Math.round((totalDestete ?? 0) * 165 + ((reciaDatos?.novillos ?? 0) + (reciaDatos?.ternerosLiquidaMachos ?? 0) + (reciaDatos?.ternerosCompraMachos ?? 0)) * 320 + ((terminacionDatos?.novillosCampo ?? 0) + (terminacionDatos?.novillosFeedlot ?? 0)) * (terminacionDatos?.pesoPromedioKg ?? 420));
+  const kgProdTotal = kgProdEstimado + Math.round(kgVendidosTotal);
+  const kgHaTotal   = hectareas > 0 ? Math.round(kgProdTotal / hectareas) : 0;
+  const margenMov   = ingresoVentas - costoCompras;
+  const fmt         = (n) => Math.round(n).toLocaleString("es-AR");
+  const fmtM        = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+
+  return (
+    <div className="space-y-5 sim-zoom-enter">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "kg vendidos", value: fmt(Math.round(kgVendidosTotal)) + " kg", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+          { label: "Ingresos ventas", value: fmtM(ingresoVentas), color: "text-emerald-800", bg: "bg-emerald-50 border-emerald-200" },
+          { label: "Costo compras", value: fmtM(costoCompras), color: "text-red-700", bg: "bg-red-50 border-red-200" },
+          { label: "kg/ha c/ ventas", value: kgHaTotal + " kg/ha", color: "text-sky-700", bg: "bg-sky-50 border-sky-200" },
+        ].map((k, i) => (
+          <div key={i} className={`rounded-2xl border-2 p-3 ${k.bg} text-center`}>
+            <p className="text-xs text-slate-500 font-semibold">{k.label}</p>
+            <p className={`font-black text-lg ${k.color}`}>{k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Comparativo kg */}
+      <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">📦 Producción vs ventas — {anoGanadero}</p>
+        <div className="space-y-3">
+          {[
+            { label: "Kg producidos estimados (stock actual)", val: kgProdEstimado, color: "#3b82f6" },
+            { label: "Kg vendidos registrados", val: Math.round(kgVendidosTotal), color: "#10b981" },
+            { label: "Total kg campo (prod + ventas)", val: Math.round(kgProdTotal), color: "#064e3b" },
+          ].map((row, i) => {
+            const pct = kgProdTotal > 0 ? Math.round(row.val / kgProdTotal * 100) : 0;
+            return (
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-600">{row.label}</span>
+                  <span className="font-black" style={{ color: row.color }}>{fmt(row.val)} kg · {pct}%</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: Math.min(100, pct) + "%", background: row.color }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs flex-wrap gap-2">
+          <span className="text-slate-500">Sin ventas: <b className="text-slate-700">{hectareas > 0 ? Math.round(kgProdEstimado/hectareas) : 0} kg/ha</b></span>
+          <span className="text-slate-500">Con ventas: <b className="text-sky-700">{kgHaTotal} kg/ha</b></span>
+        </div>
+      </div>
+
+      {/* Balance movimientos */}
+      {(ingresoVentas > 0 || costoCompras > 0) && (
+        <div className={`rounded-2xl border-2 p-4 ${margenMov >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Balance movimientos</p>
+              <p className="text-xs text-slate-400 mt-0.5">Ingresos ventas − Costo compras</p>
+            </div>
+            <p className={`font-black text-2xl ${margenMov >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtM(margenMov)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Botón agregar */}
+      <button onClick={() => setShowForm(s => !s)}
+        className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 transition-all">
+        {showForm ? "✕ Cancelar" : "+ Registrar movimiento"}
+      </button>
+
+      {/* Formulario */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border-2 border-emerald-200 p-4 space-y-4">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Nuevo movimiento</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500">Tipo</label>
+              <select value={form.tipoId} onChange={e => setForm(p => ({...p, tipoId: e.target.value}))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+                {TIPOS_MOV.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500">Fecha</label>
+              <input type="date" value={form.fecha} onChange={e => setForm(p => ({...p, fecha: e.target.value}))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500">Cabezas</label>
+              <input type="number" min="1" value={form.cab} onChange={e => setForm(p => ({...p, cab: e.target.value}))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500">Peso promedio (kg/cab)</label>
+              <input type="number" min="1" value={form.kgProm} onChange={e => setForm(p => ({...p, kgProm: e.target.value}))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500">Precio ($/kg vivo)</label>
+              <input type="number" min="1" value={form.precioKg} onChange={e => setForm(p => ({...p, precioKg: e.target.value}))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500">Total estimado</label>
+              <div className="mt-1 w-full border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 font-black text-emerald-700">
+                {fmtM(Number(form.cab) * Number(form.kgProm) * Number(form.precioKg))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-slate-500">Observaciones (opcional)</label>
+              <input type="text" value={form.obs} onChange={e => setForm(p => ({...p, obs: e.target.value}))} placeholder="Ej: Feria Liniers, Campo La Loma…"
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+          <button onClick={agregarMovimiento}
+            className="w-full py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all active:scale-95">
+            ✅ Guardar movimiento
+          </button>
+        </div>
+      )}
+
+      {/* Lista */}
+      {movimientosAnio.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Movimientos {anoGanadero}</p>
+          {[...movimientosAnio].sort((a,b) => (b.fecha ?? "").localeCompare(a.fecha ?? "")).map(m => {
+            const tipoInfo = TIPOS_MOV.find(t => t.id === m.tipoId) ?? {};
+            const esVenta = m.tipo === "venta";
+            return (
+              <div key={m.id} className={`rounded-2xl border-2 p-3 flex items-center gap-3 ${esVenta ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                <span className="text-2xl">{tipoInfo.emoji ?? (esVenta ? "💚" : "🔴")}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-sm text-slate-800">{m.label}</p>
+                  <p className="text-xs text-slate-500 truncate">{m.fecha} · {m.cab} cab · {fmt(m.kgProm)} kg/cab · ${fmt(m.precioKg)}/kg</p>
+                  {m.obs && <p className="text-xs text-slate-400 italic truncate">{m.obs}</p>}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-slate-400">{fmt(Math.round(m.kgTotal))} kg</p>
+                  <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtM(m.montoTotal)}</p>
+                </div>
+                <button onClick={() => { if (window.confirm("¿Eliminar este movimiento?")) setMovimientos(prev => prev.filter(x => x.id !== m.id)); }}
+                  className="text-slate-300 hover:text-red-500 font-black transition-colors shrink-0">✕</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {movimientosAnio.length === 0 && !showForm && (
+        <div className="text-center py-10 text-slate-400">
+          <p className="text-3xl mb-2">🔄</p>
+          <p className="text-sm font-semibold">Sin movimientos en {anoGanadero}</p>
+          <p className="text-xs mt-1">Registrá ventas y compras para que impacten en el rendimiento kg/ha</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
@@ -5203,188 +5386,25 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               COSTOS ESTRUCTURA
           ══════════════════════════════════════════════════════════════ */}
           {/* ══ MOVIMIENTOS ══════════════════════════════════════════════ */}
-          {seccion === "movimientos" && (() => {
-            const TIPOS_MOV = [
-              { id: "venta-novillos",   label: "Venta novillos",      tipo: "venta",   emoji: "💚", cat: "terminacion" },
-              { id: "venta-vacas",      label: "Venta vacas descarte", tipo: "venta",   emoji: "💚", cat: "cria" },
-              { id: "venta-terneros",   label: "Venta terneros",       tipo: "venta",   emoji: "💚", cat: "cria" },
-              { id: "compra-terneros",  label: "Compra terneros recría",tipo: "compra", emoji: "🔴", cat: "recria" },
-              { id: "compra-novillos",  label: "Compra novillos engorde",tipo:"compra", emoji: "🔴", cat: "terminacion" },
-            ];
-
-            const [showForm, setShowForm] = useState(false);
-            const [form, setForm] = useState({ tipoId: "venta-novillos", fecha: hoy, cab: 10, kgProm: 330, precioKg: global.precioNovilloInmag ?? 1800, obs: "" });
-            const setF = (k) => (v) => setForm(p => ({ ...p, [k]: typeof v === "object" && v.target ? (isNaN(v.target.value) ? v.target.value : Number(v.target.value)) : v }));
-
-            const agregarMovimiento = () => {
-              const tipoMov = TIPOS_MOV.find(t => t.id === form.tipoId);
-              const nuevo = { ...form, id: Date.now(), tipo: tipoMov.tipo, label: tipoMov.label, anoGanadero, kgTotal: form.cab * form.kgProm, montoTotal: form.cab * form.kgProm * form.precioKg };
-              setMovimientos(prev => [...prev, nuevo]);
-              setShowForm(false);
-              onToast(`✅ ${tipoMov.label}: ${form.cab} cab · ${fmtMoney(nuevo.montoTotal)}`, "success");
-            };
-
-            // KPIs del año
-            const kgProdEstimado = Math.round(totalDestete * 165 + (reciaDatos.novillos + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos) * 320 + (terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot) * (terminacionDatos.pesoPromedioKg ?? 420));
-            const kgProdTotal = kgProdEstimado + kgVendidosTotal;
-            const kgHaTotal = hectareas > 0 ? Math.round(kgProdTotal / hectareas) : 0;
-            const margenMov = ingresoVentas - costoCompras;
-
-            return (
-              <div className="space-y-5 sim-zoom-enter">
-                {/* KPIs */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: "kg vendidos", value: fmtN(Math.round(kgVendidosTotal)) + " kg", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
-                    { label: "Ingresos ventas", value: fmtMoney(ingresoVentas), color: "text-emerald-800", bg: "bg-emerald-50 border-emerald-200" },
-                    { label: "Costo compras", value: fmtMoney(costoCompras), color: "text-red-700", bg: "bg-red-50 border-red-200" },
-                    { label: "kg/ha c/ ventas", value: kgHaTotal + " kg/ha", color: "text-sky-700", bg: "bg-sky-50 border-sky-200" },
-                  ].map((k, i) => (
-                    <div key={i} className={`rounded-2xl border-2 p-3 ${k.bg} text-center`}>
-                      <p className="text-xs text-slate-500 font-semibold">{k.label}</p>
-                      <p className={`font-black text-lg ${k.color}`}>{k.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Comparativo kg */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">📦 Producción vs ventas — {anoGanadero}</p>
-                  <div className="space-y-2">
-                    {[
-                      { label: "Kg producidos estimados (stock actual)", val: kgProdEstimado, color: "#3b82f6" },
-                      { label: "Kg vendidos registrados", val: Math.round(kgVendidosTotal), color: "#10b981" },
-                      { label: "Total kg campo (prod + ventas)", val: Math.round(kgProdTotal), color: "#064e3b" },
-                    ].map((row, i) => {
-                      const pct = kgProdTotal > 0 ? Math.round(row.val / kgProdTotal * 100) : 0;
-                      return (
-                        <div key={i}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-600">{row.label}</span>
-                            <span className="font-black" style={{ color: row.color }}>{fmtN(row.val)} kg · {pct}%</span>
-                          </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: pct + "%", background: row.color }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs">
-                    <span className="text-slate-500">Rendimiento sin ventas</span>
-                    <span className="font-black text-slate-600">{hectareas > 0 ? Math.round(kgProdEstimado / hectareas) : 0} kg/ha</span>
-                    <span className="text-slate-500">Con ventas registradas</span>
-                    <span className="font-black text-sky-700">{kgHaTotal} kg/ha</span>
-                  </div>
-                </div>
-
-                {/* Margen movimientos */}
-                {(ingresoVentas > 0 || costoCompras > 0) && (
-                  <div className={`rounded-2xl border-2 p-4 ${margenMov >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Balance movimientos</p>
-                        <p className="text-xs text-slate-400 mt-0.5">Ingresos ventas − Costo compras</p>
-                      </div>
-                      <p className={`font-black text-2xl ${margenMov >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtMoney(margenMov)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botón agregar */}
-                <button onClick={() => setShowForm(s => !s)}
-                  className="w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 font-black text-sm hover:bg-emerald-50 transition-all">
-                  {showForm ? "✕ Cancelar" : "+ Registrar movimiento"}
-                </button>
-
-                {/* Formulario */}
-                {showForm && (
-                  <div className="bg-white rounded-2xl border-2 border-emerald-200 p-4 space-y-4">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">Nuevo movimiento</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Tipo</label>
-                        <select value={form.tipoId} onChange={e => setForm(p => ({...p, tipoId: e.target.value}))}
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-                          {TIPOS_MOV.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Fecha</label>
-                        <input type="date" value={form.fecha} onChange={e => setForm(p => ({...p, fecha: e.target.value}))}
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Cabezas</label>
-                        <input type="number" min="1" value={form.cab} onChange={setF("cab")}
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Peso promedio (kg/cab)</label>
-                        <input type="number" min="1" value={form.kgProm} onChange={setF("kgProm")}
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Precio ($/kg vivo)</label>
-                        <input type="number" min="1" value={form.precioKg} onChange={setF("precioKg")}
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500">Total</label>
-                        <div className="mt-1 w-full border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 font-black text-emerald-700">
-                          {form.cab} cab × {form.kgProm} kg × ${fmtN(form.precioKg)} = {fmtMoney(form.cab * form.kgProm * form.precioKg)}
-                        </div>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-bold text-slate-500">Observaciones (opcional)</label>
-                        <input type="text" value={form.obs} onChange={e => setForm(p => ({...p, obs: e.target.value}))} placeholder="Ej: Campo La Loma, feria Liniers…"
-                          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-                      </div>
-                    </div>
-                    <button onClick={agregarMovimiento}
-                      className="w-full py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all active:scale-95">
-                      ✅ Guardar movimiento
-                    </button>
-                  </div>
-                )}
-
-                {/* Lista de movimientos */}
-                {movimientosAnio.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">Movimientos {anoGanadero}</p>
-                    {[...movimientosAnio].sort((a,b) => b.fecha?.localeCompare(a.fecha)).map(m => {
-                      const tipoInfo = TIPOS_MOV.find(t => t.id === m.tipoId) ?? {};
-                      const esVenta = m.tipo === "venta";
-                      return (
-                        <div key={m.id} className={`rounded-2xl border-2 p-3 flex items-center gap-3 ${esVenta ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-                          <span className="text-2xl">{tipoInfo.emoji ?? (esVenta ? "💚" : "🔴")}</span>
-                          <div className="flex-1">
-                            <p className="font-black text-sm text-slate-800">{m.label}</p>
-                            <p className="text-xs text-slate-500">{fmtFecha(m.fecha)} · {m.cab} cab · {fmtN(m.kgProm)} kg/cab · ${fmtN(m.precioKg)}/kg</p>
-                            {m.obs && <p className="text-xs text-slate-400 italic">{m.obs}</p>}
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-slate-400">{fmtN(Math.round(m.kgTotal))} kg</p>
-                            <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtMoney(m.montoTotal)}</p>
-                          </div>
-                          <button onClick={() => { if (window.confirm("¿Eliminar este movimiento?")) setMovimientos(prev => prev.filter(x => x.id !== m.id)); }}
-                            className="text-slate-300 hover:text-red-500 font-black transition-colors ml-1">✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {movimientosAnio.length === 0 && !showForm && (
-                  <div className="text-center py-10 text-slate-400">
-                    <p className="text-3xl mb-2">🔄</p>
-                    <p className="text-sm">Sin movimientos registrados en {anoGanadero}</p>
-                    <p className="text-xs mt-1">Registrá ventas y compras para que impacten en el rendimiento kg/ha</p>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {seccion === "movimientos" && (
+            <VistaMovimientos
+              movimientos={movimientos}
+              setMovimientos={setMovimientos}
+              movimientosAnio={movimientosAnio}
+              kgVendidosTotal={kgVendidosTotal}
+              ingresoVentas={ingresoVentas}
+              costoCompras={costoCompras}
+              kgHaAct={kgHaAct}
+              totalDestete={totalDestete}
+              reciaDatos={reciaDatos}
+              terminacionDatos={terminacionDatos}
+              hectareas={hectareas}
+              anoGanadero={anoGanadero}
+              hoy={hoy}
+              global={global}
+              onToast={onToast}
+            />
+          )}
 
           {seccion === "rendimiento" && (
             <div className="space-y-5 sim-zoom-enter">
