@@ -5681,6 +5681,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   </div>
                 ))}
               </div>
+
+              {/* ── Rendimiento total campo (propio + pastaje) ── */}
+              {ingresoPastaje > 0 && (() => {
+                // kg nov equivalentes que representa el ingreso de pastaje
+                const kgPastajeEq  = precioNovKg > 0 ? Math.round(ingresoPastaje / precioNovKg) : 0;
+                const kgHaPastaje  = hectareas > 0 ? Math.round(kgPastajeEq / hectareas) : 0;
+                const kgHaTotal    = kgHaAct + kgHaPastaje;
+                return (
+                  <div className="bg-white border-2 border-teal-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-teal-400 to-emerald-500" />
+                    <div className="p-5">
+                      <p className="text-xs font-black uppercase tracking-widest text-teal-700 mb-4">🌾 Rendimiento total del campo</p>
+                      <div className="space-y-3">
+                        {/* Hacienda propia */}
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                          <div>
+                            <p className="text-sm font-black text-slate-700">Hacienda propia</p>
+                            <p className="text-xs text-slate-400">{fmt(kgTotalAct)} kg producidos · {fmt(hectareas)} ha</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-black text-xl text-emerald-700">{kgHaAct} kg/ha</p>
+                            <p className="text-xs text-slate-400">rendimiento base</p>
+                          </div>
+                        </div>
+                        {/* Pastaje — equivalente en kg */}
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                          <div>
+                            <p className="text-sm font-black text-slate-700">Pastaje {cabPastaje > 0 ? `(${cabPastaje} cab terceros)` : ""}</p>
+                            <p className="text-xs text-slate-400">{fmtMoney(ingresoPastaje)} ingreso ÷ ${fmtMoney(precioNovKg).replace("$","")} /kg = {fmt(kgPastajeEq)} kg eq.</p>
+                            <p className="text-xs text-slate-400 italic">Equivalencia: cuántos kg de carne propia equivale el ingreso de pastaje</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-black text-xl text-teal-700">+{kgHaPastaje} kg/ha</p>
+                            <p className="text-xs text-slate-400">kg nov equiv.</p>
+                          </div>
+                        </div>
+                        {/* Total */}
+                        <div className="flex items-center justify-between pt-2">
+                          <div>
+                            <p className="text-sm font-black text-slate-800">Rendimiento total campo</p>
+                            <p className="text-xs text-slate-400">Producción propia + equivalente pastaje</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-black text-3xl text-emerald-700">{kgHaTotal} kg/ha</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-700">
+                        <p className="font-black mb-1">¿Por qué separado?</p>
+                        <p>El kg/ha propio ({kgHaAct} kg/ha) es comparable con otros campos. El pastaje no genera kg de carne propia — genera plata que convertimos a kg equivalentes para tener una visión total del aprovechamiento del campo.</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
   
               {/* ── Gráfico ── */}
               <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
