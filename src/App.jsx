@@ -5417,50 +5417,130 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               />
 
               {/* ── Margen bruto por actividad ──────────────────────────── */}
-              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
-                <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
-                <div className="p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Margen bruto por actividad</p>
-                    <span className={`text-sm font-black ${margenTotal >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                      Total: {fmtMoney(margenTotal)}/año
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {[
-                      { label: "🐄 Cría", ingreso: ingresoCria, costo: costoCriaAnual, margen: margenCria, cab: cabCria, color: "emerald", detalle: `${cabDestetados} terneros × ${pesoDestete2}kg × $${precioInvKg}` },
-                      { label: "🐂 Recría", ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec, cab: cabRec, color: "blue", detalle: `${cabRecriaSale} cab × ${pesoRecria}kg × $${precioNovKg}` },
-                      { label: "🥩 Terminación", ingreso: ingresoTerm, costo: costoTermAnual + costoFeedlotAnual, margen: margenTerm, cab: cabTerm, color: "amber", detalle: `${cabTermSale} cab × ${pesoTerm}kg × $${precioNovKg}` },
-                    ].map((act, i) => {
-                      const pos = act.margen >= 0;
-                      return (
-                        <div key={i} className={`rounded-2xl border-2 p-3 ${pos ? `bg-${act.color}-50 border-${act.color}-200` : "bg-red-50 border-red-200"}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-black uppercase tracking-widest text-${act.color}-700`}>{act.label}</span>
-                            <span className="text-xs text-slate-500">{act.cab} cab</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mb-2">{act.detalle}</p>
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between"><span className="text-slate-500">Ingreso:</span><span className="font-mono font-bold text-emerald-700">+{fmtMoney(act.ingreso)}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-500">Costo:</span><span className="font-mono font-bold text-red-600">−{fmtMoney(act.costo)}</span></div>
-                          </div>
-                          <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-600">Margen</span>
-                            <span className={`font-mono font-black text-lg ${pos ? "text-emerald-700" : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
-                          </div>
+              {(() => {
+                const [expandedAct, setExpandedAct] = React.useState(null);
+
+                const acts = [
+                  {
+                    id: "cria", label: "🐄 Cría", cab: cabCria, color: "emerald",
+                    ingreso: ingresoCria, costo: costoCriaAnual, margen: margenCria,
+                    desglose: [
+                      { label: "Ingresos", tipo: "header" },
+                      { label: `Terneros destetados`, valor: `${cabDestetados} cab × ${pesoDestete2} kg × $${fmtMoney(precioInvKg).replace("$","")} /kg`, total: ingresoCria, positivo: true },
+                      { label: "Costos", tipo: "header" },
+                      { label: "Empleados (asignado)", valor: `${Math.round(cabCria/Math.max(1,totalCabAct)*100)}% del total`, total: -costoCriaAnual * (totalEmpleadosMes / totalCostosMes || 1), positivo: false },
+                      { label: "Sanidad y nutrición", valor: `${cabCria} cab × $${(campoStore.sanidadPorCabAnio??40000).toLocaleString("es-AR")}/cab/año`, total: -(cabCria * (campoStore.sanidadPorCabAnio??40000)), positivo: false },
+                      { label: "Estructura proporcional", valor: `${Math.round(cabCria/Math.max(1,totalCabAct)*100)}% del total costos`, total: -costoCriaAnual, positivo: false },
+                    ],
+                  },
+                  {
+                    id: "recria", label: "🐂 Recría", cab: cabRec, color: "blue",
+                    ingreso: ingresoRecria, costo: costoRecAnual, margen: margenRec,
+                    desglose: [
+                      { label: "Ingresos", tipo: "header" },
+                      { label: `Novillos invernada vendidos`, valor: `${cabRecriaSale} cab × ${pesoRecria} kg × $${fmtMoney(precioNovKg).replace("$","")} /kg`, total: ingresoRecria, positivo: true },
+                      { label: "Costos", tipo: "header" },
+                      { label: "Sanidad y nutrición", valor: `${cabRec} cab × $${(campoStore.sanidadPorCabAnio??40000).toLocaleString("es-AR")}/cab/año`, total: -(cabRec * (campoStore.sanidadPorCabAnio??40000)), positivo: false },
+                      { label: "Estructura proporcional", valor: `${Math.round(cabRec/Math.max(1,totalCabAct)*100)}% del total costos`, total: -costoRecAnual, positivo: false },
+                    ],
+                  },
+                  {
+                    id: "term", label: "🥩 Terminación", cab: cabTerm, color: "amber",
+                    ingreso: ingresoTerm, costo: costoTermAnual + costoFeedlotAnual, margen: margenTerm,
+                    desglose: [
+                      { label: "Ingresos", tipo: "header" },
+                      { label: `Novillos gordo vendidos`, valor: `${cabTermSale} cab × ${pesoTerm} kg × $${fmtMoney(precioNovKg).replace("$","")} /kg`, total: ingresoTerm, positivo: true },
+                      { label: "Costos", tipo: "header" },
+                      { label: "Feedlot / hotelería", valor: `${terminacionDatos.novillosFeedlot??0} cab feedlot`, total: -costoFeedlotAnual, positivo: false },
+                      { label: "Sanidad y nutrición", valor: `${cabTerm} cab × $${(campoStore.sanidadPorCabAnio??40000).toLocaleString("es-AR")}/cab/año`, total: -(cabTerm * (campoStore.sanidadPorCabAnio??40000)), positivo: false },
+                      { label: "Estructura proporcional", valor: `${Math.round(cabTerm/Math.max(1,totalCabAct)*100)}% del total costos`, total: -costoTermAnual, positivo: false },
+                    ],
+                  },
+                ];
+
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+                    <div className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Margen bruto por actividad</p>
+                        <span className={`text-sm font-black ${margenTotal >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                          Total: {fmtMoney(margenTotal)}/año
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {acts.map((act) => {
+                          const pos = act.margen >= 0;
+                          const expanded = expandedAct === act.id;
+                          const colors = {
+                            emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", hdr: "bg-emerald-100" },
+                            blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    hdr: "bg-blue-100" },
+                            amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   hdr: "bg-amber-100" },
+                          }[act.color];
+                          return (
+                            <div key={act.id} className={`rounded-2xl border-2 overflow-hidden transition-all ${pos ? `${colors.bg} ${colors.border}` : "bg-red-50 border-red-200"}`}>
+                              {/* Header — siempre visible, clickeable */}
+                              <button className="w-full p-3.5 text-left" onClick={() => setExpandedAct(expanded ? null : act.id)}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-black uppercase tracking-widest ${pos ? colors.text : "text-red-700"}`}>{act.label}</span>
+                                    <span className="text-xs text-slate-400">{act.cab} cab</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`font-mono font-black text-lg ${pos ? colors.text : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
+                                    <span className="text-slate-400 text-sm">{expanded ? "▾" : "▸"}</span>
+                                  </div>
+                                </div>
+                                {!expanded && (
+                                  <div className="flex gap-4 mt-1.5 text-xs text-slate-500">
+                                    <span>Ingreso: <b className="text-emerald-600">+{fmtMoney(act.ingreso)}</b></span>
+                                    <span>Costo: <b className="text-red-500">−{fmtMoney(act.ingreso - act.margen)}</b></span>
+                                  </div>
+                                )}
+                              </button>
+
+                              {/* Desglose expandido */}
+                              {expanded && (
+                                <div className="px-3.5 pb-3.5 space-y-1 border-t border-slate-200">
+                                  {act.desglose.map((item, j) => {
+                                    if (item.tipo === "header") return (
+                                      <p key={j} className={`text-xs font-black uppercase tracking-widest mt-3 mb-1 px-2 py-1 rounded-lg ${colors.hdr} ${colors.text}`}>{item.label}</p>
+                                    );
+                                    const val = item.total ?? 0;
+                                    return (
+                                      <div key={j} className="flex items-start justify-between gap-2 py-1 border-b border-slate-100 last:border-0">
+                                        <div className="flex-1">
+                                          <p className="text-xs font-semibold text-slate-700">{item.label}</p>
+                                          {item.valor && <p className="text-xs text-slate-400">{item.valor}</p>}
+                                        </div>
+                                        <span className={`font-mono font-black text-sm shrink-0 ${item.positivo ? "text-emerald-700" : "text-red-600"}`}>
+                                          {item.positivo ? "+" : "−"}{fmtMoney(Math.abs(val))}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                  {/* Subtotal del desglose */}
+                                  <div className={`mt-2 pt-2 border-t-2 border-slate-300 flex justify-between items-center rounded-xl px-2 py-1.5 ${pos ? colors.bg : "bg-red-50"}`}>
+                                    <span className="text-xs font-black uppercase tracking-wider text-slate-600">Margen neto</span>
+                                    <span className={`font-mono font-black text-xl ${pos ? colors.text : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-3">
+                        <span className="text-xl">💡</span>
+                        <div className="flex-1 text-xs text-indigo-700">
+                          <p className="font-black mb-1">Costo de oportunidad: {fmtMoney(costoOportunidadAnual)}/año</p>
+                          <p>Tu rendimiento real es Margen − Costo de oportunidad = <b>{fmtMoney(margenTotal - costoOportunidadAnual)}</b>. Si es negativo, conviene reducir el rodeo y poner el capital en una alternativa.</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-3">
-                    <span className="text-xl">💡</span>
-                    <div className="flex-1 text-xs text-indigo-700">
-                      <p className="font-black mb-1">Costo de oportunidad: {fmtMoney(costoOportunidadAnual)}/año</p>
-                      <p>Tu rendimiento real es Margen − Costo de oportunidad = <b>{fmtMoney(margenTotal - costoOportunidadAnual)}</b>. Si es negativo, conviene reducir el rodeo y poner el capital en una alternativa.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
