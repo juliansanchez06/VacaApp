@@ -6134,26 +6134,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               onToast={onToast || ((msg) => {})}
             />
           )}
-  
         </div>
-  
-          {/* ══════════════════════════════════════════════════════════════
-              RESULTADO POR EJERCICIO
-          ══════════════════════════════════════════════════════════════ */}
-
-
-          {/* Resultado ejercicio */}
-          </div>
-        </div>
-
-
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL VENTA DE LOTE
-      ══════════════════════════════════════════════════════════════ */}
-
+      </div>
     </div>
+  </div>
   );
-}
+} // end MiCampo
 
 function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
@@ -7973,6 +7959,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       logoImg.onload = () => dibujar(logoImg);
       logoImg.onerror = () => dibujar(null);
       logoImg.src = `data:image/png;base64,${LOGO_B64}`;
+    }; // end generarImagenCobro
 
     const CobRow = ({ c }) => {
       const expand = expandId === c.id;
@@ -8496,6 +8483,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ESTRATEGIA COMERCIAL
+// ═══════════════════════════════════════════════════════════════════════════
 function EstrategiaComercial({ userEmail, onLogout }) {
   const [vistaActual, setVistaActual]   = useState("inicio");
   const [activeTab,   setActiveTab]     = useState("vientres");
