@@ -7673,7 +7673,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               <p className="font-black text-slate-800 text-sm">{t.origen}</p>
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
-                                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">desde {fmtFecha(t.fechaIngreso)}</span>
+                                {/* Fecha de ingreso editable */}
+                                <label className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 cursor-pointer hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all flex items-center gap-1" title="Tocá para editar la fecha de ingreso">
+                                  ✏️ desde {fmtFecha(t.fechaIngreso)}
+                                  <input type="date" value={t.fechaIngreso ?? ""} onChange={e => {
+                                    const nueva = e.target.value;
+                                    if (!nueva) return;
+                                    setTropas(prev => prev.map(x => x.id === t.id ? { ...x, fechaIngreso: nueva } : x));
+                                    toast(`✅ Fecha de ${t.origen} actualizada a ${fmtFecha(nueva)}`, "success");
+                                  }} className="sr-only" />
+                                </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
                                 {t.suplemento?.activo && (
