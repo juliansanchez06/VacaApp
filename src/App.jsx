@@ -199,6 +199,27 @@ const vacaStore = createStore((set, get) => ({
     pesoPromedioKg: 420, diasRestantes: 45,
     costoComidaDia: 4500, costoHoteleriaDia: 800,
     pctMortandadFeedlot: 2, gdpNovilloFaena: 1.1,
+    // Exportación
+    novillosHilton: 0,       // cab Cuota Hilton (pasto, tipificación EUROP)
+    novillosUE481: 0,        // cab UE 481 (feedlot certificado, mín 100 días)
+    // Hilton
+    hiltonPesoEntrada: 380,  // kg vivo al inicio de terminación
+    hiltonDias: 120,         // días de terminación a pasto
+    hiltonGdp: 0.7,          // kg/día GDP a pasto
+    hiltonRendRes: 60,       // % rendimiento a res (58-62%)
+    hiltonPrecioUSDton: 8000,// USD/ton res con hueso (Cuota Hilton premium)
+    hiltonCostoPasto: 0,     // $/cab/mes costo verdeo/pastura (0 = campo propio)
+    hiltonCertSenasa: 5000,  // $/cab certificación SENASA
+    // UE 481
+    ue481PesoEntrada: 340,   // kg vivo al ingreso feedlot
+    ue481Dias: 100,          // días mínimo en feedlot
+    ue481Gdp: 1.1,           // kg/día en feedlot
+    ue481RendRes: 58,        // % rendimiento a res
+    ue481PrecioUSDton: 7000, // USD/ton res con hueso UE
+    ue481RacionKgDia: 8,     // kg MS/cab/día
+    ue481PrecioRacionTon: 80000, // $/ton de ración
+    ue481Hoteleria: 0,       // $/cab/día si es feedlot externo
+    ue481CertSenasa: 8000,   // $/cab certificación UE 481
   },
   simulaciones: [],
   anoGanaderoActual: getAnoGanadero(),
@@ -3940,7 +3961,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 }
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
-function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, ingresoPastaje, kgPastaje, cabPastaje, fmtMoney }) {
+function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, ingresoPastaje, kgPastaje, cabPastaje, margenExport, ingresoExport, costoExport, hiltonMargen, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481Margen, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, fmtMoney }) {
   const [expandedAct, setExpandedAct] = React.useState(null);
 
   const acts = [
@@ -3986,11 +4007,27 @@ function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnu
       ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Cobros de pastaje del período", valor: `${Math.round(kgPastaje)} kg nov × precio novillo`, total: ingresoPastaje, positivo: true },
+        { label: "Cobros de pastaje del período", valor: `${Math.round(kgPastaje)} kg nov devengados`, total: ingresoPastaje, positivo: true },
         { label: "Costos", tipo: "header" },
-        { label: "Sin costo adicional", valor: "El pastaje usa infraestructura ya costeada en estructura", total: 0, positivo: false },
+        { label: "Sin costo adicional", valor: "Usa infraestructura ya costeada en estructura", total: 0, positivo: false },
       ],
     },
+    ...(( cabHilton > 0 || cabUE481 > 0) ? [{
+      id: "export", label: "🌎 Exportación", cab: cabHilton + cabUE481, color: "purple",
+      ingreso: ingresoExport, costo: costoExport, margen: margenExport,
+      desglose: [
+        ...(cabHilton > 0 ? [
+          { label: "Cuota Hilton", tipo: "header" },
+          { label: `${cabHilton} novillos — pasto terminación`, valor: `U$S ${Math.round(hiltonIngresoUSD).toLocaleString("es-AR")} × $${(dolarExp??1395).toLocaleString("es-AR")}/USD (s/ret 9%)`, total: hiltonIngresoPesos, positivo: true },
+          { label: "Costos Hilton", valor: "Pasto + cert. SENASA", total: -hiltonCostoTotal, positivo: false },
+        ] : []),
+        ...(cabUE481 > 0 ? [
+          { label: "Cuota 481 UE", tipo: "header" },
+          { label: `${cabUE481} novillos — feedlot certificado`, valor: `U$S ${Math.round(ue481IngresoUSD).toLocaleString("es-AR")} × $${(dolarExp??1395).toLocaleString("es-AR")}/USD (s/ret 9%)`, total: ue481IngresoPesos, positivo: true },
+          { label: "Ración + hotelería + cert. UE", valor: "100+ días feedlot", total: -ue481CostoTotal, positivo: false },
+        ] : []),
+      ],
+    }] : []),
   ];
 
   const colorMap = {
@@ -3998,6 +4035,7 @@ function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnu
     blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    hdr: "bg-blue-100" },
     amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   hdr: "bg-amber-100" },
     teal:    { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-700",    hdr: "bg-teal-100" },
+    purple:  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  hdr: "bg-purple-100" },
   };
 
   return (
@@ -4446,7 +4484,40 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const margenRec  = ingresoRecria - costoRecAnual - costoReposicionTotal;
   const margenTerm = ingresoTerm - costoTermAnual - costoFeedlotAnual;
-  const margenTotal = margenCria + margenRec + margenTerm + ingresoPastaje;
+
+  // ── Exportación — Cuota Hilton y UE 481 ──────────────────────────────────
+  const dolarExp    = global.dolar ?? 1395; // dólar oficial para liquidación exportaciones
+  const retencion   = 0.09; // 9% retenciones carne vacuna Argentina
+
+  // Hilton
+  const cabHilton   = terminacionDatos.novillosHilton ?? 0;
+  const hiltonPesoFinal = (terminacionDatos.hiltonPesoEntrada ?? 380) + (terminacionDatos.hiltonDias ?? 120) * (terminacionDatos.hiltonGdp ?? 0.7);
+  const hiltonKgRes     = hiltonPesoFinal * (terminacionDatos.hiltonRendRes ?? 60) / 100;
+  const hiltonPrecioUSD = (terminacionDatos.hiltonPrecioUSDton ?? 8000) / 1000; // USD/kg res
+  const hiltonIngresoUSD = cabHilton * hiltonKgRes * hiltonPrecioUSD * (1 - retencion);
+  const hiltonIngresoPesos = hiltonIngresoUSD * dolarExp;
+  const hiltonCostoPasto   = cabHilton * (terminacionDatos.hiltonCostoPasto ?? 0) * ((terminacionDatos.hiltonDias ?? 120) / 30);
+  const hiltonCostoCert    = cabHilton * (terminacionDatos.hiltonCertSenasa ?? 5000);
+  const hiltonCostoTotal   = hiltonCostoPasto + hiltonCostoCert;
+  const hiltonMargen       = hiltonIngresoPesos - hiltonCostoTotal;
+
+  // UE 481
+  const cabUE481    = terminacionDatos.novillosUE481 ?? 0;
+  const ue481PesoFinal = (terminacionDatos.ue481PesoEntrada ?? 340) + (terminacionDatos.ue481Dias ?? 100) * (terminacionDatos.ue481Gdp ?? 1.1);
+  const ue481KgRes     = ue481PesoFinal * (terminacionDatos.ue481RendRes ?? 58) / 100;
+  const ue481PrecioUSD = (terminacionDatos.ue481PrecioUSDton ?? 7000) / 1000;
+  const ue481IngresoUSD  = cabUE481 * ue481KgRes * ue481PrecioUSD * (1 - retencion);
+  const ue481IngresoPesos = ue481IngresoUSD * dolarExp;
+  const ue481CostoRacion  = cabUE481 * (terminacionDatos.ue481RacionKgDia ?? 8) * (terminacionDatos.ue481Dias ?? 100) * ((terminacionDatos.ue481PrecioRacionTon ?? 80000) / 1000);
+  const ue481CostoHotel   = cabUE481 * (terminacionDatos.ue481Hoteleria ?? 0) * (terminacionDatos.ue481Dias ?? 100);
+  const ue481CostoCert    = cabUE481 * (terminacionDatos.ue481CertSenasa ?? 8000);
+  const ue481CostoTotal   = ue481CostoRacion + ue481CostoHotel + ue481CostoCert;
+  const ue481Margen       = ue481IngresoPesos - ue481CostoTotal;
+
+  const ingresoExport  = hiltonIngresoPesos + ue481IngresoPesos;
+  const costoExport    = hiltonCostoTotal + ue481CostoTotal;
+  const margenExport   = hiltonMargen + ue481Margen;
+  const margenTotal = margenCria + margenRec + margenTerm + ingresoPastaje + margenExport;
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
@@ -5561,6 +5632,78 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   )}
                 </div>
               </div>
+
+              {/* ── EXPORTACIÓN ─────────────────────────────────────────── */}
+              <div className="bg-white border-2 border-purple-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-purple-400 to-indigo-500"/>
+                <div className="p-5 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌎</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-purple-700">Exportación</p>
+                      <p className="text-xs text-slate-400">Dólar oficial: ${fmtMoney(dolarExp).replace("$","")} · Retenciones: 9%</p>
+                    </div>
+                  </div>
+
+                  {/* Cuota Hilton */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-black uppercase tracking-widest text-purple-700">🥩 Cuota Hilton — terminación a pasto</p>
+                      {cabHilton > 0 && <span className={`text-xs font-black px-2 py-0.5 rounded-full ${hiltonMargen >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{fmtMoney(hiltonMargen)}</span>}
+                    </div>
+                    <p className="text-xs text-purple-600">Cortes premium enfriados. Tipificación EUROP. Mín 221 kg res. Habilitación SENASA exportación.</p>
+                    <EditField label="Cabezas Hilton" value={terminacionDatos.novillosHilton??0} onChange={v=>setTermActiva(p=>({...p,novillosHilton:Math.max(0,v)}))} step={1} hint="Novillos en terminación a pasto para Cuota Hilton" />
+                    {(terminacionDatos.novillosHilton??0) > 0 && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <EditField label="Peso entrada (kg)" value={terminacionDatos.hiltonPesoEntrada??380} onChange={v=>setTermActiva(p=>({...p,hiltonPesoEntrada:v}))} step={5} suffix="kg" />
+                        <EditField label="Días terminación" value={terminacionDatos.hiltonDias??120} onChange={v=>setTermActiva(p=>({...p,hiltonDias:v}))} step={10} suffix="d" hint="Mín 90-120 días" />
+                        <EditField label="GDP a pasto (kg/día)" value={terminacionDatos.hiltonGdp??0.7} onChange={v=>setTermActiva(p=>({...p,hiltonGdp:v}))} step={0.05} suffix="kg/d" />
+                        <EditField label="Rendimiento res (%)" value={terminacionDatos.hiltonRendRes??60} onChange={v=>setTermActiva(p=>({...p,hiltonRendRes:v}))} step={1} suffix="%" hint="58-62% típico" />
+                        <EditField label="Precio USD/ton res" value={terminacionDatos.hiltonPrecioUSDton??8000} onChange={v=>setTermActiva(p=>({...p,hiltonPrecioUSDton:v}))} step={100} prefix="U$S" suffix="/ton" hint="Con hueso. Negociado con frigorífico." />
+                        <EditField label="Costo pasto/mes/cab" value={terminacionDatos.hiltonCostoPasto??0} onChange={v=>setTermActiva(p=>({...p,hiltonCostoPasto:v}))} step={1000} prefix="$" hint="0 si es campo propio" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center bg-white rounded-xl p-3">
+                        <div><p className="text-xs text-purple-500">Peso final</p><p className="font-black text-purple-800">{Math.round(hiltonPesoFinal)} kg</p></div>
+                        <div><p className="text-xs text-purple-500">Kg res/cab</p><p className="font-black text-purple-800">{Math.round(hiltonKgRes)} kg</p></div>
+                        <div><p className="text-xs text-purple-500">Ingreso neto (s/ret)</p><p className="font-black text-emerald-700">{fmtMoney(hiltonIngresoPesos)}</p></div>
+                        <div><p className="text-xs text-purple-500">USD/cab</p><p className="font-black text-blue-700">U$S {Math.round(hiltonIngresoUSD / Math.max(1,cabHilton)).toLocaleString("es-AR")}</p></div>
+                        <div><p className="text-xs text-purple-500">USD total</p><p className="font-black text-blue-800">U$S {Math.round(hiltonIngresoUSD).toLocaleString("es-AR")}</p></div>
+                        <div><p className="text-xs text-purple-500">Margen</p><p className={`font-black ${hiltonMargen >= 0 ? "text-emerald-700" : "text-red-600"}`}>{fmtMoney(hiltonMargen)}</p></div>
+                      </div>
+                    </>)}
+                  </div>
+
+                  {/* UE 481 */}
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-black uppercase tracking-widest text-indigo-700">🏭 Cuota 481 UE — feedlot certificado</p>
+                      {cabUE481 > 0 && <span className={`text-xs font-black px-2 py-0.5 rounded-full ${ue481Margen >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{fmtMoney(ue481Margen)}</span>}
+                    </div>
+                    <p className="text-xs text-indigo-600">Feedlot certificado UE. Mín 100 días. Mín 320 kg al ingreso. Sin hormonas. Certificación específica.</p>
+                    <EditField label="Cabezas UE 481" value={terminacionDatos.novillosUE481??0} onChange={v=>setTermActiva(p=>({...p,novillosUE481:Math.max(0,v)}))} step={1} hint="Novillos en feedlot certificado UE" />
+                    {(terminacionDatos.novillosUE481??0) > 0 && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <EditField label="Peso entrada (kg)" value={terminacionDatos.ue481PesoEntrada??340} onChange={v=>setTermActiva(p=>({...p,ue481PesoEntrada:v}))} step={5} suffix="kg" hint="Mín 320 kg" />
+                        <EditField label="Días feedlot" value={terminacionDatos.ue481Dias??100} onChange={v=>setTermActiva(p=>({...p,ue481Dias:v}))} step={5} suffix="d" hint="Mín 100 días UE" />
+                        <EditField label="GDP feedlot (kg/día)" value={terminacionDatos.ue481Gdp??1.1} onChange={v=>setTermActiva(p=>({...p,ue481Gdp:v}))} step={0.05} suffix="kg/d" />
+                        <EditField label="Rendimiento res (%)" value={terminacionDatos.ue481RendRes??58} onChange={v=>setTermActiva(p=>({...p,ue481RendRes:v}))} step={1} suffix="%" />
+                        <EditField label="Precio USD/ton res UE" value={terminacionDatos.ue481PrecioUSDton??7000} onChange={v=>setTermActiva(p=>({...p,ue481PrecioUSDton:v}))} step={100} prefix="U$S" suffix="/ton" />
+                        <EditField label="Ración (kg MS/cab/día)" value={terminacionDatos.ue481RacionKgDia??8} onChange={v=>setTermActiva(p=>({...p,ue481RacionKgDia:v}))} step={0.5} suffix="kg/d" />
+                        <EditField label="Precio ración ($/ton)" value={terminacionDatos.ue481PrecioRacionTon??80000} onChange={v=>setTermActiva(p=>({...p,ue481PrecioRacionTon:v}))} step={5000} prefix="$" suffix="/ton" />
+                        <EditField label="Hotelería ($/cab/día)" value={terminacionDatos.ue481Hoteleria??0} onChange={v=>setTermActiva(p=>({...p,ue481Hoteleria:v}))} step={100} prefix="$" hint="0 si feedlot propio" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center bg-white rounded-xl p-3">
+                        <div><p className="text-xs text-indigo-500">Peso final</p><p className="font-black text-indigo-800">{Math.round(ue481PesoFinal)} kg</p></div>
+                        <div><p className="text-xs text-indigo-500">Kg res/cab</p><p className="font-black text-indigo-800">{Math.round(ue481KgRes)} kg</p></div>
+                        <div><p className="text-xs text-indigo-500">Ingreso neto (s/ret)</p><p className="font-black text-emerald-700">{fmtMoney(ue481IngresoPesos)}</p></div>
+                        <div><p className="text-xs text-indigo-500">USD/cab</p><p className="font-black text-blue-700">U$S {Math.round(ue481IngresoUSD / Math.max(1,cabUE481)).toLocaleString("es-AR")}</p></div>
+                        <div><p className="text-xs text-indigo-500">Costo ración total</p><p className="font-black text-red-600">{fmtMoney(ue481CostoRacion)}</p></div>
+                        <div><p className="text-xs text-indigo-500">Margen</p><p className={`font-black ${ue481Margen >= 0 ? "text-emerald-700" : "text-red-600"}`}>{fmtMoney(ue481Margen)}</p></div>
+                      </div>
+                    </>)}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
   
@@ -5619,6 +5762,20 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ingresoPastaje={ingresoPastaje}
                 kgPastaje={kgPastaje}
                 cabPastaje={cabPastaje}
+                margenExport={margenExport}
+                ingresoExport={ingresoExport}
+                costoExport={costoExport}
+                hiltonMargen={hiltonMargen}
+                hiltonIngresoPesos={hiltonIngresoPesos}
+                hiltonCostoTotal={hiltonCostoTotal}
+                hiltonIngresoUSD={hiltonIngresoUSD}
+                cabHilton={cabHilton}
+                ue481Margen={ue481Margen}
+                ue481IngresoPesos={ue481IngresoPesos}
+                ue481CostoTotal={ue481CostoTotal}
+                ue481IngresoUSD={ue481IngresoUSD}
+                cabUE481={cabUE481}
+                dolarExp={dolarExp}
                 fmtMoney={fmtMoney}
               />
 
@@ -6337,7 +6494,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     onChange={v => { vacaStore.getState().setGlobal({ precioInvernada: v }); }}
                     step={50} prefix="$" suffix="/kg"
                     hint="Usado en Cría (terneros al destete). Precio ternero destete / invernada liviana." />
-                  <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Se usa para mostrar valores en dólares" />
+                  <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Dólar oficial — se usa para exportación de carne (liquidación al tipo de cambio oficial + 9% retenciones)" />
                   <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ejemplo de conversiones</p>
