@@ -181,7 +181,7 @@ const vacaStore = createStore((set, get) => ({
     vacas: 54, vaquillonas: 21, ternerosNoDestetados: 0, toros: 2, vacias: 8,
     pctPreniez: 85, pctDestete: 75, pctMortandadCria: 2,
     pctMachos: 50, pctReposicion: 70,
-    paricionMes: 9, paricionAnio: new Date().getFullYear(), mesesDestete: 6,
+    paricionMes: 9, paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1, mesesDestete: 6,
     gdpTernero: 1.0,
   },
   campoRecria: {
