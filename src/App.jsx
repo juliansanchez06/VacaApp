@@ -4586,57 +4586,39 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Terminación suma costo de comida y hotelería específico
   const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
 
-  // ── MARGEN BRUTO — solo costos directos por actividad ────────────────────
-  // Cría: costo directo = sanidad
+  // ── MARGEN BRUTO — costos directos por actividad ─────────────────────────
   const sanidadCria     = cabCria * (campoStore.sanidadPorCabAnio ?? 40000);
-  const margenBrutoCria = ingresoCria - sanidadCria;
-
-  // Recría: costo directo = reposición + sanidad
-  const sanidadRec      = cabRec * (campoStore.sanidadPorCabAnio ?? 40000);
-  const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
-
-  // Terminación: costo directo = feedlot + sanidad
+  const sanidadRec      = cabRec  * (campoStore.sanidadPorCabAnio ?? 40000);
   const sanidadTerm     = cabTerm * (campoStore.sanidadPorCabAnio ?? 40000);
+  const margenBrutoCria = ingresoCria - sanidadCria;
+  const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
   const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
-
-  // Pastaje: costo directo = $0
   const margenBrutoPastaje = ingresoPastaje;
+  const margenBrutoExport  = margenExport;
+  const margenBrutoTotal   = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
 
-  // Exportación: costos directos (ración, hotelería, cert)
-  const margenBrutoExport = margenExport; // ya tiene solo costos directos
+  // ── CASCADA ECONÓMICA ──────────────────────────────────────────────────────
+  const costoEstructuraAnual = costoTotalAnual;
+  const amortMejoras   = campoStore.amorMejoras ?? 0;
+  const amortHacienda  = campoStore.amorHaciendaReproductora ?? 0;
+  const amortMaquinaria= campoStore.amorMaquinaria ?? 0;
+  const amortTotal     = amortMejoras + amortHacienda + amortMaquinaria;
+  const ebitda         = margenBrutoTotal - costoEstructuraAnual;
+  const ebit           = ebitda - amortTotal;
 
-  // ── MARGEN BRUTO TOTAL ────────────────────────────────────────────────────
-  const margenBrutoTotal = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
+  const ingresosTotales    = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
+  const pctIIBB            = campoStore.pctIIBB ?? 3;
+  const pctGanancias       = campoStore.pctGanancias ?? 35;
+  const iibbEstimado       = ingresosTotales * (pctIIBB / 100);
+  const inmobiliario       = campoStore.inmobiliarioAnual ?? 0;
+  const tasas              = campoStore.tasasAnuales ?? 0;
+  const gananciasBase      = Math.max(0, ebit - iibbEstimado - inmobiliario - tasas);
+  const gananciasEstimado  = gananciasBase * (pctGanancias / 100);
+  const impuestosTotal     = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
+  const margenNeto         = ebit - impuestosTotal;
+  const margenNetoReal     = margenNeto - costoOportunidadAnual;
 
-  // ── COSTOS DE ESTRUCTURA (bajan del margen bruto) ─────────────────────────
-  const costoEstructuraAnual = costoTotalAnual; // empleados + maquinaria + rolado + viajes
-  // (sanidad ya fue descontada arriba como costo directo, no la volvemos a restar)
-
-  // ── AMORTIZACIONES ────────────────────────────────────────────────────────
-  const amortTotal = (campoStore.amorMejoras ?? 0) + (campoStore.amorHaciendaReproductora ?? 0) + (campoStore.amorMaquinaria ?? 0);
-
-  // ── EBITDA = Margen Bruto − Estructura ───────────────────────────────────
-  const ebitda = margenBrutoTotal - costoEstructuraAnual;
-
-  // ── EBIT = EBITDA − Amortizaciones ───────────────────────────────────────
-  const ebit = ebitda - amortTotal;
-
-  // ── IMPUESTOS estimados ───────────────────────────────────────────────────
-  const ingresosTotales   = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
-  const iibbEstimado      = ingresosTotales * ((campoStore.pctIIBB ?? 3) / 100);
-  const inmobiliario      = campoStore.inmobiliarioAnual ?? 0;
-  const tasas             = campoStore.tasasAnuales ?? 0;
-  const gananciasBase     = Math.max(0, ebit - iibbEstimado - inmobiliario - tasas);
-  const gananciasEstimado = gananciasBase * ((campoStore.pctGanancias ?? 35) / 100);
-  const impuestosTotal    = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
-
-  // ── MARGEN NETO = EBIT − Impuestos ───────────────────────────────────────
-  const margenNeto = ebit - impuestosTotal;
-
-  // ── MARGEN NETO REAL = Margen Neto − Costo de Oportunidad ────────────────
-  const margenNetoReal = margenNeto - costoOportunidadAnual;
-
-  // Para compatibilidad con código existente (flujo caja, etc.)
+  // Aliases para compatibilidad
   const margenTotal = margenBrutoTotal;
   const margenCria  = margenBrutoCria;
   const margenRec   = margenBrutoRec;
