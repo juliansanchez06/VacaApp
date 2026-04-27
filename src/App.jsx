@@ -4357,11 +4357,11 @@ function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVend
 
 // top-level helper — avoids JSX parser conflict inside MiCampo
 function calcLote(offset, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES) {
-  var mes     = (paricionMes + offset) % 12;
-  var anio    = (paricionMes + offset) < 12 ? paricionAnio : paricionAnio + 1;
-  var mCierre = calcMesesHastaCierre(mes, anio);
-  var cabLote = Math.round(ternNacidosVivos / 3);
-  var acumMensual = Array.from({ length: Math.min(mCierre, 12) }, function(_, i) {
+  const mes     = (paricionMes + offset) % 12;
+  const anio    = (paricionMes + offset) < 12 ? paricionAnio : paricionAnio + 1;
+  const mCierre = calcMesesHastaCierre(mes, anio);
+  const cabLote = Math.round(ternNacidosVivos / 3);
+  const acumMensual = Array.from({ length: Math.min(mCierre, 12) }, function(_, i) {
     return {
       mes: MESES_ES[(mes + i) % 12],
       diasAcum: (i + 1) * 30,
@@ -4370,16 +4370,16 @@ function calcLote(offset, paricionMes, paricionAnio, ternNacidosVivos, calcMeses
       esMesDestete: (i + 1) === meseDestete,
     };
   });
-  var kgAlDestete = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
-  var kgAlCierre  = mCierre < meseDestete ? kgAlDestete : Math.round(pesoNacimiento + mCierre * 30 * gdpTernero);
-  return { mes: mes, anio: anio, mCierre: mCierre, cabLote: cabLote, acumMensual: acumMensual, kgAlDestete: kgAlDestete, kgAlCierre: kgAlCierre };
+  const kgAlDestete = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
+  const kgAlCierre  = mCierre < meseDestete ? kgAlDestete : Math.round(pesoNacimiento + mCierre * 30 * gdpTernero);
+  return { mes, anio, mCierre, cabLote, acumMensual, kgAlDestete, kgAlCierre };
 }
 
 function calcTablaAcum(mesesHastaCierre, paricionMes, pesoNacimiento, gdpTernero, gdpNovilloInv, gdpNovilloFaena, meseDestete, MESES_ES) {
-  var len = Math.min(mesesHastaCierre, 12);
-  var result = [];
-  for (var i = 0; i !== len; i++) {
-    var m = i + 1;
+  const len = Math.min(mesesHastaCierre, 12);
+  const result = [];
+  for (let i = 0; i !== len; i++) {
+    const m = i + 1;
     result.push({
       mes: MESES_ES[(paricionMes + i) % 12],
       kgTernero:    Math.round(pesoNacimiento + m * 30 * gdpTernero),
@@ -4392,15 +4392,15 @@ function calcTablaAcum(mesesHastaCierre, paricionMes, pesoNacimiento, gdpTernero
 }
 
 function calcHistorialKgHa(historialAnos, pVacaDescarte, pTerneroInvernada, pNovilloInvernada, pNovilloFaena, hectareas, anoGanadero, kgHaAct, kgTotalAct, kgHaProx, kgTotalProx) {
-  var entries = Object.entries(historialAnos || {}).sort();
-  var result = entries.map(function(entry) {
-    var ano = entry[0]; var snap = entry[1];
-    var cr = snap.cria        || {};
-    var re = snap.recria      || {};
-    var te = snap.terminacion || {};
-    var madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
-    var descCr   = cr.vacias || Math.max(0, madresCr - Math.round(madresCr * 0.85));
-    var kg = descCr * pVacaDescarte + (re.ternerosLiquidaMachos || 0) * pTerneroInvernada + (re.novillos || 0) * pNovilloInvernada + ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
+  const entries = Object.entries(historialAnos || {}).sort();
+  const result = entries.map(function(entry) {
+    const ano = entry[0]; const snap = entry[1];
+    const cr = snap.cria        || {};
+    const re = snap.recria      || {};
+    const te = snap.terminacion || {};
+    const madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
+    const descCr   = cr.vacias || Math.max(0, madresCr - Math.round(madresCr * 0.85));
+    const kg = descCr * pVacaDescarte + (re.ternerosLiquidaMachos || 0) * pTerneroInvernada + (re.novillos || 0) * pNovilloInvernada + ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
     return { ano: ano.slice(0, 4), tipo: "real", kgHa: hectareas ? Math.round(kg / hectareas) : 0, kg: kg };
   });
   result.push({ ano: anoGanadero.slice(0, 4), tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct  });
@@ -4806,12 +4806,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Parición escalonada — calculado con función top-level calcLote
   const lotesPacion = [calcLote(0, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(1, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(2, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES)];
 
-  // Kg totales de terneros al cierre (suma de 3 lotes)
-  var kgTernerosAlCierre = 0;
-  var kgTernerosAlDestete = 0;
-  for (var _li = 0; _li !== lotesPacion.length; _li++) {
-    kgTernerosAlCierre  += lotesPacion[_li].cabLote * lotesPacion[_li].kgAlCierre;
-    kgTernerosAlDestete += lotesPacion[_li].cabLote * lotesPacion[_li].kgAlDestete;
+  // Kg totales de terneros
+  let kgTernerosAlCierre  = 0;
+  let kgTernerosAlDestete = 0;
+  for (let li = 0; li !== lotesPacion.length; li++) {
+    kgTernerosAlCierre  += lotesPacion[li].cabLote * lotesPacion[li].kgAlCierre;
+    kgTernerosAlDestete += lotesPacion[li].cabLote * lotesPacion[li].kgAlDestete;
   }
 
   // Mes actual para resaltar en la tabla
