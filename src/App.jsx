@@ -237,6 +237,15 @@ const vacaStore = createStore((set, get) => ({
     gdpNovilloInv: 0.5,
     gdpNovilloFaena: 1.1,
     gdpVaquillonaDesc: 0.5,
+    // Impuestos
+    pctIIBB: 3.0,           // % sobre ventas (ingresos brutos provincial)
+    pctGanancias: 35,       // % sobre utilidad neta (estimado)
+    inmobiliarioAnual: 0,   // $/año impuesto inmobiliario rural
+    tasasAnuales: 0,        // $/año tasas viales, sanitarias, etc.
+    // Amortizaciones
+    amorMejoras: 0,         // $/año — alambrados, aguadas, corrales (vida útil 20 años)
+    amorHaciendaReproductora: 0, // $/año — toros (vida útil 5 años)
+    amorMaquinaria: 0,      // $/año — tractores, implementos (vida útil 10 años)
     empleados: [
       { rol: "Encargado", cantidad: 1, sueldo: 1500000, aguinaldo: true, cargasSociales: 45, premio: 200000 },
       { rol: "Peón",      cantidad: 2, sueldo:  900000, aguinaldo: true, cargasSociales: 45, premio:  80000 },
@@ -3963,157 +3972,206 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 }
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
-function MargenActividad({ ingresoCria, ingresoRecria, ingresoTerm, costoCriaAnual, costoRecAnual, costoTermAnual, costoFeedlotAnual, margenCria, margenRec, margenTerm, margenTotal, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, costoOportunidadAnual, sanidadPorCabAnio, totalCabAct, totalCostosMes, totalEmpleadosMes, terminacionDatos, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, ingresoPastaje, kgPastaje, cabPastaje, margenExport, ingresoExport, costoExport, hiltonMargen, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481Margen, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, fmtMoney }) {
-  const [expandedAct, setExpandedAct] = React.useState(null);
-
-  const acts = [
-    {
-      id: "cria", label: "🐄 Cría", cab: cabCria, color: "emerald",
-      ingreso: ingresoCria, costo: costoCriaAnual, margen: margenCria,
+function makeActs(p) {
+  const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, terminacionDatos, fmt, fmtMoney } = p;
+  const loc = (n) => (n||0).toLocaleString("es-AR");
+  const feedlotCosto = (terminacionDatos?.novillosFeedlot||0)*((terminacionDatos?.costoComidaDia||0)+(terminacionDatos?.costoHoteleriaDia||0))*365;
+  const base = [
+    { id: "cria", label: "\uD83D\uDC04 Cría", cab: cabCria, color: "emerald", ingreso: ingresoCria, costo: sanidadCria, margen: margenCria,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Terneros destetados", valor: `${cabDestetados} cab × ${pesoDestete2} kg × $${precioInvKg.toLocaleString("es-AR")}/kg`, total: ingresoCria, positivo: true },
-        { label: "Costos", tipo: "header" },
-        { label: "Sanidad y nutrición", valor: `${cabCria} cab × $${(sanidadPorCabAnio??40000).toLocaleString("es-AR")}/año`, total: -(cabCria * (sanidadPorCabAnio??40000)), positivo: false },
-        { label: "Estructura proporcional", valor: `${Math.round(cabCria/Math.max(1,totalCabAct)*100)}% de los costos totales`, total: -costoCriaAnual, positivo: false },
+        { label: "Terneros destetados", valor: cabDestetados+" cab x "+pesoDestete2+" kg x $"+loc(precioInvKg)+"/kg", total: ingresoCria, positivo: true },
+        { label: "Costos directos", tipo: "header" },
+        { label: "Sanidad y nutricion", valor: cabCria+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadCria, positivo: false },
       ],
     },
-    {
-      id: "recria", label: "🐂 Recría", cab: cabRec, color: "blue",
-      ingreso: ingresoRecria, costo: costoRecAnual + costoReposicionTotal, margen: margenRec,
+    { id: "recria", label: "\uD83D\uDC02 Recría", cab: cabRec, color: "blue", ingreso: ingresoRecria, costo: costoReposicionTotal + sanidadRec, margen: margenRec,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Novillos invernada vendidos", valor: `${cabRecriaSale} cab × ${pesoRecria} kg × $${precioNovKg.toLocaleString("es-AR")}/kg`, total: ingresoRecria, positivo: true },
-        { label: "Costos de reposición", tipo: "header" },
-        ...(cabCompradasRecria > 0 ? [{ label: "Compra terneros externos", valor: `${cabCompradasRecria} cab × ${pesoEntradaRecria} kg × $${precioCompraRecria.toLocaleString("es-AR")}/kg`, total: -costoReposicionExterna, positivo: false }] : []),
-        ...(cabPropiaRecria > 0 ? [{ label: "Terneros propios (costo oportunidad)", valor: `${cabPropiaRecria} cab × ${pesoDestete2} kg × $${precioInvKg.toLocaleString("es-AR")}/kg`, total: -costoReposicionPropia, positivo: false }] : []),
-        { label: "Costos de estructura", tipo: "header" },
-        { label: "Sanidad y nutrición", valor: `${cabRec} cab × $${(sanidadPorCabAnio??40000).toLocaleString("es-AR")}/año`, total: -(cabRec * (sanidadPorCabAnio??40000)), positivo: false },
-        { label: "Estructura proporcional", valor: `${Math.round(cabRec/Math.max(1,totalCabAct)*100)}% de los costos totales`, total: -costoRecAnual, positivo: false },
+        { label: "Novillos invernada vendidos", valor: cabRecriaSale+" cab x "+pesoRecria+" kg x $"+loc(precioNovKg)+"/kg", total: ingresoRecria, positivo: true },
+        { label: "Costos directos", tipo: "header" },
+        ...(cabCompradasRecria ? [{ label: "Compra terneros externos", valor: cabCompradasRecria+" cab x "+pesoEntradaRecria+" kg x $"+loc(precioCompraRecria)+"/kg", total: -costoReposicionExterna, positivo: false }] : []),
+        ...(cabPropiaRecria ? [{ label: "Terneros propios (costo oportunidad)", valor: cabPropiaRecria+" cab x "+pesoDestete2+" kg x $"+loc(precioInvKg)+"/kg", total: -costoReposicionPropia, positivo: false }] : []),
+        { label: "Sanidad y nutricion", valor: cabRec+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadRec, positivo: false },
       ],
     },
-    {
-      id: "term", label: "🥩 Terminación", cab: cabTerm, color: "amber",
-      ingreso: ingresoTerm, costo: costoTermAnual + costoFeedlotAnual, margen: margenTerm,
+    { id: "term", label: "\uD83E\uDD69 Terminación", cab: cabTerm, color: "amber", ingreso: ingresoTerm, costo: feedlotCosto + sanidadTerm, margen: margenTerm,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Novillos gordo", valor: `${cabTermSale} cab × ${pesoTerm} kg × $${precioNovKg.toLocaleString("es-AR")}/kg`, total: ingresoTerm, positivo: true },
-        { label: "Costos", tipo: "header" },
-        { label: "Feedlot / hotelería", valor: `${terminacionDatos?.novillosFeedlot??0} cab feedlot`, total: -costoFeedlotAnual, positivo: false },
-        { label: "Sanidad y nutrición", valor: `${cabTerm} cab × $${(sanidadPorCabAnio??40000).toLocaleString("es-AR")}/año`, total: -(cabTerm * (sanidadPorCabAnio??40000)), positivo: false },
-        { label: "Estructura proporcional", valor: `${Math.round(cabTerm/Math.max(1,totalCabAct)*100)}% de los costos totales`, total: -costoTermAnual, positivo: false },
+        { label: "Novillos gordo", valor: cabTermSale+" cab x "+pesoTerm+" kg x $"+loc(precioNovKg)+"/kg", total: ingresoTerm, positivo: true },
+        { label: "Costos directos", tipo: "header" },
+        { label: "Feedlot / hoteleria", valor: (terminacionDatos?.novillosFeedlot||0)+" cab x 365 dias", total: -feedlotCosto, positivo: false },
+        { label: "Sanidad y nutricion", valor: cabTerm+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadTerm, positivo: false },
       ],
     },
-    {
-      id: "pastaje", label: "🤝 Pastaje", cab: cabPastaje, color: "teal",
-      ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
+    { id: "pastaje", label: "\uD83E\uDD1D Pastaje", cab: cabPastaje, color: "teal", ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Cobros de pastaje del período", valor: `${Math.round(kgPastaje)} kg nov devengados`, total: ingresoPastaje, positivo: true },
-        { label: "Costos", tipo: "header" },
-        { label: "Sin costo adicional", valor: "Usa infraestructura ya costeada en estructura", total: 0, positivo: false },
+        { label: "Cobros periodo", valor: fmt(Math.round(kgPastaje))+" kg nov devengados", total: ingresoPastaje, positivo: true },
+        { label: "Costos directos", tipo: "header" },
+        { label: "Sin costo directo adicional", valor: "Usa infraestructura de estructura", total: 0, positivo: false },
       ],
     },
-    ...(( cabHilton > 0 || cabUE481 > 0) ? [{
-      id: "export", label: "🌎 Exportación", cab: cabHilton + cabUE481, color: "purple",
-      ingreso: ingresoExport, costo: costoExport, margen: margenExport,
-      desglose: [
-        ...(cabHilton > 0 ? [
-          { label: "Cuota Hilton", tipo: "header" },
-          { label: `${cabHilton} novillos — pasto terminación`, valor: `U$S ${Math.round(hiltonIngresoUSD).toLocaleString("es-AR")} × $${(dolarExp??1395).toLocaleString("es-AR")}/USD (s/ret 9%)`, total: hiltonIngresoPesos, positivo: true },
-          { label: "Costos Hilton", valor: "Pasto + cert. SENASA", total: -hiltonCostoTotal, positivo: false },
-        ] : []),
-        ...(cabUE481 > 0 ? [
-          { label: "Cuota 481 UE", tipo: "header" },
-          { label: `${cabUE481} novillos — feedlot certificado`, valor: `U$S ${Math.round(ue481IngresoUSD).toLocaleString("es-AR")} × $${(dolarExp??1395).toLocaleString("es-AR")}/USD (s/ret 9%)`, total: ue481IngresoPesos, positivo: true },
-          { label: "Ración + hotelería + cert. UE", valor: "100+ días feedlot", total: -ue481CostoTotal, positivo: false },
-        ] : []),
-      ],
-    }] : []),
   ];
+  if (cabHilton || cabUE481) {
+    const des = [];
+    if (cabHilton) {
+      des.push({ label: "Cuota Hilton", tipo: "header" });
+      des.push({ label: cabHilton+" novillos pasto", valor: "U$S "+fmt(Math.round(hiltonIngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret 9%)", total: hiltonIngresoPesos, positivo: true });
+      des.push({ label: "Costos Hilton", valor: "Pasto + cert. SENASA", total: -hiltonCostoTotal, positivo: false });
+    }
+    if (cabUE481) {
+      des.push({ label: "Cuota 481 UE", tipo: "header" });
+      des.push({ label: cabUE481+" novillos feedlot", valor: "U$S "+fmt(Math.round(ue481IngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret 9%)", total: ue481IngresoPesos, positivo: true });
+      des.push({ label: "Racion + hoteleria + cert.", valor: "100+ dias feedlot", total: -ue481CostoTotal, positivo: false });
+    }
+    base.push({ id: "export", label: "\uD83C\uDF0E Exportación", cab: cabHilton+cabUE481, color: "purple", ingreso: ingresoExport, costo: costoExport, margen: margenExport, desglose: des });
+  }
+  return base;
+}
+
+function MargenActividad(p) {
+  const { margenTotal, margenNeto, margenNetoReal, costoEstructuraAnual, amortTotal, ebitda, ebit, iibbEstimado, inmobiliario, tasas, gananciasEstimado, impuestosTotal, costoOportunidadAnual, dolar, hectareas, fmtMoney } = p;
+  const [expandedAct, setExpandedAct] = React.useState(null);
+  const fmt = (n) => Math.round(n).toLocaleString("es-AR");
+  const usdV = (v) => dolar ? ("U$S "+fmt(Math.round(v/dolar))) : "";
+  const acts = makeActs({ ...p, fmt, fmtMoney });
 
   const colorMap = {
     emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", hdr: "bg-emerald-100" },
-    blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    hdr: "bg-blue-100" },
-    amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   hdr: "bg-amber-100" },
-    teal:    { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-700",    hdr: "bg-teal-100" },
-    purple:  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  hdr: "bg-purple-100" },
+    blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    hdr: "bg-blue-100"    },
+    amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   hdr: "bg-amber-100"   },
+    teal:    { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-700",    hdr: "bg-teal-100"    },
+    purple:  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  hdr: "bg-purple-100"  },
   };
 
+  const cascada = [
+    { label: "Margen bruto total",           val: margenTotal,            sub: "Ingresos menos costos directos de cada actividad",                     color: margenTotal >= 0 ? "text-emerald-700" : "text-red-600",    bg: "bg-white",        sep: false },
+    { label: "Menos costos de estructura",   val: -costoEstructuraAnual,  sub: "Empleados, maquinaria, rolado, viajes",                                color: "text-red-600",                                             bg: "bg-slate-50",     sep: false },
+    { label: "= EBITDA",                     val: ebitda,                 sub: "Margen antes de amortizaciones e impuestos",                           color: ebitda >= 0 ? "text-emerald-700" : "text-red-600",         bg: "bg-slate-100",    sep: true  },
+    { label: "Menos amortizaciones",         val: -amortTotal,            sub: "Mejoras, hacienda reproductora, maquinaria",                           color: "text-red-600",                                             bg: "bg-slate-50",     sep: false },
+    { label: "= EBIT",                       val: ebit,                   sub: "Resultado operativo antes de impuestos",                               color: ebit >= 0 ? "text-blue-700" : "text-red-600",              bg: "bg-blue-50",      sep: true  },
+    { label: "Menos impuestos estimados",    val: -impuestosTotal,        sub: "IIBB "+fmtMoney(iibbEstimado)+" | Ganancias "+fmtMoney(gananciasEstimado)+" | Otros "+fmtMoney(inmobiliario+tasas), color: "text-red-600", bg: "bg-slate-50", sep: false },
+    { label: "= Margen neto",                val: margenNeto,             sub: "Resultado neto despues de impuestos",                                  color: margenNeto >= 0 ? "text-emerald-700" : "text-red-600",     bg: "bg-emerald-50",   sep: true  },
+    { label: "Menos costo de oportunidad",   val: -costoOportunidadAnual, sub: "Capital inmovilizado x 5% USD vs alternativa financiera",              color: "text-orange-600",                                         bg: "bg-orange-50",    sep: false },
+    { label: "= Rentabilidad economica real",val: margenNetoReal,         sub: "La ganaderia gana mas que una alternativa financiera?",                color: margenNetoReal >= 0 ? "text-emerald-800" : "text-red-700", bg: margenNetoReal >= 0 ? "bg-emerald-100" : "bg-red-50", sep: true },
+  ];
+
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
-      <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
-      <div className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Margen bruto por actividad</p>
-          <span className={`text-sm font-black ${margenTotal >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-            Total: {fmtMoney(margenTotal)}/año
-          </span>
-        </div>
-        <div className="space-y-3">
-          {acts.map((act) => {
-            const pos = act.margen >= 0;
-            const expanded = expandedAct === act.id;
-            const c = colorMap[act.color];
-            return (
-              <div key={act.id} className={`rounded-2xl border-2 overflow-hidden transition-all ${pos ? `${c.bg} ${c.border}` : "bg-red-50 border-red-200"}`}>
-                <button className="w-full p-3.5 text-left" onClick={() => setExpandedAct(expanded ? null : act.id)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-black ${pos ? c.text : "text-red-700"}`}>{act.label}</span>
-                      <span className="text-xs text-slate-400">{act.cab} cab</span>
+    <div className="space-y-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+        <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-600">Margen bruto por actividad</p>
+              <p className="text-xs text-slate-400 mt-0.5">Ingresos menos costos directos - sin estructura ni impuestos</p>
+            </div>
+            <div className="text-right">
+              <span className={margenTotal >= 0 ? "text-lg font-black text-emerald-700" : "text-lg font-black text-red-600"}>{fmtMoney(margenTotal)}</span>
+              {dolar ? <p className="text-xs text-slate-400">{usdV(margenTotal)}</p> : null}
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {acts.map((act) => {
+              const pos = act.margen >= 0;
+              const expanded = expandedAct === act.id;
+              const c = colorMap[act.color] || colorMap.emerald;
+              return (
+                <div key={act.id} className={`rounded-2xl border-2 overflow-hidden ${pos ? c.bg+" "+c.border : "bg-red-50 border-red-200"}`}>
+                  <button className="w-full p-3.5 text-left" onClick={() => setExpandedAct(expanded ? null : act.id)}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={pos ? "text-sm font-black "+c.text : "text-sm font-black text-red-700"}>{act.label}</span>
+                        <span className="text-xs text-slate-400">{act.cab} cab</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className={pos ? "font-mono font-black text-base "+c.text : "font-mono font-black text-base text-red-600"}>{fmtMoney(act.margen)}</p>
+                          {dolar && act.margen ? <p className="text-xs text-slate-400">{usdV(act.margen)}</p> : null}
+                        </div>
+                        <span className="text-slate-400 text-sm">{expanded ? "v" : ">"}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`font-mono font-black text-lg ${pos ? c.text : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
-                      <span className="text-slate-400 text-sm">{expanded ? "▾" : "▸"}</span>
-                    </div>
-                  </div>
-                  {!expanded && (
-                    <div className="flex gap-4 mt-1 text-xs text-slate-500">
-                      <span>+{fmtMoney(act.ingreso)}</span>
-                      <span>−{fmtMoney(act.ingreso - act.margen)}</span>
+                    {!expanded && (
+                      <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                        <span className="text-emerald-600">{"+" + fmtMoney(act.ingreso)}</span>
+                        <span className="text-red-500">{"-" + fmtMoney(Math.max(0, act.ingreso - act.margen))}</span>
+                      </div>
+                    )}
+                  </button>
+                  {expanded && (
+                    <div className="px-3.5 pb-3.5 space-y-0.5 border-t border-slate-200">
+                      {act.desglose.map((item, j) => {
+                        if (item.tipo === "header") return (
+                          <p key={j} className={"text-xs font-black uppercase tracking-widest mt-3 mb-1 px-2 py-1 rounded-lg "+c.hdr+" "+c.text}>{item.label}</p>
+                        );
+                        return (
+                          <div key={j} className="flex items-start justify-between gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-slate-700">{item.label}</p>
+                              {item.valor ? <p className="text-xs text-slate-400">{item.valor}</p> : null}
+                            </div>
+                            <span className={item.positivo ? "font-mono font-black text-sm shrink-0 text-emerald-700" : "font-mono font-black text-sm shrink-0 text-red-600"}>
+                              {item.total !== 0 ? (item.positivo ? "+" : "-")+fmtMoney(Math.abs(item.total || 0)) : "—"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <div className={"mt-2 pt-2 border-t-2 border-slate-300 flex justify-between items-center px-2 py-1.5 rounded-xl "+(pos ? c.bg : "bg-red-50")}>
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-600">Margen bruto</span>
+                        <div className="text-right">
+                          <p className={pos ? "font-mono font-black text-lg "+c.text : "font-mono font-black text-lg text-red-600"}>{fmtMoney(act.margen)}</p>
+                          {dolar ? <p className="text-xs text-slate-400">{usdV(act.margen)}</p> : null}
+                        </div>
+                      </div>
                     </div>
                   )}
-                </button>
-                {expanded && (
-                  <div className="px-3.5 pb-3.5 space-y-0.5 border-t border-slate-200">
-                    {act.desglose.map((item, j) => {
-                      if (item.tipo === "header") return (
-                        <p key={j} className={`text-xs font-black uppercase tracking-widest mt-3 mb-1 px-2 py-1 rounded-lg ${c.hdr} ${c.text}`}>{item.label}</p>
-                      );
-                      return (
-                        <div key={j} className="flex items-start justify-between gap-2 py-1.5 border-b border-slate-100 last:border-0">
-                          <div className="flex-1">
-                            <p className="text-xs font-semibold text-slate-700">{item.label}</p>
-                            {item.valor && <p className="text-xs text-slate-400">{item.valor}</p>}
-                          </div>
-                          <span className={`font-mono font-black text-sm shrink-0 ${item.positivo ? "text-emerald-700" : "text-red-600"}`}>
-                            {item.positivo ? "+" : "−"}{fmtMoney(Math.abs(item.total ?? 0))}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    <div className={`mt-2 pt-2 border-t-2 border-slate-300 flex justify-between items-center px-2 py-1.5 rounded-xl ${pos ? c.bg : "bg-red-50"}`}>
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-600">Margen neto</span>
-                      <span className={`font-mono font-black text-xl ${pos ? c.text : "text-red-600"}`}>{fmtMoney(act.margen)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-3">
-          <span className="text-xl">💡</span>
-          <div className="flex-1 text-xs text-indigo-700">
-            <p className="font-black mb-1">Costo de oportunidad: {fmtMoney(costoOportunidadAnual)}/año</p>
-            <p>Tu rendimiento real es Margen − Costo de oportunidad = <b>{fmtMoney(margenTotal - costoOportunidadAnual)}</b>. Si es negativo, conviene reducir el rodeo y poner el capital en una alternativa.</p>
+      </div>
+
+      <div className="bg-white border-2 border-slate-300 rounded-3xl overflow-hidden shadow-lg">
+        <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-purple-600" />
+        <div className="p-5 space-y-1">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-4">📉 Cascada economica</p>
+          {cascada.map((row, i) => (
+            <div key={i} className={"rounded-xl px-4 py-3 "+row.bg+(row.sep ? " border-t-2 border-slate-300 mt-2" : "")}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-sm font-black text-slate-800">{row.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{row.sub}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={"font-mono font-black text-lg "+row.color}>{row.val >= 0 ? "" : "-"}{fmtMoney(Math.abs(row.val))}</p>
+                  {dolar && Math.abs(row.val) ? <p className="text-xs text-slate-400">{usdV(Math.abs(row.val))}</p> : null}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className={"mt-4 rounded-2xl p-4 border-2 "+(margenNetoReal >= 0 ? "bg-emerald-50 border-emerald-300" : "bg-red-50 border-red-300")}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{margenNetoReal >= 0 ? "✅" : "⚠️"}</span>
+              <div>
+                <p className={"font-black text-sm "+(margenNetoReal >= 0 ? "text-emerald-800" : "text-red-800")}>
+                  {margenNetoReal >= 0
+                    ? "La ganaderia supera la alternativa financiera por "+fmtMoney(margenNetoReal)+"/ano"
+                    : "La ganaderia rinde "+fmtMoney(Math.abs(margenNetoReal))+"/ano MENOS que una alternativa financiera"
+                  }
+                </p>
+                {hectareas ? <p className="text-xs text-slate-500 mt-0.5">{"= "+fmtMoney(Math.round(margenNetoReal/hectareas))+"/ha/ano | "+usdV(margenNetoReal/hectareas)+"/ha/ano"}</p> : null}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
   const TIPOS_MOV = [
@@ -4297,6 +4355,59 @@ function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVend
   );
 }
 
+// top-level helper — avoids JSX parser conflict inside MiCampo
+function calcLote(offset, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES) {
+  var mes     = (paricionMes + offset) % 12;
+  var anio    = (paricionMes + offset) < 12 ? paricionAnio : paricionAnio + 1;
+  var mCierre = calcMesesHastaCierre(mes, anio);
+  var cabLote = Math.round(ternNacidosVivos / 3);
+  var acumMensual = Array.from({ length: Math.min(mCierre, 12) }, function(_, i) {
+    return {
+      mes: MESES_ES[(mes + i) % 12],
+      diasAcum: (i + 1) * 30,
+      kgPorCab: Math.round(pesoNacimiento + (i + 1) * 30 * gdpTernero),
+      kgTotales: Math.round(cabLote * (pesoNacimiento + (i + 1) * 30 * gdpTernero)),
+      esMesDestete: (i + 1) === meseDestete,
+    };
+  });
+  var kgAlDestete = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
+  var kgAlCierre  = mCierre < meseDestete ? kgAlDestete : Math.round(pesoNacimiento + mCierre * 30 * gdpTernero);
+  return { mes: mes, anio: anio, mCierre: mCierre, cabLote: cabLote, acumMensual: acumMensual, kgAlDestete: kgAlDestete, kgAlCierre: kgAlCierre };
+}
+
+function calcTablaAcum(mesesHastaCierre, paricionMes, pesoNacimiento, gdpTernero, gdpNovilloInv, gdpNovilloFaena, meseDestete, MESES_ES) {
+  var len = Math.min(mesesHastaCierre, 12);
+  var result = [];
+  for (var i = 0; i !== len; i++) {
+    var m = i + 1;
+    result.push({
+      mes: MESES_ES[(paricionMes + i) % 12],
+      kgTernero:    Math.round(pesoNacimiento + m * 30 * gdpTernero),
+      kgNovilloInv: Math.round(pesoNacimiento + m * 30 * gdpNovilloInv),
+      kgNovFaena:   Math.round(pesoNacimiento + m * 30 * gdpNovilloFaena),
+      esMesDestete: m === meseDestete,
+    });
+  }
+  return result;
+}
+
+function calcHistorialKgHa(historialAnos, pVacaDescarte, pTerneroInvernada, pNovilloInvernada, pNovilloFaena, hectareas, anoGanadero, kgHaAct, kgTotalAct, kgHaProx, kgTotalProx) {
+  var entries = Object.entries(historialAnos || {}).sort();
+  var result = entries.map(function(entry) {
+    var ano = entry[0]; var snap = entry[1];
+    var cr = snap.cria        || {};
+    var re = snap.recria      || {};
+    var te = snap.terminacion || {};
+    var madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
+    var descCr   = cr.vacias || Math.max(0, madresCr - Math.round(madresCr * 0.85));
+    var kg = descCr * pVacaDescarte + (re.ternerosLiquidaMachos || 0) * pTerneroInvernada + (re.novillos || 0) * pNovilloInvernada + ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
+    return { ano: ano.slice(0, 4), tipo: "real", kgHa: hectareas ? Math.round(kg / hectareas) : 0, kg: kg };
+  });
+  result.push({ ano: anoGanadero.slice(0, 4), tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct  });
+  result.push({ ano: "Proy.",                 tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx });
+  return result;
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
@@ -4464,8 +4575,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Terminación suma costo de comida y hotelería específico
   const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
 
-  const margenCria = ingresoCria - costoCriaAnual;
-  // ── Ingreso pastaje del año ganadero ─────────────────────────────────────
+  // ── MARGEN BRUTO — solo costos directos por actividad ────────────────────
+  // Cría: costo directo = sanidad
+  const sanidadCria     = cabCria * (campoStore.sanidadPorCabAnio ?? 40000);
+  const margenBrutoCria = ingresoCria - sanidadCria;
+
+  // Recría: costo directo = reposición + sanidad
+  const sanidadRec      = cabRec * (campoStore.sanidadPorCabAnio ?? 40000);
+  const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
+
+  // Terminación: costo directo = feedlot + sanidad
+  const sanidadTerm     = cabTerm * (campoStore.sanidadPorCabAnio ?? 40000);
+  const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
+
+  // Pastaje: costo directo = $0
+  const margenBrutoPastaje = ingresoPastaje;
+
+  // Exportación: costos directos (ración, hotelería, cert)
+  const margenBrutoExport = margenExport; // ya tiene solo costos directos
+
+  // ── MARGEN BRUTO TOTAL ────────────────────────────────────────────────────
+  const margenBrutoTotal = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
+
+  // ── COSTOS DE ESTRUCTURA (bajan del margen bruto) ─────────────────────────
+  const costoEstructuraAnual = costoTotalAnual; // empleados + maquinaria + rolado + viajes
+  // (sanidad ya fue descontada arriba como costo directo, no la volvemos a restar)
+
+  // ── AMORTIZACIONES ────────────────────────────────────────────────────────
+  const amortTotal = (campoStore.amorMejoras ?? 0) + (campoStore.amorHaciendaReproductora ?? 0) + (campoStore.amorMaquinaria ?? 0);
+
+  // ── EBITDA = Margen Bruto − Estructura ───────────────────────────────────
+  const ebitda = margenBrutoTotal - costoEstructuraAnual;
+
+  // ── EBIT = EBITDA − Amortizaciones ───────────────────────────────────────
+  const ebit = ebitda - amortTotal;
+
+  // ── IMPUESTOS estimados ───────────────────────────────────────────────────
+  const ingresosTotales   = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
+  const iibbEstimado      = ingresosTotales * ((campoStore.pctIIBB ?? 3) / 100);
+  const inmobiliario      = campoStore.inmobiliarioAnual ?? 0;
+  const tasas             = campoStore.tasasAnuales ?? 0;
+  const gananciasBase     = Math.max(0, ebit - iibbEstimado - inmobiliario - tasas);
+  const gananciasEstimado = gananciasBase * ((campoStore.pctGanancias ?? 35) / 100);
+  const impuestosTotal    = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
+
+  // ── MARGEN NETO = EBIT − Impuestos ───────────────────────────────────────
+  const margenNeto = ebit - impuestosTotal;
+
+  // ── MARGEN NETO REAL = Margen Neto − Costo de Oportunidad ────────────────
+  const margenNetoReal = margenNeto - costoOportunidadAnual;
+
+  // Para compatibilidad con código existente (flujo caja, etc.)
+  const margenTotal = margenBrutoTotal;
+  const margenCria  = margenBrutoCria;
+  const margenRec   = margenBrutoRec;
+  const margenTerm  = margenBrutoTerm;
   const periodosPastaje = campoPastaje?.periodos ?? [];
   const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
   // Todos los cobros (pendientes + pagados) = ingreso devengado del año
@@ -4483,9 +4647,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoReposicionPropia  = cabPropiaRecria * pesoDestete2 * precioInvKg;
   // Total costo reposición = lo que pagaste para tener los animales que vas a vender este año
   const costoReposicionTotal   = costoReposicionExterna + costoReposicionPropia;
-
-  const margenRec  = ingresoRecria - costoRecAnual - costoReposicionTotal;
-  const margenTerm = ingresoTerm - costoTermAnual - costoFeedlotAnual;
 
   // ── Exportación — Cuota Hilton y UE 481 ──────────────────────────────────
   const dolarExp    = global.dolar ?? 1395; // dólar oficial para liquidación exportaciones
@@ -4519,7 +4680,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const ingresoExport  = hiltonIngresoPesos + ue481IngresoPesos;
   const costoExport    = hiltonCostoTotal + ue481CostoTotal;
   const margenExport   = hiltonMargen + ue481Margen;
-  const margenTotal = margenCria + margenRec + margenTerm + ingresoPastaje + margenExport;
+
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
@@ -4636,70 +4797,29 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgNovillosFaenaProx= novillosFaenaProx  * pesoNovFaenaProx;
   const kgVaqDescProx      = vaquillonaDescProx * pesoVaqProx;
   const kgTotalProx        = kgVacasDescProx + kgTernerosInvProx + kgNovillosFaenaProx + kgVaqDescProx;
-  const kgHaProx           = hectareas > 0 ? Math.round(kgTotalProx / hectareas) : 0;
-  const tendencia          = kgHaProx > kgHaAct ? "sube" : kgHaProx < kgHaAct ? "baja" : "estable";
+  const kgHaProx           = hectareas ? Math.round(kgTotalProx / hectareas) : 0;
+  const tendencia          = kgHaProx !== kgHaAct ? (kgHaProx === Math.max(kgHaProx, kgHaAct) ? "sube" : "baja") : "estable";
 
   // Tabla mensual de acumulación de kg (actual: desde hoy hasta 30/jun)
   // ── Parición escalonada 3 meses ─────────────────────────────────────────────
   // Los terneros nacen repartidos en 3 meses (paricionMes, +1, +2)
-  // Cada lote tiene diferente cantidad de días hasta el cierre → diferente kg acumulado
-  const lotesPacion = [0, 1, 2].map(offset => {
-    const mes     = (paricionMes + offset) % 12;
-    const anio    = paricionMes + offset >= 12 ? paricionAnio + 1 : paricionAnio;
-    const mCierre = calcMesesHastaCierre(mes, anio);
-    const cabLote = Math.round(ternNacidosVivos / 3);  // reparto en 3 lotes iguales
-    // kg acumulados mes a mes hasta el cierre
-    const acumMensual = Array.from({ length: Math.min(mCierre, 12) }, (_, i) => ({
-      mes: MESES_ES[(mes + i) % 12],
-      diasAcum: (i + 1) * 30,
-      kgPorCab: Math.round(pesoNacimiento + (i + 1) * 30 * gdpTernero),
-      kgTotales: Math.round(cabLote * (pesoNacimiento + (i + 1) * 30 * gdpTernero)),
-      esMesDestete: (i + 1) === meseDestete,
-    }));
-    const kgAlDestete  = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
-    const kgAlCierre   = mCierre >= meseDestete
-      ? Math.round(pesoNacimiento + mCierre * 30 * gdpTernero)
-      : kgAlDestete;
-    return { mes, anio, mCierre, cabLote, acumMensual, kgAlDestete, kgAlCierre };
-  });
+  // Parición escalonada — calculado con función top-level calcLote
+  const lotesPacion = [calcLote(0, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(1, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(2, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES)];
 
   // Kg totales de terneros al cierre (suma de 3 lotes)
-  const kgTernerosAlCierre = lotesPacion.reduce((sum, l) => sum + l.cabLote * l.kgAlCierre, 0);
-  // Kg totales al momento del destete (suma de 3 lotes al mes destete)
-  const kgTernerosAlDestete = lotesPacion.reduce((sum, l) => sum + l.cabLote * l.kgAlDestete, 0);
+  var kgTernerosAlCierre = 0;
+  var kgTernerosAlDestete = 0;
+  for (var _li = 0; _li !== lotesPacion.length; _li++) {
+    kgTernerosAlCierre  += lotesPacion[_li].cabLote * lotesPacion[_li].kgAlCierre;
+    kgTernerosAlDestete += lotesPacion[_li].cabLote * lotesPacion[_li].kgAlDestete;
+  }
 
   // Mes actual para resaltar en la tabla
   const mesActual = new Date().getMonth();
   const anioActual = new Date().getFullYear();
 
-  const tablaAcumulacion = Array.from({ length: Math.min(mesesHastaCierre, 12) }, (_, i) => {
-    const m = i + 1;
-    return {
-      mes: MESES_ES[(paricionMes + i) % 12],
-      kgTernero:    Math.round(pesoNacimiento + m * 30 * gdpTernero),
-      kgNovilloInv: Math.round(pesoNacimiento + m * 30 * gdpNovilloInv),
-      kgNovFaena:   Math.round(pesoNacimiento + m * 30 * gdpNovilloFaena),
-      esMesDestete: m === meseDestete,
-    };
-  });
-
-  const historialKgHa = [
-    ...Object.entries(historialAnos).sort().map(([ano, snap]) => {
-      const cr = snap.cria        || {};
-      const re = snap.recria      || {};
-      const te = snap.terminacion || {};
-      const madresCr = (cr.vacas || 0) + (cr.vaquillonas || 0);
-      const descCr   = cr.vacias || Math.max(0, madresCr - Math.round(madresCr * 0.85));
-      const kgDesc   = descCr * pVacaDescarte;
-      const kgTern   = (re.ternerosLiquidaMachos || 0) * pTerneroInvernada;
-      const kgNovInv = (re.novillos || 0) * pNovilloInvernada;
-      const kgFaena  = ((te.novillosCampo || 0) + (te.novillosFeedlot || 0)) * pNovilloFaena;
-      const kg       = kgDesc + kgTern + kgNovInv + kgFaena;
-      return { ano: ano.slice(0, 4), tipo: "real", kgHa: hectareas > 0 ? Math.round(kg / hectareas) : 0, kg };
-    }),
-    { ano: anoGanadero.slice(0, 4), tipo: "real",       kgHa: kgHaAct,  kg: kgTotalAct  },
-    { ano: "Proy.",                 tipo: "proyectado", kgHa: kgHaProx, kg: kgTotalProx },
-  ];
+  const tablaAcumulacion = calcTablaAcum(mesesHastaCierre, paricionMes, pesoNacimiento, gdpTernero, gdpNovilloInv, gdpNovilloFaena, meseDestete, MESES_ES);
+  const historialKgHa    = calcHistorialKgHa(historialAnos, pVacaDescarte, pTerneroInvernada, pNovilloInvernada, pNovilloFaena, hectareas, anoGanadero, kgHaAct, kgTotalAct, kgHaProx, kgTotalProx);
 
   const SECCIONES = [
     { id: "stock",        label: "Stock hacienda",    icon: "🐄" },
@@ -5746,15 +5866,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               {/* ── Margen bruto por actividad ──────────────────────────── */}
               <MargenActividad
                 ingresoCria={ingresoCria} ingresoRecria={ingresoRecria} ingresoTerm={ingresoTerm}
-                costoCriaAnual={costoCriaAnual} costoRecAnual={costoRecAnual} costoTermAnual={costoTermAnual} costoFeedlotAnual={costoFeedlotAnual}
-                margenCria={margenCria} margenRec={margenRec} margenTerm={margenTerm} margenTotal={margenTotal}
+                sanidadCria={sanidadCria} sanidadRec={sanidadRec} sanidadTerm={sanidadTerm}
+                margenCria={margenBrutoCria} margenRec={margenBrutoRec} margenTerm={margenBrutoTerm}
+                margenTotal={margenBrutoTotal}
                 cabCria={cabCria} cabRec={cabRec} cabTerm={cabTerm}
                 cabDestetados={cabDestetados} pesoDestete2={pesoDestete2} precioInvKg={precioInvKg}
                 cabRecriaSale={cabRecriaSale} pesoRecria={pesoRecria} precioNovKg={precioNovKg}
                 cabTermSale={cabTermSale} pesoTerm={pesoTerm}
                 costoOportunidadAnual={costoOportunidadAnual}
                 sanidadPorCabAnio={campoStore.sanidadPorCabAnio}
-                totalCabAct={totalCabAct} totalCostosMes={totalCostosMes} totalEmpleadosMes={totalEmpleadosMes}
+                totalCabAct={totalCabAct}
                 terminacionDatos={terminacionDatos}
                 costoReposicionTotal={costoReposicionTotal}
                 costoReposicionExterna={costoReposicionExterna}
@@ -5766,7 +5887,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ingresoPastaje={ingresoPastaje}
                 kgPastaje={kgPastaje}
                 cabPastaje={cabPastaje}
-                margenExport={margenExport}
+                margenExport={margenBrutoExport}
                 ingresoExport={ingresoExport}
                 costoExport={costoExport}
                 hiltonMargen={hiltonMargen}
@@ -5780,6 +5901,20 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ue481IngresoUSD={ue481IngresoUSD}
                 cabUE481={cabUE481}
                 dolarExp={dolarExp}
+                // Cascada margen neto
+                costoEstructuraAnual={costoEstructuraAnual}
+                amortTotal={amortTotal}
+                ebitda={ebitda}
+                ebit={ebit}
+                iibbEstimado={iibbEstimado}
+                inmobiliario={inmobiliario}
+                tasas={tasas}
+                gananciasEstimado={gananciasEstimado}
+                impuestosTotal={impuestosTotal}
+                margenNeto={margenNeto}
+                margenNetoReal={margenNetoReal}
+                dolar={dolar}
+                hectareas={hectareas}
                 fmtMoney={fmtMoney}
               />
 
@@ -6479,6 +6614,32 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <p className="font-black text-slate-800 text-xl">${fmt(costoPorCabMes*12)}</p>
                     <p className="text-xs text-emerald-600">{usd(costoPorCabMes*12)}</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Amortizaciones */}
+              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-orange-400 to-amber-500" />
+                <div className="p-5 space-y-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-orange-700">📉 Amortizaciones anuales</p>
+                  <p className="text-xs text-slate-400">Pérdida de valor de activos. Bajan del margen bruto para llegar al EBIT.</p>
+                  <EditField label="Mejoras (alambrados, aguadas, corrales)" value={campoStore.amorMejoras??0} onChange={v=>setCampoStore({amorMejoras:v})} step={50000} prefix="$" suffix="/año" hint="Vida útil 20 años → valor total ÷ 20" />
+                  <EditField label="Hacienda reproductora (toros)" value={campoStore.amorHaciendaReproductora??0} onChange={v=>setCampoStore({amorHaciendaReproductora:v})} step={50000} prefix="$" suffix="/año" hint="Vida útil 5 años → (cab × precio) ÷ 5" />
+                  <EditField label="Maquinaria e implementos" value={campoStore.amorMaquinaria??0} onChange={v=>setCampoStore({amorMaquinaria:v})} step={50000} prefix="$" suffix="/año" hint="Vida útil 10 años → valor total ÷ 10" />
+                </div>
+              </div>
+
+              {/* Impuestos estimados */}
+              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                <div className="h-1.5 bg-gradient-to-r from-red-400 to-rose-500" />
+                <div className="p-5 space-y-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-red-700">🏛️ Impuestos estimados</p>
+                  <p className="text-xs text-slate-400">Estimativos — consultar con tu contador.</p>
+                  <EditField label="Ingresos Brutos (% sobre ventas)" value={campoStore.pctIIBB??3} onChange={v=>setCampoStore({pctIIBB:v})} step={0.5} suffix="%" hint="3-3.5% típico en Buenos Aires" />
+                  <EditField label="Ganancias (% sobre utilidad neta)" value={campoStore.pctGanancias??35} onChange={v=>setCampoStore({pctGanancias:v})} step={5} suffix="%" hint="35% personas jurídicas / 15-35% físicas" />
+                  <EditField label="Inmobiliario rural ($/año)" value={campoStore.inmobiliarioAnual??0} onChange={v=>setCampoStore({inmobiliarioAnual:v})} step={50000} prefix="$" suffix="/año" />
+                  <EditField label="Tasas viales y sanitarias ($/año)" value={campoStore.tasasAnuales??0} onChange={v=>setCampoStore({tasasAnuales:v})} step={10000} prefix="$" suffix="/año" hint="SENASA, municipales, viales, etc." />
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">⚠️ Los impuestos reales dependen de tu situación impositiva. Consultá con tu contador.</p>
                 </div>
               </div>
             </div>
