@@ -370,30 +370,33 @@ const vacaStore = createStore((set, get) => ({
 }));
 
 // Hooks selectivos para cada componente (evitan re-renders innecesarios)
-const useGlobal     = () => useStore(vacaStore, s => s.global);
-const useGastos     = () => useStore(vacaStore, s => s.gastos);
-const useCampoCria  = () => useStore(vacaStore, s => s.campoCria);
-const useCampoRecria= () => useStore(vacaStore, s => s.campoRecria);
-const useCampoTerm  = () => useStore(vacaStore, s => s.campoTerminacion);
-const useSimulaciones = () => useStore(vacaStore, s => s.simulaciones);
+function useGlobal()       { return useStore(vacaStore, function(s) { return s.global; }); }
+function useGastos()       { return useStore(vacaStore, function(s) { return s.gastos; }); }
+function useCampoCria()    { return useStore(vacaStore, function(s) { return s.campoCria; }); }
+function useCampoRecria()  { return useStore(vacaStore, function(s) { return s.campoRecria; }); }
+function useCampoTerm()    { return useStore(vacaStore, function(s) { return s.campoTerminacion; }); }
+function useSimulaciones() { return useStore(vacaStore, function(s) { return s.simulaciones; }); }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const fmt = (n, dec = 0) =>
-  isNaN(n) || !isFinite(n)
-    ? "—"
-    : new Intl.NumberFormat("es-AR", {
-        minimumFractionDigits: dec,
-        maximumFractionDigits: dec,
-      }).format(n);
+function fmt(n, dec = 0) {
+  if (isNaN(n) || !isFinite(n)) return "—";
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  }).format(n);
+}
 
-const fmtMoney = (n, dec = 0) =>
-  isNaN(n) || !isFinite(n) ? "—" : `$ ${fmt(n, dec)}`;
+function fmtMoney(n, dec = 0) {
+  return (isNaN(n) || !isFinite(n)) ? "—" : "$ " + fmt(n, dec);
+}
 
-const fmtKg = (n, dec = 1) =>
-  isNaN(n) || !isFinite(n) ? "—" : `${fmt(n, dec)} kg`;
+function fmtKg(n, dec = 1) {
+  return (isNaN(n) || !isFinite(n)) ? "—" : fmt(n, dec) + " kg";
+}
 
-const fmtPct = (n, dec = 1) =>
-  isNaN(n) || !isFinite(n) ? "—" : `${n > 0 ? "+" : ""}${fmt(n, dec)}%`;
+function fmtPct(n, dec = 1) {
+  return (isNaN(n) || !isFinite(n)) ? "—" : (n > 0 ? "+" : "") + fmt(n, dec) + "%";
+}
 
 // ─── Global CSS (slider thumb enlarge + pastel bg) ───────────────────────────
 const GLOBAL_STYLE = `
@@ -4355,19 +4358,27 @@ function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVend
   );
 }
 
-// top-level helper — avoids JSX parser conflict inside MiCampo
-function calcLote(offset, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES) {
-  const mes     = (paricionMes + offset) % 12;
-  const anio    = (paricionMes + offset) < 12 ? paricionAnio : paricionAnio + 1;
-  const mCierre = calcMesesHastaCierre(mes, anio);
-  const cabLote = Math.round(ternNacidosVivos / 3);
+// top-level helpers — avoid JSX parser conflict and TDZ issues inside MiCampo
+function calcMesesHastaJunio(mes, anio) {
+  const paricion   = new Date(anio, mes, 1);
+  const cierreAnio = paricion.getMonth() >= 6 ? paricion.getFullYear() + 1 : paricion.getFullYear();
+  const cierre     = new Date(cierreAnio, 5, 30);
+  const diff       = (cierre - paricion) / (1000 * 60 * 60 * 24 * 30);
+  return Math.max(0, Math.round(diff));
+}
+
+function calcLote(offset, paricionMes, paricionAnio, ternNacidosVivos, pesoNacimiento, gdpTernero, meseDestete, MESES_ES) {
+  const mes      = (paricionMes + offset) % 12;
+  const anio     = (paricionMes + offset) < 12 ? paricionAnio : paricionAnio + 1;
+  const mCierre  = calcMesesHastaJunio(mes, anio);
+  const cabLote  = Math.round(ternNacidosVivos / 3);
   const acumMensual = Array.from({ length: Math.min(mCierre, 12) }, function(_, i) {
     return {
       mes: MESES_ES[(mes + i) % 12],
-      diasAcum: (i + 1) * 30,
-      kgPorCab: Math.round(pesoNacimiento + (i + 1) * 30 * gdpTernero),
-      kgTotales: Math.round(cabLote * (pesoNacimiento + (i + 1) * 30 * gdpTernero)),
-      esMesDestete: (i + 1) === meseDestete,
+      diasAcum:    (i + 1) * 30,
+      kgPorCab:    Math.round(pesoNacimiento + (i + 1) * 30 * gdpTernero),
+      kgTotales:   Math.round(cabLote * (pesoNacimiento + (i + 1) * 30 * gdpTernero)),
+      esMesDestete:(i + 1) === meseDestete,
     };
   });
   const kgAlDestete = Math.round(pesoNacimiento + meseDestete * 30 * gdpTernero);
@@ -4718,15 +4729,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const mortFeedlot  = (terminacionDatos.pctMortandadFeedlot ?? 2) / 100;
 
   // Meses desde parición hasta cierre 30/jun
-  const calcMesesHastaCierre = (mes, anio) => {
-    const paricion  = new Date(anio, mes, 1);
-    // Próximo 30 de junio
-    const cierreAnio = paricion.getMonth() >= 6 ? paricion.getFullYear() + 1 : paricion.getFullYear();
-    const cierre    = new Date(cierreAnio, 5, 30);
-    const diff      = (cierre - paricion) / (1000 * 60 * 60 * 24 * 30);
-    return Math.max(0, Math.round(diff));
-  };
-  const mesesHastaCierre = calcMesesHastaCierre(paricionMes, paricionAnio);
+  const mesesHastaCierre = calcMesesHastaJunio(paricionMes, paricionAnio);
   const mesesDesteteHastaCierre = Math.max(0, mesesHastaCierre - meseDestete);
 
   // Pesos de nacimiento / destete base
@@ -4804,7 +4807,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // ── Parición escalonada 3 meses ─────────────────────────────────────────────
   // Los terneros nacen repartidos en 3 meses (paricionMes, +1, +2)
   // Parición escalonada — calculado con función top-level calcLote
-  const lotesPacion = [calcLote(0, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(1, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES), calcLote(2, paricionMes, paricionAnio, ternNacidosVivos, calcMesesHastaCierre, pesoNacimiento, gdpTernero, meseDestete, MESES_ES)];
+  const lotesPacion = [
+    calcLote(0, paricionMes, paricionAnio, ternNacidosVivos, pesoNacimiento, gdpTernero, meseDestete, MESES_ES),
+    calcLote(1, paricionMes, paricionAnio, ternNacidosVivos, pesoNacimiento, gdpTernero, meseDestete, MESES_ES),
+    calcLote(2, paricionMes, paricionAnio, ternNacidosVivos, pesoNacimiento, gdpTernero, meseDestete, MESES_ES),
+  ];
 
   // Kg totales de terneros
   let kgTernerosAlCierre  = 0;
