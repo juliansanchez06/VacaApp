@@ -4593,16 +4593,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
 
-  // ── MARGEN BRUTO — costos directos por actividad ─────────────────────────
-  const sanidadCria     = cabCria * (campoStore.sanidadPorCabAnio ?? 40000);
-  const sanidadRec      = cabRec  * (campoStore.sanidadPorCabAnio ?? 40000);
-  const sanidadTerm     = cabTerm * (campoStore.sanidadPorCabAnio ?? 40000);
-  const margenBrutoCria = ingresoCria - sanidadCria;
-  const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
-  const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
-  const margenBrutoPastaje = ingresoPastaje;
-  // margenBrutoExport se calcula más abajo, después de definir margenExport
-  // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
+  // ── Reposicion recria (ANTES del margen bruto) ─────────────────────────
   const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
   const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
   const pesoEntradaRecria   = reciaDatos.pesoEntradaRecria   ?? 180;
@@ -4613,6 +4604,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoReposicionPropia  = cabPropiaRecria * pesoDestete2 * precioInvKg;
   // Total costo reposición = lo que pagaste para tener los animales que vas a vender este año
   const costoReposicionTotal   = costoReposicionExterna + costoReposicionPropia;
+
 
   // ── Exportación — Cuota Hilton y UE 481 ──────────────────────────────────
   const dolarExp    = global.dolar ?? 1395; // dólar oficial para liquidación exportaciones
@@ -4647,6 +4639,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoExport    = hiltonCostoTotal + ue481CostoTotal;
   const margenExport   = hiltonMargen + ue481Margen;
 
+
+  // ── MARGEN BRUTO — costos directos por actividad ─────────────────────────
+  const sanidadCria     = cabCria * (campoStore.sanidadPorCabAnio ?? 40000);
+  const sanidadRec      = cabRec  * (campoStore.sanidadPorCabAnio ?? 40000);
+  const sanidadTerm     = cabTerm * (campoStore.sanidadPorCabAnio ?? 40000);
+  const margenBrutoCria = ingresoCria - sanidadCria;
+  const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
+  const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
+  const margenBrutoPastaje = ingresoPastaje;
+  // margenBrutoExport se calcula más abajo, después de definir margenExport
+  // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
   // ── MARGEN BRUTO TOTAL — ahora que margenExport está definido ─────────────
   const margenBrutoExport = margenExport;
   const margenBrutoTotal  = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
