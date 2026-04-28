@@ -6630,6 +6630,106 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 );
               })()}
 
+              {/* ── Indicadores financieros profesionales ────────────── */}
+              {(() => {
+                const fmt2 = (n) => Math.round(n).toLocaleString("es-AR");
+                const pctFmt = (n, dec=1) => n !== null ? (n * 100).toFixed(dec) + "%" : "—";
+                const fmtM = (n) => "$" + fmt2(Math.round(n / 1000000)) + "M";
+
+                // ── Valor de activos operativos ────────────────────────────
+                const valorRodeoOp = totalStockCampo * (precioNovKg ?? 1800) * (pVacaDescarte ?? 380);
+                const valorMejoras   = (campoStore.amorMejoras ?? 0) * 20;  // vida útil 20 años
+                const valorMaquinaria= (campoStore.amorMaquinaria ?? 0) * 10; // vida útil 10 años
+                const valorHaciendaR = (campoStore.amorHaciendaReproductora ?? 0) * 5; // vida útil 5 años
+                const activosTotales = valorRodeoOp + valorMejoras + valorMaquinaria + valorHaciendaR;
+
+                // ── Indicadores ───────────────────────────────────────────
+                const margenEBITDA  = ingresosTotales ? ebitda / ingresosTotales : null;
+                const margenEBIT    = ingresosTotales ? ebit   / ingresosTotales : null;
+                const margenNetoP   = ingresosTotales ? margenNeto / ingresosTotales : null;
+                const roa           = activosTotales  ? ebit   / activosTotales  : null;
+                const roe           = valorRodeoOp    ? margenNeto / valorRodeoOp : null;
+                const rotActivos    = activosTotales  ? ingresosTotales / activosTotales : null;
+
+                const tasaAlt = (global.tasaOportunidadUSD ?? 5) / 100;
+
+                const rotActivosLabel = rotActivos ? (rotActivos.toFixed(2) + "x") : "—";
+                const indicadores = [
+                  {
+                    grupo: "Rentabilidad",
+                    items: [
+                      { label: "EBITDA", valor: fmtM(ebitda), sub: "Resultado antes de amort. e impuestos", pct: margenEBITDA, pctLabel: "del ingreso total", ok: ebitda > 0 },
+                      { label: "EBIT", valor: fmtM(ebit), sub: "Resultado operativo antes de impuestos", pct: margenEBIT, pctLabel: "del ingreso total", ok: ebit > 0 },
+                      { label: "Margen neto", valor: fmtM(margenNeto), sub: "Resultado después de todos los impuestos", pct: margenNetoP, pctLabel: "del ingreso total", ok: margenNeto > 0 },
+                    ]
+                  },
+                  {
+                    grupo: "Retorno sobre activos",
+                    items: [
+                      { label: "ROA", valor: pctFmt(roa), sub: "EBIT / Activos operativos · Rodeo + Mejoras + Maquinaria", pct: roa, pctLabel: "retorno anual", ok: roa !== null && roa > tasaAlt, vsAlt: tasaAlt },
+                      { label: "ROE", valor: pctFmt(roe), sub: "Margen neto / Capital en hacienda", pct: roe, pctLabel: "retorno sobre capital en hacienda", ok: roe !== null && roe > tasaAlt, vsAlt: tasaAlt },
+                    ]
+                  },
+                  {
+                    grupo: "Eficiencia",
+                    items: [
+                      { label: "Rotación de activos", valor: rotActivosLabel, sub: "Ingresos / Activos, cuántas veces los activos generan ingresos", pct: null, ok: rotActivos !== null && rotActivos > 0.3 },
+                      { label: "Activos operativos", valor: fmtM(activosTotales), sub: "Rodeo " + fmtM(valorRodeoOp) + " · Mejoras " + fmtM(valorMejoras) + " · Maq. " + fmtM(valorMaquinaria), pct: null, ok: true },
+                    ]
+                  },
+                ];
+
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-slate-600 to-slate-800" />
+                    <div className="p-5 space-y-5">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-600">📈 Indicadores financieros profesionales</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Métricas estándar de análisis financiero aplicadas a la ganadería</p>
+                      </div>
+
+                      {indicadores.map((grupo) => (
+                        <div key={grupo.grupo} className="space-y-2">
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 pb-1">{grupo.grupo}</p>
+                          <div className="space-y-2">
+                            {grupo.items.map((item) => (
+                              <div key={item.label} className={"rounded-2xl px-4 py-3 flex items-start justify-between gap-3 " + (item.ok ? "bg-emerald-50 border border-emerald-200" : "bg-red-50 border border-red-200")}>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-black text-slate-800">{item.label}</p>
+                                    {item.vsAlt !== undefined && (
+                                      <span className={"text-xs px-2 py-0.5 rounded-full font-bold " + (item.ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700")}>
+                                        {item.ok ? "Supera tasa alternativa" : "Bajo tasa alternativa"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-0.5">{item.sub}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className={"font-mono font-black text-lg " + (item.ok ? "text-emerald-700" : "text-red-600")}>{item.valor}</p>
+                                  {item.pct !== null && item.pctLabel && (
+                                    <p className="text-xs text-slate-400">{pctFmt(item.pct)} {item.pctLabel}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 space-y-1">
+                        <p className="font-black text-slate-700">Cómo leer estos indicadores:</p>
+                        <p><b>EBITDA:</b> Margen operativo bruto sin efectos contables. Sirve para comparar entre campos.</p>
+                        <p><b>ROA:</b> Cuánto genera cada peso invertido en activos. Compará contra la tasa alternativa ({pctFmt(tasaAlt)}).</p>
+                        <p><b>ROE:</b> Cuánto rinde el capital en hacienda. Si está por debajo de la tasa alternativa, conviene vender hacienda y poner el dinero en otro lado.</p>
+                        <p><b>Rotación de activos:</b> Cuántas veces los activos se convierten en ingresos. Un valor bajo indica capital subaprovechado.</p>
+                        <p className="text-slate-400 italic">Nota: Los activos excluyen el valor de la tierra, que es capital no operativo.</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
           )}
   
