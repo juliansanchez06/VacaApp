@@ -4586,6 +4586,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Terminación suma costo de comida y hotelería específico
   const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
 
+  // ── Ingreso pastaje (debe calcularse ANTES del margen bruto) ─────────────
+  const periodosPastaje = campoPastaje?.periodos ?? [];
+  const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
+  const ingresoPastaje  = cobrosPastaje.reduce((s, p) => s + (p.totalPesos ?? p.pesos ?? 0), 0);
+  const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
+  const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
+
   // ── MARGEN BRUTO — costos directos por actividad ─────────────────────────
   const sanidadCria     = cabCria * (campoStore.sanidadPorCabAnio ?? 40000);
   const sanidadRec      = cabRec  * (campoStore.sanidadPorCabAnio ?? 40000);
@@ -4595,14 +4602,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
   const margenBrutoPastaje = ingresoPastaje;
   // margenBrutoExport se calcula más abajo, después de definir margenExport
-
-  // (cascada económica calculada más abajo, después de ingresoExport y margenBrutoTotal)
-  const periodosPastaje = campoPastaje?.periodos ?? [];
-  const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
-  // Todos los cobros (pendientes + pagados) = ingreso devengado del año
-  const ingresoPastaje  = cobrosPastaje.reduce((s, p) => s + (p.totalPesos ?? p.pesos ?? 0), 0);
-  const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
-  const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
   // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
   const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
   const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
