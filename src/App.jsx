@@ -4635,7 +4635,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     .filter(t => t.cat === "terneras" || t.cat === "recria")
     .reduce((s, t) => {
       const cab  = t.cabActual ?? t.cab ?? 0;
-      const gdp  = t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5);
+      const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5)) || 0;
       const dias = diasEntrePast(t.fechaIngreso, hoyStr);
       return s + cab * gdp * dias;
     }, 0);
@@ -5604,9 +5604,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 if (totalRecria === 0) return null;
 
                 const CATS = [
-                  { key:"ternerosLiquidaMachos", label:"Terneros marca M",  icon:"🐄", color:"emerald", peso: pesoTerneroAlCierre,  gdp: gdpNovilloInv  },
-                  { key:"ternerosCompraMachos",  label:"Terneros compra M", icon:"🛒", color:"blue",    peso: pesoNovilloInvAlCierre, gdp: gdpNovilloInv },
-                  { key:"novillos",              label:"Novillos",           icon:"🐂", color:"amber",  peso: pesoNovilloInvAlCierre, gdp: gdpNovilloFaena },
+                  { key:"ternerosLiquidaMachos", label:"Terneros marca M",  icon:"🐄", color:"emerald", peso: pesoTerneroAlCierre,    pesoEntrada: pesoDestete2,                        gdp: gdpNovilloInv   },
+                  { key:"ternerosCompraMachos",  label:"Terneros compra M", icon:"🛒", color:"blue",    peso: pesoNovilloInvAlCierre, pesoEntrada: reciaDatos.pesoEntradaRecria ?? 180, gdp: gdpNovilloInv   },
+                  { key:"novillos",              label:"Novillos",          icon:"🐂", color:"amber",   peso: pesoNovilloInvAlCierre, pesoEntrada: reciaDatos.pesoEntradaRecria ?? 200, gdp: gdpNovilloFaena },
                 ].filter(c => reciaDatos[c.key] > 0);
 
                 return (
@@ -5627,7 +5627,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </div>
                               <div className="text-right">
                                 <p className="text-xs text-slate-400">Stock: <b className="text-slate-700">{total} cab</b></p>
-                                <p className="text-xs text-slate-400">Peso est.: <b className="text-slate-700">{cat.peso} kg/cab</b></p>
+                                <p className="text-xs text-slate-400">Entrada: <b className="text-slate-600">{cat.pesoEntrada} kg</b> → Peso est.: <b className="text-slate-700">{cat.peso} kg/cab</b></p>
                               </div>
                             </div>
 
@@ -5637,7 +5637,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                 onClick={() => onSincronizar({
                                   target: "invernada",
                                   descripcion: `${total} ${cat.label} · ${cat.peso} kg · invernada vs feedlot`,
-                                  base: { cantidad: total, pesoIngreso: cat.peso, precioCompraKg: 1800 },
+                                  base: { cantidad: total, pesoIngreso: cat.pesoEntrada, precioCompraKg: 1800 },
                                 })}
                                 className="flex items-center justify-center gap-1.5 bg-white border-2 border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95 group">
                                 <RefreshCw size={12} className="group-hover:rotate-180 transition-transform"/>
@@ -5682,7 +5682,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     descripcion: `${total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} ${cat.label} invernada directa`,
                                     base: {
                                       cantidad: total - Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100),
-                                      pesoIngreso: cat.peso, precioCompraKg: 1800,
+                                      pesoIngreso: cat.pesoEntrada, precioCompraKg: 1800,
                                     },
                                   })}
                                   className="text-xs bg-emerald-500 disabled:opacity-40 hover:bg-emerald-600 text-white font-black px-3 py-2 rounded-xl transition-all active:scale-95">
@@ -5695,7 +5695,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     descripcion: `${Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100)} ${cat.label} a feedlot`,
                                     base: {
                                       cantidad: Math.round(total*(reciaDatos[cat.key+"_feedlotPct"]||0)/100),
-                                      pesoIngreso: cat.peso, precioCompraKg: 1800,
+                                      pesoIngreso: cat.pesoEntrada, precioCompraKg: 1800,
                                     },
                                   })}
                                   className="text-xs bg-amber-500 disabled:opacity-40 hover:bg-amber-600 text-white font-black px-3 py-2 rounded-xl transition-all active:scale-95">
@@ -6186,7 +6186,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             {/* Desglose por tropa */}
                             {tropasPastaje.map(t => {
                               const cab  = t.cabActual ?? t.cab ?? 0;
-                              const gdp  = t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5);
+                              const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5)) || 0;
                               const fi   = t.fechaIngreso ? new Date(t.fechaIngreso) : hoyNow;
                               const dias = Math.max(0, Math.round((hoyNow - fi) / 86400000));
                               const kg   = Math.round(cab * gdp * dias);
@@ -7953,7 +7953,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     const guardar = () => {
       if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
       if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
-      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), id: Date.now() }]);
+      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), pesoEntradaKg: parseFloat(form.pesoEntradaKg) || 0, gdpEstimado: parseFloat(form.gdpEstimado) || 0, id: Date.now() }]);
       toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
       onClose();
     };
@@ -8435,22 +8435,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                 </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
-                                {/* Peso entrada editable */}
-                                <label className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 cursor-pointer hover:bg-emerald-100 flex items-center gap-1" title="Peso al ingreso">
-                                  ⚖️ {t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)} kg
-                                  <input type="number" defaultValue={t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)} onBlur={e => {
-                                    const v = parseFloat(e.target.value);
-                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, pesoEntradaKg: v } : x));
-                                  }} className="sr-only" />
-                                </label>
-                                {/* GDP editable */}
-                                <label className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full border border-violet-200 cursor-pointer hover:bg-violet-100 flex items-center gap-1" title="GDP kg/día estimado">
-                                  📈 {(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0.3)).toFixed(2)} kg/d
-                                  <input type="number" step="0.05" defaultValue={t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0.3)} onBlur={e => {
-                                    const v = parseFloat(e.target.value);
-                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, gdpEstimado: v } : x));
-                                  }} className="sr-only" />
-                                </label>
                                 {t.suplemento?.activo && (
                                   <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
                                     💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
@@ -8464,6 +8448,36 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               <p className="text-xs text-slate-400">{fmtPesos(kgHoy * precioNov)}</p>
                             </div>
                           </div>
+                          {/* ── Peso entrada y GDP editables ── */}
+                          {(t.cat === "terneras" || t.cat === "recria" || t.cat === "vacas" || t.cat === "toros") && (
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                              <div className="bg-emerald-50 rounded-xl px-3 py-2">
+                                <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
+                                <input
+                                  type="number" min="30" step="5"
+                                  value={parseFloat(t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)) || 0}
+                                  onChange={e => {
+                                    const v = parseFloat(e.target.value);
+                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, pesoEntradaKg: v } : x));
+                                  }}
+                                  className="w-full text-sm font-black text-emerald-800 bg-white border border-emerald-200 rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-400"
+                                />
+                              </div>
+                              <div className="bg-violet-50 rounded-xl px-3 py-2">
+                                <p className="text-xs text-slate-500 font-bold mb-1">📈 GDP (kg/día)</p>
+                                <input
+                                  type="number" min="0" step="0.05"
+                                  value={parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0)) || 0}
+                                  onChange={e => {
+                                    const v = parseFloat(e.target.value);
+                                    if (v >= 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, gdpEstimado: v } : x));
+                                  }}
+                                  className="w-full text-sm font-black text-violet-800 bg-white border border-violet-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-400"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">{t.cat === "vacas" || t.cat === "toros" ? "0 = peso estable" : t.cat === "terneras" ? "típico 0.6" : "típico 0.5"}</p>
+                              </div>
+                            </div>
+                          )}
                           <div className="flex gap-2 pt-1 border-t border-slate-100">
                             <button onClick={() => setTropaSuplemento(t)}
                               className={`flex-1 text-xs font-black py-1.5 rounded-xl border transition-all active:scale-95 ${t.suplemento?.activo ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"}`}>
