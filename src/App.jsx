@@ -4594,35 +4594,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
   const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
   const margenBrutoPastaje = ingresoPastaje;
-  const margenBrutoExport  = margenExport;
-  const margenBrutoTotal   = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
+  // margenBrutoExport se calcula más abajo, después de definir margenExport
 
-  // ── CASCADA ECONÓMICA ──────────────────────────────────────────────────────
-  const costoEstructuraAnual = costoTotalAnual;
-  const amortMejoras   = campoStore.amorMejoras ?? 0;
-  const amortHacienda  = campoStore.amorHaciendaReproductora ?? 0;
-  const amortMaquinaria= campoStore.amorMaquinaria ?? 0;
-  const amortTotal     = amortMejoras + amortHacienda + amortMaquinaria;
-  const ebitda         = margenBrutoTotal - costoEstructuraAnual;
-  const ebit           = ebitda - amortTotal;
-
-  const ingresosTotales    = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
-  const pctIIBB            = campoStore.pctIIBB ?? 3;
-  const pctGanancias       = campoStore.pctGanancias ?? 35;
-  const iibbEstimado       = ingresosTotales * (pctIIBB / 100);
-  const inmobiliario       = campoStore.inmobiliarioAnual ?? 0;
-  const tasas              = campoStore.tasasAnuales ?? 0;
-  const gananciasBase      = Math.max(0, ebit - iibbEstimado - inmobiliario - tasas);
-  const gananciasEstimado  = gananciasBase * (pctGanancias / 100);
-  const impuestosTotal     = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
-  const margenNeto         = ebit - impuestosTotal;
-  const margenNetoReal     = margenNeto - costoOportunidadAnual;
-
-  // Aliases para compatibilidad
-  const margenTotal = margenBrutoTotal;
-  const margenCria  = margenBrutoCria;
-  const margenRec   = margenBrutoRec;
-  const margenTerm  = margenBrutoTerm;
+  // (cascada económica calculada más abajo, después de ingresoExport y margenBrutoTotal)
   const periodosPastaje = campoPastaje?.periodos ?? [];
   const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
   // Todos los cobros (pendientes + pagados) = ingreso devengado del año
@@ -4674,6 +4648,35 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoExport    = hiltonCostoTotal + ue481CostoTotal;
   const margenExport   = hiltonMargen + ue481Margen;
 
+  // ── MARGEN BRUTO TOTAL — ahora que margenExport está definido ─────────────
+  const margenBrutoExport = margenExport;
+  const margenBrutoTotal  = margenBrutoCria + margenBrutoRec + margenBrutoTerm + margenBrutoPastaje + margenBrutoExport;
+
+  // ── CASCADA ECONÓMICA — todo en orden correcto ─────────────────────────────
+  const costoEstructuraAnual = costoTotalAnual;
+  const amortMejoras    = campoStore.amorMejoras ?? 0;
+  const amortHacienda   = campoStore.amorHaciendaReproductora ?? 0;
+  const amortMaquinaria = campoStore.amorMaquinaria ?? 0;
+  const amortTotal      = amortMejoras + amortHacienda + amortMaquinaria;
+  const ebitda          = margenBrutoTotal - costoEstructuraAnual;
+  const ebit            = ebitda - amortTotal;
+  const ingresosTotales = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
+  const pctIIBB         = campoStore.pctIIBB ?? 3;
+  const pctGanancias    = campoStore.pctGanancias ?? 35;
+  const iibbEstimado    = ingresosTotales * (pctIIBB / 100);
+  const inmobiliario    = campoStore.inmobiliarioAnual ?? 0;
+  const tasas           = campoStore.tasasAnuales ?? 0;
+  const gananciasBase   = Math.max(0, ebit - iibbEstimado - inmobiliario - tasas);
+  const gananciasEstimado = gananciasBase * (pctGanancias / 100);
+  const impuestosTotal  = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
+  const margenNeto      = ebit - impuestosTotal;
+  const margenNetoReal  = margenNeto - costoOportunidadAnual;
+
+  // Aliases para compatibilidad
+  const margenTotal = margenBrutoTotal;
+  const margenCria  = margenBrutoCria;
+  const margenRec   = margenBrutoRec;
+  const margenTerm  = margenBrutoTerm;
 
   const totalCostosMes = totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes;
   const costoPorCabMes = totalStockCampo > 0 ? Math.round(totalCostosMes / totalStockCampo) : 0;
