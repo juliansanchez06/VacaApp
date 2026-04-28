@@ -4632,10 +4632,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     return Math.max(0, Math.round((d2 - d1) / 86400000));
   };
   const kgPastajeProducidos = tropas
-    .filter(t => t.cat === "terneras" || t.cat === "recria")
+    .filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria")
     .reduce((s, t) => {
       const cab  = t.cabActual ?? t.cab ?? 0;
-      const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5)) || 0;
+      const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : 0.5)) || 0;
       const dias = diasEntrePast(t.fechaIngreso, hoyStr);
       return s + cab * gdp * dias;
     }, 0);
@@ -6150,7 +6150,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const kgHaTotal = kgHaAct + kgHaPastajeReal;
 
                 // Detail by tropa
-                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "recria");
+                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria");
                 const hoyNow = new Date();
 
                 return (
@@ -6186,7 +6186,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             {/* Desglose por tropa */}
                             {tropasPastaje.map(t => {
                               const cab  = t.cabActual ?? t.cab ?? 0;
-                              const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5)) || 0;
+                              const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : 0.5)) || 0;
                               const fi   = t.fechaIngreso ? new Date(t.fechaIngreso) : hoyNow;
                               const dias = Math.max(0, Math.round((hoyNow - fi) / 86400000));
                               const kg   = Math.round(cab * gdp * dias);
@@ -7763,6 +7763,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [modal, setModal] = useState(null);
   const [tropaEgreso, setTropaEgreso] = useState(null);
   const [tropaSuplemento, setTropaSuplemento] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   // precioNov vive en el store para que persista en Firestore
   const precioNov    = pastaje?.precioNov ?? precioNovillo;
@@ -7789,12 +7790,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const CATS = [
     { id: "vacas",    label: "Vacas / Vaquillonas",       emoji: "🐄", color: "emerald" },
     { id: "toros",    label: "Toros",                      emoji: "🐂", color: "blue"    },
-    { id: "terneras", label: "Terneras",                   emoji: "🐃", color: "amber"   },
+    { id: "terneros", label: "Terneros (machos)",           emoji: "🐃", color: "sky"     },
+    { id: "terneras", label: "Terneras (hembras)",          emoji: "🐃", color: "amber"   },
     { id: "recria",   label: "Recría (novillos/terneros)", emoji: "🐑", color: "violet"  },
   ];
   const CAT_COLORS = {
     vacas:    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", strip: "bg-emerald-500",  dot: "#10b981" },
     toros:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-500",      dot: "#0ea5e9" },
+    terneros: { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-400",      dot: "#38bdf8" },
     terneras: { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   strip: "bg-amber-400",    dot: "#f59e0b" },
     recria:   { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-800",  strip: "bg-violet-500",   dot: "#8b5cf6" },
   };
@@ -7935,8 +7938,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
   const ModalNuevaTropa = ({ onClose }) => {
-    const GDP_DEFAULTS = { terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
-    const PESO_DEFAULTS = { terneras: 180, recria: 200, vacas: 380, toros: 450 };
+    const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
+    const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
     const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3 });
     const set = (k) => (e) => {
       const val = e.target ? e.target.value : e;
@@ -8455,7 +8458,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                 <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
                                 <input
                                   type="number" min="30" step="5"
-                                  value={parseFloat(t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)) || 0}
+                                  value={parseFloat(t.pesoEntradaKg ?? (t.cat === "terneras" || t.cat === "terneros" ? 180 : t.cat === "recria" ? 200 : 380)) || 0}
                                   onChange={e => {
                                     const v = parseFloat(e.target.value);
                                     if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, pesoEntradaKg: v } : x));
@@ -8467,14 +8470,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                 <p className="text-xs text-slate-500 font-bold mb-1">📈 GDP (kg/día)</p>
                                 <input
                                   type="number" min="0" step="0.05"
-                                  value={parseFloat(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0)) || 0}
+                                  value={parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : t.cat === "recria" ? 0.5 : 0)) || 0}
                                   onChange={e => {
                                     const v = parseFloat(e.target.value);
                                     if (v >= 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, gdpEstimado: v } : x));
                                   }}
                                   className="w-full text-sm font-black text-violet-800 bg-white border border-violet-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-400"
                                 />
-                                <p className="text-xs text-slate-400 mt-1">{t.cat === "vacas" || t.cat === "toros" ? "0 = peso estable" : t.cat === "terneras" ? "típico 0.6" : "típico 0.5"}</p>
+                                <p className="text-xs text-slate-400 mt-1">{t.cat === "vacas" || t.cat === "toros" ? "0 = peso estable" : t.cat === "terneras" || t.cat === "terneros" ? "típico 0.6" : "típico 0.5"}</p>
                               </div>
                             </div>
                           )}
@@ -8487,9 +8490,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               className="flex-1 text-xs font-black py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95">
                               ↑ Egreso
                             </button>
-                            <button onClick={() => { if (!window.confirm("¿Eliminar tropa " + t.origen + "?")) return; setTropas(prev => prev.filter(x => x.id !== t.id)); toast("🗑 Tropa " + t.origen + " eliminada", "warn"); }}
+                            <button onClick={() => setConfirmDelete(confirmDelete === t.id ? null : t.id)}
                               className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">✕</button>
                           </div>
+                          {confirmDelete === t.id && (
+                            <div className="flex gap-2 mt-1">
+                              <span className="flex-1 text-xs text-red-600 font-semibold py-1.5 px-2">¿Eliminar {t.origen}?</span>
+                              <button onClick={() => { setTropas(prev => prev.filter(x => x.id !== t.id)); setConfirmDelete(null); toast("🗑 Tropa " + t.origen + " eliminada", "warn"); }}
+                                className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all active:scale-95">Sí, eliminar</button>
+                              <button onClick={() => setConfirmDelete(null)}
+                                className="px-3 text-xs font-black py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95">Cancelar</button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
