@@ -7940,15 +7940,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const ModalNuevaTropa = ({ onClose }) => {
     const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
     const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
-    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3 });
+    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
     const set = (k) => (e) => {
       const val = e.target ? e.target.value : e;
       setForm(p => {
         const next = { ...p, [k]: val };
-        // Auto-update defaults when category changes
         if (k === "cat") {
           next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200;
           next.gdpEstimado   = GDP_DEFAULTS[val]  ?? 0.5;
+        }
+        if (k === "tropaOrigenId") {
+          // Snapshot the nombre so it persists even if tropa madre is deleted
+          const madre = tropas.find(t => String(t.id) === String(val));
+          next.tropaOrigenNombre = madre ? madre.origen : "";
         }
         return next;
       });
@@ -8009,6 +8013,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
             <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
           </div>
+          {tropas.length > 0 && (
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cría de tropa existente (opcional)</label>
+              <select value={form.tropaOrigenId} onChange={set("tropaOrigenId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+                <option value="">— Sin vínculo (tropa independiente) —</option>
+                {tropas.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Si estos animales son crías de otra tropa, vinculálos para trazabilidad. Si la tropa madre se vende, esta tropa queda registrada igual.</p>
+            </div>
+          )}
         </div>
       </ModalWrapper>
     );
@@ -8438,6 +8452,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                 </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
+                                {t.tropaOrigenNombre && (
+                                  <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200 font-semibold">
+                                    🔗 cría de {t.tropaOrigenNombre}
+                                  </span>
+                                )}
                                 {t.suplemento?.activo && (
                                   <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
                                     💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
