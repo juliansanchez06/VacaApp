@@ -7758,6 +7758,40 @@ function PrecioNovInput({ value, onChange }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PASTAJE — Gestión de animales de terceros
 // ═══════════════════════════════════════════════════════════════════════════
+// Sub-componente con estado local para editar peso y GDP sin re-renders del padre
+function TropaEditorFields({ tropa, onSave }) {
+  const defaultPeso = parseFloat(tropa.pesoEntradaKg ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 180 : tropa.cat === "recria" ? 200 : 380)) || 0;
+  const defaultGdp  = parseFloat(tropa.gdpEstimado  ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 0.6  : tropa.cat === "recria" ? 0.5  : 0))   || 0;
+  const [peso, setPeso] = React.useState(defaultPeso);
+  const [gdp,  setGdp]  = React.useState(defaultGdp);
+  const isGainCat = tropa.cat === "terneras" || tropa.cat === "terneros" || tropa.cat === "recria";
+  return (
+    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+      <div className="bg-emerald-50 rounded-xl px-3 py-2">
+        <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
+        <input
+          type="number" min="30" step="5"
+          value={peso}
+          onChange={e => setPeso(e.target.value)}
+          onBlur={() => { const v = parseFloat(peso); if (v > 0) onSave({ pesoEntradaKg: v }); }}
+          className="w-full text-sm font-black text-emerald-800 bg-white border border-emerald-200 rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-400"
+        />
+      </div>
+      <div className="bg-violet-50 rounded-xl px-3 py-2">
+        <p className="text-xs text-slate-500 font-bold mb-1">📈 GDP (kg/día)</p>
+        <input
+          type="number" min="0" step="0.05"
+          value={gdp}
+          onChange={e => setGdp(e.target.value)}
+          onBlur={() => { const v = parseFloat(gdp); if (v >= 0) onSave({ gdpEstimado: v }); }}
+          className="w-full text-sm font-black text-violet-800 bg-white border border-violet-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-400"
+        />
+        <p className="text-xs text-slate-400 mt-1">{!isGainCat ? "0 = peso estable" : tropa.cat === "recria" ? "típico 0.5" : "típico 0.6"}</p>
+      </div>
+    </div>
+  );
+}
+
 function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
   const [vista, setVista] = useState("tropas");
   const [modal, setModal] = useState(null);
@@ -8472,35 +8506,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                           </div>
                           {/* ── Peso entrada y GDP editables ── */}
                           {(t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vacas" || t.cat === "toros") && (
-                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
-                              <div className="bg-emerald-50 rounded-xl px-3 py-2">
-                                <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
-                                <input
-                                  type="number" min="30" step="5"
-                                  defaultValue={parseFloat(t.pesoEntradaKg ?? (t.cat === "terneras" || t.cat === "terneros" ? 180 : t.cat === "recria" ? 200 : 380)) || 0}
-                                  key={"peso-" + t.id + "-" + (t.pesoEntradaKg ?? "def")}
-                                  onBlur={e => {
-                                    const v = parseFloat(e.target.value);
-                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, pesoEntradaKg: v } : x));
-                                  }}
-                                  className="w-full text-sm font-black text-emerald-800 bg-white border border-emerald-200 rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-400"
-                                />
-                              </div>
-                              <div className="bg-violet-50 rounded-xl px-3 py-2">
-                                <p className="text-xs text-slate-500 font-bold mb-1">📈 GDP (kg/día)</p>
-                                <input
-                                  type="number" min="0" step="0.05"
-                                  defaultValue={parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : t.cat === "recria" ? 0.5 : 0)) || 0}
-                                  key={"gdp-" + t.id + "-" + (t.gdpEstimado ?? "def")}
-                                  onBlur={e => {
-                                    const v = parseFloat(e.target.value);
-                                    if (v >= 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, gdpEstimado: v } : x));
-                                  }}
-                                  className="w-full text-sm font-black text-violet-800 bg-white border border-violet-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-400"
-                                />
-                                <p className="text-xs text-slate-400 mt-1">{t.cat === "vacas" || t.cat === "toros" ? "0 = peso estable" : t.cat === "terneras" || t.cat === "terneros" ? "típico 0.6" : "típico 0.5"}</p>
-                              </div>
-                            </div>
+                            <TropaEditorFields
+                              tropa={t}
+                              onSave={fields => setTropas(prev => prev.map(x => x.id === t.id ? { ...x, ...fields } : x))}
+                            />
                           )}
                           <div className="flex gap-2 pt-1 border-t border-slate-100">
                             <button onClick={() => setTropaSuplemento(t)}
