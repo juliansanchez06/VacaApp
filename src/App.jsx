@@ -7811,12 +7811,23 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [expandPag,    setExpandPag]    = useState(false);
   const [expandId,     setExpandId]     = useState(null);
   const [propCobro,    setPropCobro]    = useState(null); // null → se inicializa al primer render
-  const tropas   = pastaje?.tropas   ?? [];
+  // ── Estado local de tropas para evitar re-renders del padre ─────────────
+  const [tropasLocal, setTropasLocal] = React.useState(() => pastaje?.tropas ?? []);
+  // Sync from parent only on mount or when parent changes from outside
+  React.useEffect(() => {
+    setTropasLocal(pastaje?.tropas ?? []);
+  }, [(pastaje?.tropas ?? []).length]);  // sync when count changes
+
   const periodos = pastaje?.periodos ?? [];
   const precios  = pastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 };
   const terceros = pastaje?.terceros ?? [];
+  const tropas   = tropasLocal;
 
-  const setTropas   = (fn) => setPastaje({ tropas:   typeof fn === "function" ? fn(tropas)   : fn });
+  const setTropas = (fn) => {
+    const next = typeof fn === "function" ? fn(tropasLocal) : fn;
+    setTropasLocal(next);
+    setPastaje({ tropas: next });
+  };
   const setPeriodos = (fn) => setPastaje({ periodos: typeof fn === "function" ? fn(periodos) : fn });
   const setPrecios  = (p)  => setPastaje({ precios:  { ...precios, ...p } });
   const setTerceros = (fn) => setPastaje({ terceros: typeof fn === "function" ? fn(terceros) : fn });
@@ -9331,6 +9342,25 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">
                   Confirmar y generar cobro ✓
                 </button>
+                <button onClick={() => {
+                  const prop = terceros.find(t => t.id == propCobroActivo);
+                  exportarPDF(
+                    "Liquidación pastaje — " + (prop?.nombre ?? "Propietario"),
+                    [
+                      { label: "Propietario",     value: prop?.nombre ?? "-" },
+                      { label: "Período hasta",   value: fmtFecha(fechaHastaEfectiva) },
+                      { label: "Modo",            value: modoCobro },
+                      ...liquidacionPreview.map(l => ({ label: l.tropa + " (" + fmtN(Math.round(l.kg)) + " kg nov)", value: fmtPesos(l.totalPesos) })),
+                      { label: "─────────────", value: "─────────────" },
+                      { label: "TOTAL PERÍODO",  value: fmtPesos(totalPreview) },
+                      { label: "  Pastaje",      value: fmtPesos(pesosPreview) + " (" + fmtN(Math.round(kgPreview)) + " kg)" },
+                      ...(supPreview > 0 ? [{ label: "  Suplemento", value: fmtPesos(supPreview) }] : []),
+                    ]
+                  );
+                }}
+                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition-all active:scale-95">
+                  🖨️ Exportar resumen PDF
+                </button>
               </div>
             ) : (
               <div className="text-center py-6 text-slate-400">
@@ -9363,7 +9393,28 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 <span className="text-xs text-slate-400">{expandPag ? "▾" : "▸"}</span>
               </div>
             </button>
-            {expandPag && <div className="mt-3 space-y-2">{pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <CobRow key={c.id} c={c} />)}</div>}
+            {expandPag && (
+              <div className="mt-3 space-y-2">
+                {pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <CobRow key={c.id} c={c} />)}
+                <button onClick={() => {
+                  const prop = terceros.find(t => t.id == propCobroActivo);
+                  exportarPDF(
+                    "Historial pastaje — " + (prop?.nombre ?? "Propietario"),
+                    [
+                      { label: "Propietario", value: prop?.nombre ?? "-" },
+                      { label: "Total cobrado", value: fmtPesos(pagados.reduce((s,p) => s + (p.totalPesos ?? p.pesos ?? 0), 0)) },
+                      { label: "─────────────", value: "─────────────" },
+                      ...pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => ({
+                        label: fmtFecha(c.fechaCreacion ?? c.fecha) + (c.modo ? " (" + c.modo + ")" : ""),
+                        value: fmtPesos(c.totalPesos ?? c.pesos ?? 0)
+                      })),
+                    ]
+                  );
+                }} className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all">
+                  🖨️ Exportar historial completo PDF
+                </button>
+              </div>
+            )}
           </div>
         )}
 
