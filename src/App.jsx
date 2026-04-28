@@ -4072,9 +4072,33 @@ function MargenActividad(p) {
             </div>
             <div className="text-right">
               <span className={margenTotal >= 0 ? "text-lg font-black text-emerald-700" : "text-lg font-black text-red-600"}>{fmtMoney(margenTotal)}</span>
-              {dolar ? <p className="text-xs text-slate-400">{usdV(margenTotal)}</p> : null}
+              {dolar ? <p className="text-xs font-bold text-blue-600">{"U$S "+fmt(Math.round(margenTotal/dolar))}</p> : null}
             </div>
           </div>
+
+          {/* ── Resumen USD/pesos ──────────────────────────────────────────── */}
+          {dolar ? (
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3">
+              <p className="text-xs font-black text-blue-700 mb-2">💵 Resumen en USD (dólar oficial ${fmt(Math.round(dolar))})</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Margen bruto",   val: margenTotal,     color: margenTotal >= 0 ? "text-emerald-700" : "text-red-600" },
+                  { label: "EBITDA",         val: ebitda,          color: ebitda >= 0 ? "text-emerald-700" : "text-red-600" },
+                  { label: "Margen neto",    val: margenNeto,      color: margenNeto >= 0 ? "text-emerald-700" : "text-red-600" },
+                  { label: "Rentab. real",   val: margenNetoReal,  color: margenNetoReal >= 0 ? "text-emerald-700" : "text-red-600" },
+                  { label: "Margen/ha",      val: hectareas ? margenTotal / hectareas : 0, color: "text-blue-700", isPerHa: true },
+                  { label: "Neto/ha",        val: hectareas ? margenNeto  / hectareas : 0, color: "text-blue-700", isPerHa: true },
+                ].map((k) => (
+                  <div key={k.label} className="bg-white rounded-xl px-3 py-2 flex justify-between items-center">
+                    <span className="text-xs text-slate-500">{k.label}</span>
+                    <span className={"font-mono font-black text-sm " + k.color}>
+                      {"U$S " + fmt(Math.round(dolar ? k.val / dolar : 0)) + (k.isPerHa ? "/ha" : "")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="space-y-2.5">
             {acts.map((act) => {
               const pos = act.margen >= 0;
@@ -4091,7 +4115,7 @@ function MargenActividad(p) {
                       <div className="flex items-center gap-2">
                         <div className="text-right">
                           <p className={pos ? "font-mono font-black text-base "+c.text : "font-mono font-black text-base text-red-600"}>{fmtMoney(act.margen)}</p>
-                          {dolar && act.margen ? <p className="text-xs text-slate-400">{usdV(act.margen)}</p> : null}
+                          {dolar && act.margen ? <p className="text-xs font-bold text-blue-600">{usdV(act.margen)}</p> : null}
                         </div>
                         <span className="text-slate-400 text-sm">{expanded ? "v" : ">"}</span>
                       </div>
@@ -4115,9 +4139,12 @@ function MargenActividad(p) {
                               <p className="text-xs font-semibold text-slate-700">{item.label}</p>
                               {item.valor ? <p className="text-xs text-slate-400">{item.valor}</p> : null}
                             </div>
-                            <span className={item.positivo ? "font-mono font-black text-sm shrink-0 text-emerald-700" : "font-mono font-black text-sm shrink-0 text-red-600"}>
-                              {item.total !== 0 ? (item.positivo ? "+" : "-")+fmtMoney(Math.abs(item.total || 0)) : "—"}
-                            </span>
+                            <div className="text-right shrink-0">
+                              <span className={item.positivo ? "font-mono font-black text-sm text-emerald-700" : "font-mono font-black text-sm text-red-600"}>
+                                {item.total !== 0 ? (item.positivo ? "+" : "-")+fmtMoney(Math.abs(item.total || 0)) : "—"}
+                              </span>
+                              {dolar && item.total !== 0 ? <p className="text-xs font-bold text-blue-600">{usdV(Math.abs(item.total || 0))}</p> : null}
+                            </div>
                           </div>
                         );
                       })}
@@ -4150,7 +4177,7 @@ function MargenActividad(p) {
                 </div>
                 <div className="text-right shrink-0">
                   <p className={"font-mono font-black text-lg "+row.color}>{row.val >= 0 ? "" : "-"}{fmtMoney(Math.abs(row.val))}</p>
-                  {dolar && Math.abs(row.val) ? <p className="text-xs text-slate-400">{usdV(Math.abs(row.val))}</p> : null}
+                  {dolar && Math.abs(row.val) ? <p className="text-xs font-bold text-blue-600">{usdV(Math.abs(row.val))}</p> : null}
                 </div>
               </div>
             </div>
@@ -4165,6 +4192,7 @@ function MargenActividad(p) {
                     : "La ganaderia rinde "+fmtMoney(Math.abs(margenNetoReal))+"/ano MENOS que una alternativa financiera"
                   }
                 </p>
+                {dolar ? <p className="text-sm font-black text-blue-700 mt-1">{"= " + usdV(margenNetoReal) + " / año en USD"}</p> : null}
                 {hectareas ? <p className="text-xs text-slate-500 mt-0.5">{"= "+fmtMoney(Math.round(margenNetoReal/hectareas))+"/ha/ano | "+usdV(margenNetoReal/hectareas)+"/ha/ano"}</p> : null}
               </div>
             </div>
