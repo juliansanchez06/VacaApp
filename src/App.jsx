@@ -7984,9 +7984,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           next.gdpEstimado   = GDP_DEFAULTS[val]  ?? 0.5;
         }
         if (k === "tropaOrigenId") {
-          // Snapshot the nombre so it persists even if tropa madre is deleted
           const madre = tropas.find(t => String(t.id) === String(val));
           next.tropaOrigenNombre = madre ? madre.origen : "";
+          // Auto-fill origen with mother tropa name
+          if (madre) next.origen = madre.origen;
         }
         return next;
       });
