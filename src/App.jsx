@@ -4621,6 +4621,26 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
 
+  // ── Kg reales producidos por tropas de pastaje en el campo ───────────────
+  // Solo terneros (cat=terneras) y recría (cat=recria) generan carne en el campo
+  // Fórmula: cab × gdpEstimado × días en campo
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const tropas = campoPastaje?.tropas ?? [];
+  const diasEntrePast = (desde, hasta) => {
+    if (!desde) return 0;
+    const d1 = new Date(desde); const d2 = new Date(hasta ?? hoyStr);
+    return Math.max(0, Math.round((d2 - d1) / 86400000));
+  };
+  const kgPastajeProducidos = tropas
+    .filter(t => t.cat === "terneras" || t.cat === "recria")
+    .reduce((s, t) => {
+      const cab  = t.cabActual ?? t.cab ?? 0;
+      const gdp  = t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5);
+      const dias = diasEntrePast(t.fechaIngreso, hoyStr);
+      return s + cab * gdp * dias;
+    }, 0);
+  const kgHaPastaje = hectareas ? Math.round(kgPastajeProducidos / hectareas) : 0;
+
   // ── Reposicion recria (ANTES del margen bruto) ─────────────────────────
   const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
   const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
@@ -6121,62 +6141,76 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* ── Rendimiento total campo (propio + pastaje) ── */}
-              {ingresoPastaje > 0 && (() => {
+              {(ingresoPastaje > 0 || kgPastajeProducidos > 0) && (() => {
                 // Kg producidos por animales de pastaje = GDP real por categoría × días en campo
                 // Vacas y toros: GDP ≈ 0 (mantienen peso, no producen kg netos)
                 // Terneros/terneras: GDP ≈ 0.7 kg/día (crecimiento destete → recría)
-                // Novillos recría/compra: GDP ≈ 0.5-0.7 kg/día (engorde a pasto)
-                const gdpPorCat = { vacas: 0, toros: 0, terneras: 0.7, recria: 0.6 };
-                const tropas = campoPastaje?.tropas ?? [];
-                const kgPastajeReal = tropas.reduce((sum, t) => {
-                  const cab  = t.cabActual ?? t.cab ?? 0;
-                  const gdp  = gdpPorCat[t.cat] ?? 0;
-                  // Días reales en campo desde fechaIngreso hasta hoy
-                  const fi   = t.fechaIngreso ? new Date(...t.fechaIngreso.split('-').map((v,i)=>i===1?v-1:+v)) : new Date();
-                  const dias = Math.max(0, Math.round((new Date() - fi) / 86400000));
-                  return sum + (cab * gdp * dias);
-                }, 0);
-                const kgHaPastaje  = hectareas > 0 ? Math.round(kgPastajeReal / hectareas) : 0;
-                const kgHaTotal    = kgHaAct + kgHaPastaje;
+                // Use kgPastajeProducidos calculated in MiCampo scope (from stored gdpEstimado per tropa)
+                const kgHaPastajeReal = kgHaPastaje; // already computed above
+                const kgHaTotal = kgHaAct + kgHaPastajeReal;
+
+                // Detail by tropa
+                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "recria");
+                const hoyNow = new Date();
 
                 return (
                   <div className="bg-white border-2 border-teal-200 rounded-3xl overflow-hidden shadow-lg">
                     <div className="h-1.5 bg-gradient-to-r from-teal-400 to-emerald-500" />
-                    <div className="p-5">
-                      <p className="text-xs font-black uppercase tracking-widest text-teal-700 mb-4">🌾 Rendimiento total del campo</p>
+                    <div className="p-5 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-teal-700">🌾 Rendimiento total del campo — propio + pastaje</p>
                       <div className="space-y-3">
+                        {/* Hacienda propia */}
                         <div className="flex items-center justify-between py-2 border-b border-slate-100">
                           <div>
-                            <p className="text-sm font-black text-slate-700">Hacienda propia</p>
+                            <p className="text-sm font-black text-slate-700">🐄 Hacienda propia</p>
                             <p className="text-xs text-slate-400">Terneros + novillos propios · {hectareas} ha</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-black text-xl text-emerald-700">{kgHaAct} kg/ha</p>
-                            <p className="text-xs text-slate-400">comparable con otros campos</p>
+                            <p className="text-xs text-slate-400">indicador comparable</p>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                          <div>
-                            <p className="text-sm font-black text-slate-700">Animales de pastaje {cabPastaje > 0 ? `(${cabPastaje} cab)` : ""}</p>
-                            <p className="text-xs text-slate-400">GDP estimado: terneras 0.7 kg/d · novillos 0.6 kg/d · vacas/toros 0 kg/d</p>
-                            <p className="text-xs text-slate-400 italic">Las vacas no producen kg — su producto es el ternero que se queda en el campo de origen</p>
+                        {/* Pastaje — solo terneras y recría */}
+                        {kgHaPastajeReal > 0 && (
+                          <div className="py-2 border-b border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-black text-slate-700">🤝 Pastaje (terneros y recría de terceros)</p>
+                                <p className="text-xs text-slate-400">kg de carne producidos en tu campo por animales de terceros</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-mono font-black text-xl text-teal-700">+{kgHaPastajeReal} kg/ha</p>
+                                <p className="text-xs text-slate-400">{Math.round(kgPastajeProducidos).toLocaleString("es-AR")} kg totales</p>
+                              </div>
+                            </div>
+                            {/* Desglose por tropa */}
+                            {tropasPastaje.map(t => {
+                              const cab  = t.cabActual ?? t.cab ?? 0;
+                              const gdp  = t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : 0.5);
+                              const fi   = t.fechaIngreso ? new Date(t.fechaIngreso) : hoyNow;
+                              const dias = Math.max(0, Math.round((hoyNow - fi) / 86400000));
+                              const kg   = Math.round(cab * gdp * dias);
+                              return (
+                                <div key={t.id} className="flex items-center justify-between bg-teal-50 rounded-xl px-3 py-2 text-xs">
+                                  <span className="text-slate-600 font-semibold">{t.origen}</span>
+                                  <span className="text-teal-700 font-black">{cab} cab · {gdp} kg/d · {dias}d = {kg.toLocaleString("es-AR")} kg</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="text-right">
-                            <p className="font-mono font-black text-xl text-teal-700">+{kgHaPastaje} kg/ha</p>
-                            <p className="text-xs text-slate-400">{Math.round(kgPastajeReal).toLocaleString("es-AR")} kg totales</p>
-                          </div>
-                        </div>
+                        )}
+                        {/* Total */}
                         <div className="flex items-center justify-between pt-2">
                           <div>
-                            <p className="text-sm font-black text-slate-800">Rendimiento total campo</p>
-                            <p className="text-xs text-slate-400">Producción propia + animales de terceros en campo</p>
+                            <p className="text-sm font-black text-slate-800">Total campo</p>
+                            <p className="text-xs text-slate-400">Producción propia + pastaje de terceros</p>
                           </div>
                           <p className="font-mono font-black text-3xl text-emerald-700">{kgHaTotal} kg/ha</p>
                         </div>
                       </div>
-                      <div className="mt-4 bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-700">
-                        <p className="font-black mb-1">💡 ¿Por qué GDP=0 en vacas y toros?</p>
-                        <p>Las vacas mantienen su peso — no producen kg netos en tu campo. Lo que producen es el ternero, que se queda en el campo del propietario (no en el tuyo). Los terneros y novillos de pastaje sí generan kg reales que tu pasto transformó en carne.</p>
+                      <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-700">
+                        <p className="font-black mb-1">💡 ¿Por qué solo terneros y recría?</p>
+                        <p>Las vacas mantienen su peso — no generan kg netos en tu campo. Los terneros y novillos en recría sí: tu pasto los hace crecer. Para editar el GDP de cada tropa, tocá el badge violeta en Pastaje → Tropas.</p>
                       </div>
                     </div>
                   </div>
@@ -7901,8 +7935,21 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
   const ModalNuevaTropa = ({ onClose }) => {
-    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno" });
-    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const GDP_DEFAULTS = { terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
+    const PESO_DEFAULTS = { terneras: 180, recria: 200, vacas: 380, toros: 450 };
+    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3 });
+    const set = (k) => (e) => {
+      const val = e.target ? e.target.value : e;
+      setForm(p => {
+        const next = { ...p, [k]: val };
+        // Auto-update defaults when category changes
+        if (k === "cat") {
+          next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200;
+          next.gdpEstimado   = GDP_DEFAULTS[val]  ?? 0.5;
+        }
+        return next;
+      });
+    };
     const guardar = () => {
       if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
       if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
@@ -7948,6 +7995,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               <option value="verano">Servicio verano</option>
               <option value="otoño">Servicio otoño</option>
             </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso entrada (kg/cab)</label>
+            <input type="number" min="50" value={form.pesoEntradaKg} onChange={set("pesoEntradaKg")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Terneros: 180 kg · Recría: 200 kg</p>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GDP estimado (kg/día)</label>
+            <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
           </div>
         </div>
       </ModalWrapper>
@@ -8378,6 +8435,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                 </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
+                                {/* Peso entrada editable */}
+                                <label className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 cursor-pointer hover:bg-emerald-100 flex items-center gap-1" title="Peso al ingreso">
+                                  ⚖️ {t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)} kg
+                                  <input type="number" defaultValue={t.pesoEntradaKg ?? (t.cat === "terneras" ? 180 : t.cat === "recria" ? 200 : 380)} onBlur={e => {
+                                    const v = parseFloat(e.target.value);
+                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, pesoEntradaKg: v } : x));
+                                  }} className="sr-only" />
+                                </label>
+                                {/* GDP editable */}
+                                <label className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full border border-violet-200 cursor-pointer hover:bg-violet-100 flex items-center gap-1" title="GDP kg/día estimado">
+                                  📈 {(t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0.3)).toFixed(2)} kg/d
+                                  <input type="number" step="0.05" defaultValue={t.gdpEstimado ?? (t.cat === "terneras" ? 0.6 : t.cat === "recria" ? 0.5 : 0.3)} onBlur={e => {
+                                    const v = parseFloat(e.target.value);
+                                    if (v > 0) setTropas(prev => prev.map(x => x.id === t.id ? { ...x, gdpEstimado: v } : x));
+                                  }} className="sr-only" />
+                                </label>
                                 {t.suplemento?.activo && (
                                   <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
                                     💊 {Object.values(t.suplemento.kgDiaPorMes ?? {}).filter(v => v > 0).length} meses · {fmtPesos(t.suplemento.precioPorKg)}/kg
