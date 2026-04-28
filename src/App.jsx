@@ -6509,6 +6509,127 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 );
               })()}
 
+              {/* ── Punto de equilibrio por actividad ───────────────────── */}
+              {(() => {
+                const fmt2 = (n) => Math.round(n).toLocaleString("es-AR");
+                const pctFmt = (n) => (n * 100).toFixed(1) + "%";
+                const peqCria = cabDestetados ? Math.ceil(sanidadCria / (cabDestetados * pesoDestete2)) : 0;
+                const peqCriaPct = precioInvKg ? peqCria / precioInvKg : 0;
+                const peqRec = cabRecriaSale && pesoRecria ? Math.ceil((costoReposicionTotal + sanidadRec) / (cabRecriaSale * pesoRecria)) : 0;
+                const peqRecPct = precioNovKg ? peqRec / precioNovKg : 0;
+                const costoTermTotal = costoFeedlotAnual + sanidadTerm;
+                const peqTerm = cabTermSale && pesoTerm ? Math.ceil(costoTermTotal / (cabTermSale * pesoTerm)) : 0;
+                const peqTermPct = precioNovKg ? peqTerm / precioNovKg : 0;
+                const hiltonCabKgRes = cabHilton * hiltonKgRes;
+                const peqHiltonUSD = hiltonCabKgRes ? Math.ceil((hiltonCostoTotal / dolarExp / (hiltonCabKgRes / 1000)) / (1 - retencion)) : 0;
+                const peqHiltonPct = terminacionDatos.hiltonPrecioUSDton ? peqHiltonUSD / terminacionDatos.hiltonPrecioUSDton : 0;
+                const ue481CabKgRes = cabUE481 * ue481KgRes;
+                const peqUE481USD = ue481CabKgRes ? Math.ceil((ue481CostoTotal / dolarExp / (ue481CabKgRes / 1000)) / (1 - retencion)) : 0;
+                const peqUE481Pct = terminacionDatos.ue481PrecioUSDton ? peqUE481USD / terminacionDatos.ue481PrecioUSDton : 0;
+                const colorMap = {
+                  emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", ok: "bg-emerald-100" },
+                  blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    ok: "bg-blue-100"    },
+                  amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   ok: "bg-amber-100"   },
+                  purple:  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  ok: "bg-purple-100"  },
+                  indigo:  { bg: "bg-indigo-50",  border: "border-indigo-200",  text: "text-indigo-700",  ok: "bg-indigo-100"  },
+                };
+                const items = [
+                  { label: "Cria",        emoji: "🐄", sub: "Precio min. ternero destete",  valor: "$" + fmt2(peqCria) + "/kg",        comp: "Actual: $" + fmt2(precioInvKg) + "/kg",  pct: peqCriaPct,   color: "emerald", activo: cabDestetados > 0 },
+                  { label: "Recria",      emoji: "🐂", sub: "Precio min. novillo invernada", valor: "$" + fmt2(peqRec) + "/kg",         comp: "Actual: $" + fmt2(precioNovKg) + "/kg",  pct: peqRecPct,    color: "blue",    activo: cabRecriaSale > 0 },
+                  { label: "Terminacion", emoji: "🥩", sub: "Precio min. novillo gordo",     valor: "$" + fmt2(peqTerm) + "/kg",        comp: "Actual: $" + fmt2(precioNovKg) + "/kg",  pct: peqTermPct,   color: "amber",   activo: cabTermSale > 0 },
+                  ...(cabHilton ? [{ label: "Hilton",  emoji: "🌎", sub: "Precio min. USD/ton res", valor: "U$S " + fmt2(peqHiltonUSD) + "/ton", comp: "Actual: U$S " + fmt2(terminacionDatos.hiltonPrecioUSDton ?? 0) + "/ton", pct: peqHiltonPct, color: "purple", activo: true }] : []),
+                  ...(cabUE481 ? [{ label: "UE 481", emoji: "🏭", sub: "Precio min. USD/ton res",   valor: "U$S " + fmt2(peqUE481USD) + "/ton",  comp: "Actual: U$S " + fmt2(terminacionDatos.ue481PrecioUSDton ?? 0) + "/ton",  pct: peqUE481Pct,  color: "indigo", activo: true }] : []),
+                ].filter(i => i.activo);
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-orange-400 to-red-500" />
+                    <div className="p-5 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-600">Punto de equilibrio por actividad</p>
+                      <p className="text-xs text-slate-400">Precio minimo para que cada actividad cubra sus costos directos</p>
+                      <div className="space-y-3">
+                        {items.map((item) => {
+                          const c = colorMap[item.color] || colorMap.emerald;
+                          const ok = item.pct < 1;
+                          return (
+                            <div key={item.label} className={"rounded-2xl border-2 p-4 " + c.bg + " " + c.border}>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div>
+                                  <p className={"text-sm font-black " + c.text}>{item.emoji} {item.label}</p>
+                                  <p className="text-xs text-slate-500">{item.sub}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-mono font-black text-slate-800">{item.valor}</p>
+                                  <p className="text-xs text-slate-400">{item.comp}</p>
+                                </div>
+                              </div>
+                              <div className={"rounded-xl px-3 py-2 " + (ok ? c.ok : "bg-red-100")}>
+                                <span className={"text-xs font-black " + (ok ? c.text : "text-red-700")}>
+                                  {ok ? "Precio actual cubre " + pctFmt(1 - item.pct) + " mas del minimo" : "Precio actual esta " + pctFmt(item.pct - 1) + " por debajo del minimo"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── Sensibilidad exportacion ─────────────────────────────── */}
+              {(cabHilton > 0 || cabUE481 > 0) && (() => {
+                const fmtM = (n) => (n >= 0 ? "+" : "") + "$" + Math.round(n / 1000000) + "M";
+                const varPrecios = [-0.20, -0.10, -0.05, 0, 0.05, 0.10, 0.20];
+                const varDolar   = [-0.15, -0.10, 0, 0.10, 0.15];
+                const precioBaseH = terminacionDatos.hiltonPrecioUSDton ?? 8000;
+                const precioBaseU = terminacionDatos.ue481PrecioUSDton ?? 7000;
+                function margenExp(pricePct, dolarPct) {
+                  const dol = dolarExp * (1 + dolarPct);
+                  const pH  = precioBaseH * (1 + pricePct);
+                  const pU  = precioBaseU * (1 + pricePct);
+                  const mH  = cabHilton * hiltonKgRes * (pH / 1000) * (1 - retencion) * dol - hiltonCostoTotal;
+                  const mU  = cabUE481  * ue481KgRes  * (pU / 1000) * (1 - retencion) * dol - ue481CostoTotal;
+                  return mH + mU;
+                }
+                const cellCls = (m) => m > 50000000 ? "bg-emerald-200 text-emerald-900 font-black" : m > 0 ? "bg-emerald-100 text-emerald-800" : m > -20000000 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800 font-black";
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-purple-400 to-indigo-500" />
+                    <div className="p-5 space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-600">Sensibilidad exportacion — precio USD vs tipo de cambio</p>
+                      <p className="text-xs text-slate-400">Margen de exportacion. Verde = ganancia, Rojo = perdida</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr>
+                              <th className="bg-slate-100 px-2 py-2 text-left text-slate-500 font-black">USD/ton \ Dolar</th>
+                              {varDolar.map(d => (
+                                <th key={d} className={"px-2 py-2 text-center font-black " + (d === 0 ? "bg-slate-300 text-slate-800" : "bg-slate-100 text-slate-500")}>
+                                  {d === 0 ? "Base" : (d > 0 ? "+" : "") + (d * 100).toFixed(0) + "%"}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {varPrecios.map((p) => (
+                              <tr key={p}>
+                                <td className={"px-2 py-2 font-black text-center " + (p === 0 ? "bg-slate-300 text-slate-800" : "bg-slate-100 text-slate-500")}>
+                                  {p === 0 ? "Base" : (p > 0 ? "+" : "") + (p * 100).toFixed(0) + "%"}
+                                </td>
+                                {varDolar.map(d => {
+                                  const m = margenExp(p, d);
+                                  return <td key={d} className={"px-2 py-1.5 text-center rounded " + cellCls(m)}>{fmtM(m)}</td>;
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
           )}
   
