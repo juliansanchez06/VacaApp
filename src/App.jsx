@@ -5912,6 +5912,119 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 fmtMoney={fmtMoney}
               />
 
+              {/* ── Panel Capital y Rotación ─────────────────────────────── */}
+              {(() => {
+                const tasaAlternativa = (global.tasaOportunidadUSD ?? 5) / 100;
+                const fmt2 = (n) => Math.round(n).toLocaleString("es-AR");
+                const pct = (n) => (n * 100).toFixed(1) + "%";
+
+                // Capital inmovilizado por actividad
+                const capitalCria = (criaDatos.vacas + criaDatos.vaquillonas) * (pVacaDescarte ?? 380) * precioNovKg;
+                const diasCria = 365;
+                const roiCria = capitalCria ? margenBrutoCria / capitalCria : 0;
+                const roiAnualCria = roiCria; // ya es anual (ciclo 365 días)
+
+                const pesoEntradaRec = reciaDatos.pesoEntradaRecria ?? 180;
+                const diasRec = 270;
+                const capitalRec = cabRec * pesoEntradaRec * precioInvKg;
+                const roiAnualRec = capitalRec ? (margenBrutoRec / capitalRec) * (365 / diasRec) : 0;
+
+                const pesoEntradaTerm = terminacionDatos.pesoPromedioKg ? terminacionDatos.pesoPromedioKg - (terminacionDatos.gdpNovilloFaena ?? 1.1) * (terminacionDatos.diasRestantes ?? 45) : 360;
+                const diasTerm = terminacionDatos.diasRestantes ?? 45;
+                const capitalTerm = cabTerm * pesoEntradaTerm * precioNovKg;
+                const roiAnualTerm = capitalTerm ? (margenBrutoTerm / capitalTerm) * (365 / diasTerm) : 0;
+
+                const capitalExport = (cabHilton + cabUE481) * 380 * precioNovKg;
+                const diasExport = 110;
+                const roiAnualExport = capitalExport ? (margenBrutoExport / capitalExport) * (365 / diasExport) : 0;
+
+                const actividades = [
+                  { label: "🐄 Cría",        capital: capitalCria,    dias: diasCria,    margen: margenBrutoCria,    roi: roiAnualCria,    color: "emerald", rotaciones: (365/diasCria).toFixed(1) },
+                  { label: "🐂 Recría",      capital: capitalRec,     dias: diasRec,     margen: margenBrutoRec,     roi: roiAnualRec,     color: "blue",    rotaciones: (365/diasRec).toFixed(1) },
+                  { label: "🥩 Terminación", capital: capitalTerm,    dias: diasTerm,    margen: margenBrutoTerm,    roi: roiAnualTerm,    color: "amber",   rotaciones: (365/diasTerm).toFixed(1) },
+                  ...(cabHilton + cabUE481 ? [{ label: "🌎 Exportación", capital: capitalExport, dias: diasExport, margen: margenBrutoExport, roi: roiAnualExport, color: "purple", rotaciones: (365/diasExport).toFixed(1) }] : []),
+                ].filter(a => a.capital > 0);
+
+                const maxRoi = Math.max(...actividades.map(a => a.roi));
+
+                const colorMap = {
+                  emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", bar: "bg-emerald-400" },
+                  blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    bar: "bg-blue-400" },
+                  amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   bar: "bg-amber-400" },
+                  purple:  { bg: "bg-purple-50",  border: "border-purple-200",  text: "text-purple-700",  bar: "bg-purple-400" },
+                };
+
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                    <div className="h-1.5 bg-gradient-to-r from-violet-500 to-indigo-500" />
+                    <div className="p-5 space-y-4">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-600">💰 Capital inmovilizado y ROI por actividad</p>
+                        <p className="text-xs text-slate-400 mt-0.5">¿En qué actividad rinde más cada peso invertido? Compara vs tasa alternativa {pct(tasaAlternativa)} USD/año</p>
+                      </div>
+                      <div className="space-y-3">
+                        {actividades.map((act) => {
+                          const c = colorMap[act.color] || colorMap.emerald;
+                          const superaTasa = act.roi > tasaAlternativa;
+                          const esBest = act.roi === maxRoi;
+                          const barWidth = maxRoi ? Math.max(4, Math.round((act.roi / maxRoi) * 100)) : 4;
+                          return (
+                            <div key={act.label} className={"rounded-2xl border-2 p-4 " + c.bg + " " + c.border + (esBest ? " ring-2 ring-offset-1 ring-violet-400" : "")}>
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={"text-sm font-black " + c.text}>{act.label}</span>
+                                    {esBest && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-black">⭐ Mejor ROI</span>}
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-0.5">{act.rotaciones}x/año · {act.dias} días por ciclo</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className={"font-mono font-black text-xl " + (superaTasa ? "text-emerald-700" : "text-red-600")}>{pct(act.roi)}</p>
+                                  <p className="text-xs text-slate-400">ROI anual</p>
+                                </div>
+                              </div>
+                              <div className="w-full bg-slate-200 rounded-full h-2 mb-3">
+                                <div className={"h-2 rounded-full transition-all " + c.bar} style={{ width: barWidth + "%" }} />
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="bg-white rounded-xl p-2">
+                                  <p className="text-xs text-slate-400">Capital</p>
+                                  <p className={"font-black text-sm " + c.text}>${fmt2(Math.round(act.capital / 1000000))}M</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2">
+                                  <p className="text-xs text-slate-400">Margen bruto</p>
+                                  <p className={"font-black text-sm " + (act.margen >= 0 ? "text-emerald-700" : "text-red-600")}>${fmt2(Math.round(act.margen / 1000000))}M</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2">
+                                  <p className="text-xs text-slate-400">vs alternativa</p>
+                                  <p className={"font-black text-sm " + (superaTasa ? "text-emerald-700" : "text-red-600")}>{superaTasa ? "+" : ""}{pct(act.roi - tasaAlternativa)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-2">
+                        <p className="text-xs font-black text-violet-700">📊 Velocidad de rotación del capital</p>
+                        <p className="text-xs text-slate-600">La rotación mide cuántas veces por año el capital "da la vuelta". Feedlot rotates 3x/año vs Cría que rota 1x/año — aunque el margen absoluto del feedlot sea menor, el ROI anual puede ser mayor.</p>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div className="bg-white rounded-xl p-2 text-center">
+                            <p className="text-xs text-slate-400">Capital total</p>
+                            <p className="font-black text-slate-800">${fmt2(Math.round(actividades.reduce((s,a) => s + a.capital, 0) / 1000000))}M</p>
+                          </div>
+                          <div className="bg-white rounded-xl p-2 text-center">
+                            <p className="text-xs text-slate-400">ROI ponderado</p>
+                            <p className={"font-black " + (actividades.reduce((s,a) => s + a.margen, 0) / Math.max(1, actividades.reduce((s,a) => s + a.capital, 0)) > tasaAlternativa ? "text-emerald-700" : "text-red-600")}>
+                              {pct(actividades.reduce((s,a) => s + a.margen, 0) / Math.max(1, actividades.reduce((s,a) => s + a.capital, 0)))}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
                   <div className="flex items-center justify-between mb-1">
