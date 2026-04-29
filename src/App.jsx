@@ -7821,23 +7821,35 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [tropaSuplemento, setTropaSuplemento] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  // ── Todo el estado de pastaje vive aquí — solo sube al padre con debounce ──
+  // ── Todo el estado de pastaje vive aquí, NUNCA sube al padre durante edición ──
   const [localPastaje, setLocalPastaje] = React.useState(() => pastaje ?? {});
-  const syncTimerRef = React.useRef(null);
+  const localPastajeRef = React.useRef(localPastaje);
 
   // Sync DOWN from parent only on first mount
   React.useEffect(() => {
     setLocalPastaje(pastaje ?? {});
+    localPastajeRef.current = pastaje ?? {};
   }, []); // eslint-disable-line
 
-  // Update local and debounce sync to parent (500ms)
+  // Update local ONLY — no propagation to parent during editing
   const updateLocal = React.useCallback((patch) => {
     setLocalPastaje(prev => {
       const next = { ...prev, ...patch };
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => setPastaje(patch), 500);
+      localPastajeRef.current = next;
       return next;
     });
+  }, []);
+
+  // Sync al padre — llamar solo desde el botón Guardar o al desmontar
+  const syncToParent = React.useCallback(() => {
+    setPastaje(localPastajeRef.current);
+  }, [setPastaje]);
+
+  // Sync al desmontar (cambian de sección)
+  React.useEffect(() => {
+    return () => {
+      setPastaje(localPastajeRef.current);
+    };
   }, [setPastaje]);
 
   const precioNov    = localPastaje?.precioNov ?? precioNovillo;
@@ -9601,6 +9613,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             {kgPendientes > 0 && <> · <span className="text-amber-600 font-bold">{fmtN(Math.round(kgPendientes))} kg por cobrar</span></>}
           </p>
         </div>
+        <button onClick={syncToParent}
+          className="text-xs font-black px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all active:scale-95 shadow-sm">
+          💾 Guardar
+        </button>
       </div>
       <div className="flex gap-2 flex-wrap">
         {TABS.map(t => <TabBtn key={t.id} {...t} />)}
