@@ -204,6 +204,7 @@ const vacaStore = createStore((set, get) => ({
         pctDestete: 75,
         pesoDesteteKg: 187,
         ternerosAlPie: 0,
+        pctMachos: 50,
         estado: "al_pie",
         ternerosDestetados: 0,
         fechaDesteReal: null,
@@ -5370,21 +5371,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">Destetados este año</p>
-                          <p className="text-2xl font-black text-emerald-700">{criaDatos.ternerosDestetados ?? 0}</p>
+                          <p className="text-2xl font-black text-emerald-700">{totalTernerosDestetados}</p>
                         </div>
-                        {(totalTernerosAlPie ?? 0) > 0 && (
-                          <DesteteParcialBtn
-                            ternerosNoDestetados={totalTernerosAlPie}
-                            onDestetar={(cant) => {
-                              setCriaActiva(p => ({
-                                ...p,
-                                ternerosNoDestetados: Math.max(0, (p.ternerosNoDestetados??0) - cant),
-                                ternerosDestetados:   (p.ternerosDestetados??0) + cant,
-                              }));
-                              onToast("✅ " + cant + " terneros destetados — ya computan en rendimiento", "success");
-                            }}
-                          />
-                        )}
                       </div>
                     </div>
                   </div>
@@ -5431,6 +5419,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           pctDestete: 75,
                           pesoDesteteKg: 187,
                           ternerosAlPie: 0,
+                          pctMachos: 50,
                           estado: "al_pie",
                           ternerosDestetados: 0,
                           fechaDesteReal: null,
@@ -5516,33 +5505,58 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             </div>
 
                             {/* % Preñez y destete */}
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               <EditField label="% Preñez" value={ciclo.pctPreniez} onChange={v => updateCiclo({ pctPreniez: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternNacidos + " terneros nacidos"} />
-                              <EditField label="% Destete" value={ciclo.pctDestete} onChange={v => updateCiclo({ pctDestete: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternDestProyec + " terneros proyectados"} />
+                              <EditField label="% Destete" value={ciclo.pctDestete} onChange={v => updateCiclo({ pctDestete: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternDestProyec + " proyectados"} />
                               <EditField label="Peso destete (kg)" value={ciclo.pesoDesteteKg} onChange={v => updateCiclo({ pesoDesteteKg: Math.max(100, Math.min(300, v)) })} step={5} suffix=" kg" />
+                              <EditField label="% Machos" value={ciclo.pctMachos ?? 50} onChange={v => updateCiclo({ pctMachos: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={"Hembras: " + (100 - (ciclo.pctMachos ?? 50)) + "%"} />
                             </div>
+                            {/* Proyección machos/hembras */}
+                            {ternDestProyec > 0 && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-xs text-blue-600 font-bold">♂ Machos proyectados</p>
+                                  <p className="font-black text-blue-800 text-xl">{Math.round(ternDestProyec * (ciclo.pctMachos ?? 50) / 100)}</p>
+                                  <p className="text-xs text-blue-500">→ recría</p>
+                                </div>
+                                <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-xs text-rose-600 font-bold">♀ Hembras proyectadas</p>
+                                  <p className="font-black text-rose-800 text-xl">{ternDestProyec - Math.round(ternDestProyec * (ciclo.pctMachos ?? 50) / 100)}</p>
+                                  <p className="text-xs text-rose-500">→ reposición / venta</p>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Botón destete */}
                             {!isDestetado && (
                               <DesteteParcialBtn
                                 ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
-                                onDestetar={(cant) => {
+                                pctMachos={ciclo.pctMachos ?? 50}
+                                onDestetar={(cant, machos, hembras) => {
                                   const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
                                   updateCiclo({
                                     ternerosAlPie: restantes,
                                     ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
+                                    machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
+                                    hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
                                     estado: restantes === 0 ? "destetado" : "al_pie",
                                     fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
                                   });
-                                  onToast("✅ " + cant + " terneros destetados" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes), "success");
                                 }}
                               />
                             )}
                             {isDestetado && (
-                              <div className="bg-emerald-100 rounded-xl px-3 py-2 flex items-center justify-between">
-                                <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados el {ciclo.fechaDesteReal ?? "—"}</span>
-                                <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, fechaDesteReal: null })}
-                                  className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                              <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
+                                  <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
+                                    className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
+                                  <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -8051,30 +8065,55 @@ function SyncDescartesBtn({ criaDatos, setCriaActiva, setTermActiva, onToast }) 
 }
 
 // Componente para destete parcial
-function DesteteParcialBtn({ ternerosNoDestetados, onDestetar }) {
-  const [cant, setCant] = React.useState(ternerosNoDestetados);
+function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
+  const [cant, setCant] = React.useState(ternerosNoDestetados > 0 ? ternerosNoDestetados : "");
   const [open, setOpen] = React.useState(false);
+  const pctM = pctMachos ?? 50;
+  const cantNum = parseInt(cant) || 0;
+  const machos  = Math.round(cantNum * pctM / 100);
+  const hembras = cantNum - machos;
+
   if (!open) return (
-    <button onClick={() => { setCant(ternerosNoDestetados); setOpen(true); }}
-      className="px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-black transition-all active:scale-95">
-      Registrar destete
+    <button onClick={() => { setCant(ternerosNoDestetados > 0 ? ternerosNoDestetados : ""); setOpen(true); }}
+      className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2">
+      🐄 Registrar destete
     </button>
   );
   return (
-    <div className="flex-1 space-y-2">
-      <p className="text-xs font-black text-emerald-700">¿Cuántos destetar?</p>
-      <div className="flex items-center gap-2">
-        <input type="number" min="1" max={ternerosNoDestetados} value={cant}
-          onChange={e => setCant(Math.min(ternerosNoDestetados, Math.max(1, parseInt(e.target.value)||1)))}
-          className="w-20 text-center border-2 border-emerald-300 rounded-lg px-2 py-1 text-sm font-black focus:outline-none focus:border-emerald-500" />
-        <span className="text-xs text-slate-400">/ {ternerosNoDestetados} total</span>
+    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
+      <p className="text-xs font-black text-emerald-700">¿Cuántos terneros destetar?</p>
+      <div className="flex items-center gap-3">
+        <input
+          type="number" min="1"
+          value={cant}
+          onChange={e => setCant(e.target.value)}
+          placeholder="0"
+          className="w-24 text-center border-2 border-emerald-300 rounded-xl px-3 py-2 text-lg font-black focus:outline-none focus:border-emerald-500 bg-white"
+        />
+        <div className="flex-1 grid grid-cols-2 gap-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 text-center">
+            <p className="text-xs text-blue-600 font-bold">♂ Machos</p>
+            <p className="font-black text-blue-800 text-lg">{machos}</p>
+          </div>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-1.5 text-center">
+            <p className="text-xs text-rose-600 font-bold">♀ Hembras</p>
+            <p className="font-black text-rose-800 text-lg">{hembras}</p>
+          </div>
+        </div>
       </div>
-      <div className="flex gap-1">
-        <button onClick={() => { onDestetar(cant); setOpen(false); }}
-          className="flex-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-black active:scale-95">
-          ✓ Destetar
+      <p className="text-xs text-slate-400">Distribución: {pctM}% machos / {100-pctM}% hembras</p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            if (cantNum < 1) return;
+            onDestetar(cantNum, machos, hembras);
+            setOpen(false);
+          }}
+          disabled={cantNum < 1}
+          className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-black transition-all active:scale-95">
+          ✓ Destetar {cantNum > 0 ? cantNum + " terneros" : ""}
         </button>
-        <button onClick={() => setOpen(false)} className="px-2 py-1.5 rounded-lg bg-slate-200 text-xs font-black active:scale-95">✕</button>
+        <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-black active:scale-95">✕</button>
       </div>
     </div>
   );
