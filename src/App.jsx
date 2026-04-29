@@ -8809,13 +8809,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         fechaCreacion: hoy,
       };
       setPeriodos(prev => [...prev, nuevoCobro]);
-      // Actualizar ultimoCobro en cada tropa y limpiar tramosEgreso ya liquidados
+      // Actualizar ultimoCobro en cada tropa: guardar el día SIGUIENTE al corte
+      // para que el próximo período arranque desde ahí sin solapar el último día
+      const fechaSiguiente = (() => {
+        const [y, m, d] = fechaHastaEfectiva.split("-").map(Number);
+        const dt = new Date(y, m - 1, d + 1);
+        return dt.toISOString().slice(0, 10);
+      })();
       setTropas(prev => prev.map(t => {
         const linea = preview.find(l => l.tropaId === t.id);
         if (!linea) return t;
         return {
           ...t,
-          ultimoCobro: fechaHastaEfectiva,
+          ultimoCobro: fechaSiguiente,
           tramosEgreso: (t.tramosEgreso || []).filter(te => te.fecha > fechaHastaEfectiva),
         };
       }));
