@@ -180,26 +180,29 @@ const vacaStore = createStore((set, get) => ({
   },
   // ── Stock del campo ───────────────────────────────────────────────────────
   campoCria: {
-    vacas: 54, vaquillonas: 21, ternerosNoDestetados: 0, toros: 2, vacias: 8,
+    vacas: 54, vaquillonas1: 21, vaquillonas2: 0, ternerosNoDestetados: 0, toros: 2, vacias: 8,
+    vacaCut: 0, vaqRechazo: 0,
+    ternerosDestetados: 0, // acumulado del año hasta ahora (destetes parciales)
     pctPreniez: 85, pctDestete: 75, pctMortandadCria: 2,
     pctMachos: 50, pctReposicion: 70,
     paricionMes: 9, paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1, mesesDestete: 6,
-    pesoDesteteKg: 187, // kg promedio al destete (175-200 típico)
-    pesoVacaDescarte: 380, // kg promedio vaca de descarte al momento de faena
+    pesoDesteteKg: 187,
+    pesoVacaDescarte: 380,
     gdpTernero: 1.0,
   },
   campoRecria: {
     ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
     ternerosCompraMachos: 0,  ternerosCompraHembras: 0,
-    novillos: 16, pctMortandadRecria: 2,
+    novillos: 16, vaquillonaRecria: 0, mej: 0,
+    pctMortandadRecria: 2,
     gdpNovilloInv: 0.5, gdpVaquillonaDesc: 0.5,
-    // Reposición — costo de compra del ciclo actual
-    precioCompraKgRecria: 0,   // $/kg de entrada (0 = no compra externa, son del destete propio)
-    pesoEntradaRecria:    180,  // kg promedio al ingreso
-    cabCompradasRecria:   0,    // cab compradas externamente este año
+    precioCompraKgRecria: 0,
+    pesoEntradaRecria:    180,
+    cabCompradasRecria:   0,
   },
   campoTerminacion: {
     novillosCampo: 0, novillosFeedlot: 0,
+    mejTerminacion: 0, vacaEngorde: 0, vaqEngorde: 0,
     pesoPromedioKg: 420, diasRestantes: 45,
     costoComidaDia: 4500, costoHoteleriaDia: 800,
     pctMortandadFeedlot: 2, gdpNovilloFaena: 1.1,
@@ -281,7 +284,8 @@ const vacaStore = createStore((set, get) => ({
       case "terneros-compra-machos":  return { campoRecria:     { ...s.campoRecria,     ternerosCompraMachos:  s.campoRecria.ternerosCompraMachos  + cantidad } };
       case "terneros-compra-hembras": return { campoRecria:     { ...s.campoRecria,     ternerosCompraHembras: s.campoRecria.ternerosCompraHembras + cantidad } };
       case "vacas":                   return { campoCria:        { ...s.campoCria,        vacas:          s.campoCria.vacas          + cantidad } };
-      case "vaquillonas":             return { campoCria:        { ...s.campoCria,        vaquillonas:    s.campoCria.vaquillonas    + cantidad } };
+      case "vaquillonas1":            return { campoCria: { ...s.campoCria, vaquillonas1: (s.campoCria.vaquillonas1??s.campoCria.vaquillonas??0) + cantidad } };
+      case "vaquillonas2":            return { campoCria: { ...s.campoCria, vaquillonas2: (s.campoCria.vaquillonas2??0) + cantidad } };
       case "novillos-campo":          return { campoTerminacion: { ...s.campoTerminacion, novillosCampo:  s.campoTerminacion.novillosCampo  + cantidad } };
       case "novillos-feedlot":        return { campoTerminacion: { ...s.campoTerminacion, novillosFeedlot:s.campoTerminacion.novillosFeedlot + cantidad } };
       default: return {};
@@ -303,24 +307,24 @@ const vacaStore = createStore((set, get) => ({
     const pctRepos   = c.pctReposicion      / 100;
     const pctMachos  = c.pctMachos          / 100;
 
-    const preniadas    = Math.round((c.vacas + c.vaquillonas) * c.pctPreniez / 100);
+    const preniadas    = Math.round((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) * c.pctPreniez / 100);
     const nacidos      = Math.round(preniadas * (1 - mortCria));
     const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
     const vacasMort   = Math.round(c.vacas * mortCria);
-    const nuevasVacas = Math.max(0, c.vacas - c.vacias - vacasMort + c.vaquillonas);
+    const nuevasVacas = Math.max(0, c.vacas - c.vacias - vacasMort + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0));
     const nuevasVaq   = hembrasRepos;
     const machosSobrev = Math.round((r.ternerosLiquidaMachos + r.ternerosCompraMachos) * (1 - mortRecria));
 
     // Balance economico del ano
     const precioNov = gl.precioNovilloInmag || 1800;
-    const totalStock = c.vacas + c.vaquillonas + c.ternerosNoDestetados + c.toros + (c.vacias||0)
+    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
       + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
       + t.novillosCampo + t.novillosFeedlot;
     const hectareas = (cp&&cp.hectareas) || 1000;
-    const evTotal = c.vacas*1.0 + c.vaquillonas*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
+    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
       + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
       + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
 
@@ -354,7 +358,7 @@ const vacaStore = createStore((set, get) => ({
         kgTotalAnio, kgHaAnio, ingresoAnio, costoEst, margenAnio,
         costoOpAnio, rendimientoReal,
         evPorHa: Math.round((evTotal / hectareas) * 100) / 100,
-        pctDestete: Math.round(totalDest / ((c.vacas + c.vaquillonas) || 1) * 100),
+        pctDestete: Math.round(totalDest / ((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) || 1) * 100),
         totalStock, hectareas,
       },
     };
@@ -4550,9 +4554,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const litrosTotalesMes   = viajesState.viajesAlMes * viajesState.kmPorViaje * (viajesState.litrosCada100 / 100);
   const costoViajesMes     = litrosTotalesMes * gasoil;
 
-  const totalStockCampo = criaDatos.vacas + criaDatos.vaquillonas + criaDatos.ternerosNoDestetados + criaDatos.toros
+  const totalStockCampo = criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.ternerosNoDestetados + criaDatos.toros
+    + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0)
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
-    + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot;
+    + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0)
+    + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot
+    + (terminacionDatos.mejTerminacion??0) + (terminacionDatos.vacaEngorde??0) + (terminacionDatos.vaqEngorde??0);
 
   // ── Movimientos del año ───────────────────────────────────────────────────
   const movimientosAnio = movimientos.filter(m => m.anoGanadero === anoGanadero || !m.anoGanadero);
@@ -4567,7 +4574,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Coeficientes EV estándar (INTA): vaca cría con ternero = 1, toro = 1.3,
   // vaquillona reposición = 0.85, novillo terminación = 1.0, ternero destetado = 0.55
   const totalEV = (criaDatos.vacas ?? 0) * 1.0
-    + (criaDatos.vaquillonas ?? 0) * 0.85
+    + ((criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 0.85
     + (criaDatos.toros ?? 0) * 1.3
     + (criaDatos.ternerosNoDestetados ?? 0) * 0.55
     + (criaDatos.vacias ?? 0) * 1.0
@@ -4606,7 +4613,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Cría: produce terneros para destete, ingreso = peso destete × cab × precio nov × factor
   const precioNovKg     = global.precioNovilloInmag ?? 1800;
   const precioInvKg     = global.precioInvernada    ?? 1600;  // terneros/invernada
-  const cabDestetados   = Math.round((criaDatos.vacas + criaDatos.vaquillonas) * (criaDatos.pctDestete ?? 75) / 100);
+  // Si hay destetes parciales registrados, usar ese número real; sino proyectar por %
+  const cabDestetados = (criaDatos.ternerosDestetados ?? 0) > 0
+    ? criaDatos.ternerosDestetados
+    : Math.round((criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * (criaDatos.pctDestete ?? 75) / 100);
   const pesoDestete2    = criaDatos.pesoDesteteKg ?? 187; // kg al destete — editable en Stock → Cría
   const ingresoCria     = cabDestetados * pesoDestete2 * precioInvKg;   // terneros al destete → precio invernada
 
@@ -4621,8 +4631,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const ingresoTerm     = cabTermSale * pesoTerm * precioNovKg;
 
   // Costos asignados (proporcional al stock de cada actividad)
-  const cabCria  = (criaDatos.vacas + criaDatos.vaquillonas + criaDatos.toros + criaDatos.ternerosNoDestetados + (criaDatos.vacias ?? 0));
-  const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos;
+  const cabCria  = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.toros + criaDatos.ternerosNoDestetados + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0));
+  const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0);
   const cabTerm  = cabTermSale;
   const totalCabAct = Math.max(1, cabCria + cabRec + cabTerm);
   const costoTotalAnual = (totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes) * 12;
@@ -4753,7 +4763,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const datosSync = {
     cantidad: criaDatos.vacas + criaDatos.vaquillonas,
-    pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
+    pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
     pesoTerneroDestetado: 165,
     anosVidaUtil: 6,
   };
@@ -5274,11 +5284,109 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría — stock</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
-                    <EditField label="Vaquillonas" value={criaDatos.vaquillonas} onChange={v=>setCriaActiva(p=>({...p,vaquillonas:v}))} hint="Primera cría / entrada al rodeo" />
+                    <EditField label="Vaquillonas 1° Servicio" value={criaDatos.vaquillonas1??criaDatos.vaquillonas??0} onChange={v=>setCriaActiva(p=>({...p,vaquillonas1:v}))} hint="Entrada al rodeo por primera vez" />
+                    <EditField label="Vaquillonas 2° Servicio" value={criaDatos.vaquillonas2??0} onChange={v=>setCriaActiva(p=>({...p,vaquillonas2:v}))} hint="Segundo servicio — ya acreditadas" />
+                    <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)+(criaDatos.vaquillonas2??0))/criaDatos.toros):0}:1 vaca/toro`} />
                     <EditField label="Vacas vacías (descarte)" value={criaDatos.vacias||0} onChange={v=>setCriaActiva(p=>({...p,vacias:v}))} hint="Van al rendimiento como descarte" />
-                    <EditField label="Peso vaca descarte (kg)" value={criaDatos.pesoVacaDescarte??380} onChange={v=>setCriaActiva(p=>({...p,pesoVacaDescarte:Math.max(200,Math.min(600,v))}))} step={10} suffix="kg" hint="Peso promedio vaca al momento de faena. Impacta en kg/ha del campo." />
-                    <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre" />
-                    <EditField label="Toros" value={criaDatos.toros} onChange={v=>setCriaActiva(p=>({...p,toros:v}))} hint={`Relación ${criaDatos.toros>0?Math.round((criaDatos.vacas+criaDatos.vaquillonas)/criaDatos.toros):0}:1 vaca/toro`} />
+                    <EditField label="Peso vaca descarte (kg)" value={criaDatos.pesoVacaDescarte??380} onChange={v=>setCriaActiva(p=>({...p,pesoVacaDescarte:Math.max(200,Math.min(600,v))}))} step={10} suffix="kg" hint="Peso promedio vaca al momento de faena" />
+                  </div>
+
+                  {/* Descartes — Vaca CUT y Vaq Rechazo */}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-3">Descartes</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <EditField label="Vaca CUT" value={criaDatos.vacaCut??0} onChange={v=>setCriaActiva(p=>({...p,vacaCut:v}))} hint="Vacas descartadas por producción o dentición" />
+                      <EditField label="Vaq Rechazo" value={criaDatos.vaqRechazo??0} onChange={v=>setCriaActiva(p=>({...p,vaqRechazo:v}))} hint="Vaquillonas que no quedaron preñadas" />
+                    </div>
+                    {/* Sincronizar a Terminación */}
+                    {((criaDatos.vacaCut??0) > 0 || (criaDatos.vaqRechazo??0) > 0) && (() => {
+                      const [confirmSync, setConfirmSync] = React.useState(false);
+                      return (
+                        <div className="mt-3">
+                          {!confirmSync ? (
+                            <button onClick={() => setConfirmSync(true)}
+                              className="w-full py-2.5 rounded-2xl border-2 border-dashed border-amber-400 text-amber-700 font-black text-xs hover:bg-amber-50 transition-all flex items-center justify-center gap-2">
+                              🔄 Transferir descartes a Terminación
+                            </button>
+                          ) : (
+                            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+                              <p className="text-xs font-black text-amber-800">⚠️ Autorizar transferencia a Terminación</p>
+                              <div className="space-y-1 text-xs text-amber-700">
+                                {(criaDatos.vacaCut??0) > 0 && <p>• {criaDatos.vacaCut} Vaca CUT → <b>Vaca Engorde</b></p>}
+                                {(criaDatos.vaqRechazo??0) > 0 && <p>• {criaDatos.vaqRechazo} Vaq Rechazo → <b>Vaq Engorde</b></p>}
+                                <p className="text-amber-600 italic">Los animales se mantienen en tu campo — solo cambia su categoría contable.</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => {
+                                  setTerminacion(p => ({
+                                    ...p,
+                                    vacaEngorde: (p.vacaEngorde??0) + (criaDatos.vacaCut??0),
+                                    vaqEngorde:  (p.vaqEngorde??0)  + (criaDatos.vaqRechazo??0),
+                                  }));
+                                  setCriaActiva(p => ({ ...p, vacaCut: 0, vaqRechazo: 0 }));
+                                  setConfirmSync(false);
+                                  onToast("✅ Descartes transferidos a Terminación", "success");
+                                }} className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all active:scale-95">
+                                  Confirmar transferencia
+                                </button>
+                                <button onClick={() => setConfirmSync(false)}
+                                  className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-black transition-all active:scale-95">
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Terneros no destetados + destete parcial */}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Terneros al pie</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre — no computan rendimiento aún" />
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-600">Destetados este año</p>
+                          <p className="text-2xl font-black text-emerald-700">{criaDatos.ternerosDestetados ?? 0}</p>
+                        </div>
+                        {(criaDatos.ternerosNoDestetados ?? 0) > 0 && (() => {
+                          const [cantDest, setCantDest] = React.useState(criaDatos.ternerosNoDestetados ?? 0);
+                          const [open, setOpen] = React.useState(false);
+                          return open ? (
+                            <div className="flex-1 space-y-2">
+                              <p className="text-xs font-black text-emerald-700">¿Cuántos destetar?</p>
+                              <div className="flex items-center gap-2">
+                                <input type="number" min="1" max={criaDatos.ternerosNoDestetados} value={cantDest}
+                                  onChange={e => setCantDest(Math.min(criaDatos.ternerosNoDestetados, Math.max(1, parseInt(e.target.value)||1)))}
+                                  className="w-20 text-center border-2 border-emerald-300 rounded-lg px-2 py-1 text-sm font-black focus:outline-none focus:border-emerald-500" />
+                                <span className="text-xs text-slate-400">/ {criaDatos.ternerosNoDestetados} total</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <button onClick={() => {
+                                  setCriaActiva(p => ({
+                                    ...p,
+                                    ternerosNoDestetados: Math.max(0, (p.ternerosNoDestetados??0) - cantDest),
+                                    ternerosDestetados:   (p.ternerosDestetados??0) + cantDest,
+                                  }));
+                                  setOpen(false);
+                                  onToast("✅ " + cantDest + " terneros destetados — ya computan en rendimiento", "success");
+                                }} className="flex-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-black active:scale-95">
+                                  ✓ Destetar
+                                </button>
+                                <button onClick={() => setOpen(false)} className="px-2 py-1.5 rounded-lg bg-slate-200 text-xs font-black active:scale-95">✕</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setOpen(true)}
+                              className="px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-black transition-all active:scale-95">
+                              Registrar destete
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
                   </div>
   
                   {/* Preñez, destete y mortandad */}
@@ -5485,7 +5593,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         mesesRecriaPreServicio: 15,
                         anosVidaUtil: 6,
                         kgIatf: 8,
-                        pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + criaDatos.vaquillonas) * 100),
+                        pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
                         pesoTerneroDestetado: 160,
                         precioTerneroKg: 2000,
                         pesoVacaDescarte: 380,
@@ -5532,6 +5640,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
                     <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
                     <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
+                    <EditField label="Vaquillona Recría" value={reciaDatos.vaquillonaRecria??0} onChange={v=>setRecriaActiva(p=>({...p,vaquillonaRecria:v}))} hint="Vaquillonas en etapa de recría" />
+                    <EditField label="MEJ (Mejoramiento)" value={reciaDatos.mej??0} onChange={v=>setRecriaActiva(p=>({...p,mej:v}))} hint="Animales de mejoramiento genético" />
                     <div className="sm:col-span-2 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
@@ -5759,6 +5869,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <EditField label="Novillos en campo" value={terminacionDatos.novillosCampo} onChange={v=>setTermActiva(p=>({...p,novillosCampo:v}))} />
                     <EditField label="Novillos en feedlot" value={terminacionDatos.novillosFeedlot} onChange={v=>setTermActiva(p=>({...p,novillosFeedlot:v}))} />
+                    <EditField label="MEJ Terminación" value={terminacionDatos.mejTerminacion??0} onChange={v=>setTermActiva(p=>({...p,mejTerminacion:v}))} hint="Mejoramiento en terminación" />
+                    <EditField label="Vaca Engorde" value={terminacionDatos.vacaEngorde??0} onChange={v=>setTermActiva(p=>({...p,vacaEngorde:v}))} hint="Vacas CUT transferidas de Cría" />
+                    <EditField label="Vaq Engorde" value={terminacionDatos.vaqEngorde??0} onChange={v=>setTermActiva(p=>({...p,vaqEngorde:v}))} hint="Vaq Rechazo transferidas de Cría" />
                     <EditField label="Peso promedio (kg)" value={terminacionDatos.pesoPromedioKg} onChange={v=>setTermActiva(p=>({...p,pesoPromedioKg:v}))} step={5} suffix=" kg" />
                     <EditField label="Días para venta" value={terminacionDatos.diasRestantes} onChange={v=>setTermActiva(p=>({...p,diasRestantes:v}))} suffix=" días" />
                     <div className="space-y-1">
@@ -5995,7 +6108,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const pct = (n) => (n * 100).toFixed(1) + "%";
 
                 // Capital inmovilizado por actividad
-                const capitalCria = (criaDatos.vacas + criaDatos.vaquillonas) * (pVacaDescarte ?? 380) * precioNovKg;
+                const capitalCria = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * (pVacaDescarte ?? 380) * precioNovKg;
                 const diasCria = 365;
                 const roiCria = capitalCria ? margenBrutoCria / capitalCria : 0;
                 const roiAnualCria = roiCria; // ya es anual (ciclo 365 días)
