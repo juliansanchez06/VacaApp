@@ -4572,7 +4572,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     + (reciaDatos.novillos ?? 0) * 0.95
     + (terminacionDatos.novillosCampo ?? 0) * 1.0;
   // EV en feedlot no cuenta porque no consume del campo
-  const evPorHa = hectareas > 0 ? totalEV / hectareas : 0;
+
+  // ── EV pastaje — animales de terceros que pastan en el campo ─────────────
+  const EV_CAT = { vacas: 1.0, toros: 1.3, terneros: 0.55, terneras: 0.55, recria: 0.7 };
+  const evPastaje = (campoPastaje?.tropas ?? []).reduce((s, t) => {
+    const cab = t.cabActual ?? t.cab ?? 0;
+    const ev  = EV_CAT[t.cat] ?? 0.7;
+    return s + cab * ev;
+  }, 0);
+
+  const evTotal   = totalEV + evPastaje;
+  const evPorHa   = hectareas > 0 ? evTotal  / hectareas : 0;
+  const evPropHa  = hectareas > 0 ? totalEV  / hectareas : 0;
+  const evPastHa  = hectareas > 0 ? evPastaje / hectareas : 0;
 
   // ── Sanidad — costo $/mes ─────────────────────────────────────────────────
   const sanidadAnual = totalStockCampo * (campoStore.sanidadPorCabAnio ?? 40000);
@@ -4979,12 +4991,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
         {/* ── Carga animal — EV/ha ──────────────────────────────────────── */}
         {hectareas > 0 && (() => {
-          const cargaIdeal = 1.0; // EV/ha referencia para zona templada
-          const pct = (evPorHa / cargaIdeal) * 100;
-          const estado = evPorHa < 0.7 ? { label: "Subutilizado", color: "bg-sky-100 text-sky-700 border-sky-300", bar: "#0ea5e9" }
+          const cargaIdeal = 1.0;
+          const pct     = Math.min(100, (evPorHa  / cargaIdeal) * 100);
+          const pctProp = Math.min(100, (evPropHa / cargaIdeal) * 100);
+          const pctPast = Math.min(100, (evPastHa / cargaIdeal) * 100);
+          const estado = evPorHa < 0.7 ? { label: "Subutilizado", color: "bg-sky-100 text-sky-700 border-sky-300",         bar: "#0ea5e9" }
                        : evPorHa < 1.1 ? { label: "Óptimo",        color: "bg-emerald-100 text-emerald-700 border-emerald-300", bar: "#10b981" }
-                       : evPorHa < 1.4 ? { label: "Cargado",       color: "bg-amber-100 text-amber-700 border-amber-300", bar: "#f59e0b" }
-                                       : { label: "Sobrecarga",    color: "bg-red-100 text-red-700 border-red-300", bar: "#ef4444" };
+                       : evPorHa < 1.4 ? { label: "Cargado",       color: "bg-amber-100 text-amber-700 border-amber-300",   bar: "#f59e0b" }
+                                       : { label: "Sobrecarga",    color: "bg-red-100 text-red-700 border-red-300",         bar: "#ef4444" };
           return (
             <div className="bg-white rounded-2xl border-2 border-slate-200 p-4 mb-5 shadow-sm">
               <div className="flex items-center justify-between mb-3">
@@ -4996,21 +5010,29 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <div className="text-center">
-                  <p className="text-xs text-slate-400">Total EV</p>
+                  <p className="text-xs text-slate-400">EV propio</p>
                   <p className="font-mono font-black text-xl text-slate-700">{Math.round(totalEV)}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-slate-400">Hectáreas</p>
-                  <p className="font-mono font-black text-xl text-slate-700">{hectareas}</p>
+                  <p className="text-xs text-slate-400">EV pastaje</p>
+                  <p className="font-mono font-black text-xl text-orange-500">{Math.round(evPastaje)}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-slate-400">EV/ha</p>
+                  <p className="text-xs text-slate-400">EV/ha total</p>
                   <p className="font-mono font-black text-2xl" style={{ color: estado.bar }}>{evPorHa.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div className="h-full rounded-full transition-all" style={{ width: Math.min(100, pct) + "%", background: estado.bar }} />
+              {/* Barra apilada: propio (azul) + pastaje (naranja) */}
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200 flex">
+                <div className="h-full transition-all" style={{ width: pctProp + "%", background: estado.bar }} />
+                {evPastaje > 0 && <div className="h-full transition-all" style={{ width: pctPast + "%", background: "#f97316" }} />}
               </div>
+              {evPastaje > 0 && (
+                <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                  <span className="flex items-center gap-1"><span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", background: estado.bar }} /> Propio {evPropHa.toFixed(2)} EV/ha</span>
+                  <span className="flex items-center gap-1"><span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", background:"#f97316" }} /> Pastaje {evPastHa.toFixed(2)} EV/ha</span>
+                </div>
+              )}
               <p className="text-xs text-slate-400 text-center mt-1.5">Referencia: 1.0 EV/ha · zona templada típica · ajustá según receptividad real</p>
             </div>
           );
@@ -7877,15 +7899,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const necesitaCorreccion = false; // ya no necesitamos el banner manual
 
   const diasEntre = (desde, hasta) => {
-    // Parsear como fecha local (sin zona horaria) para evitar problemas UTC
     const parseLocal = (s) => {
-      if (!s) return new Date();
-      const [y, m, d] = String(s).slice(0, 10).split("-").map(Number);
+      const str = s || hoy; // hoy ya es new Date().toISOString().slice(0,10) — solo fecha
+      const [y, m, d] = String(str).slice(0, 10).split("-").map(Number);
       return new Date(y, m - 1, d);
     };
     const d1 = parseLocal(desde);
     const d2 = parseLocal(hasta);
-    return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+    // floor: el día de corte no cuenta (igual que planilla Excel)
+    return Math.max(0, Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)));
   };
   const kgDevengados = (tropa, hasta) => {
     const cab = tropa.cabActual ?? tropa.cab;
