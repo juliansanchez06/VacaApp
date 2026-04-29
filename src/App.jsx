@@ -431,7 +431,7 @@ const GLOBAL_STYLE = `
   }
   .login-bg {
     min-height: 100vh;
-    background: #064e3b;
+    background: #478a3d;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -466,10 +466,10 @@ const GLOBAL_STYLE = `
     opacity: 0.13;
     pointer-events: none;
   }
-  .login-blob-1 { width:520px; height:520px; background:#10b981; top:-180px; right:-140px; animation: bgFloat1 8s ease-in-out infinite; }
-  .login-blob-2 { width:340px; height:340px; background:#34d399; bottom:-100px; left:-80px;  animation: bgFloat2 10s ease-in-out infinite; }
-  .login-blob-3 { width:180px; height:180px; background:#6ee7b7; top:40%; left:8%;          animation: bgFloat3 6s ease-in-out infinite; }
-  .login-blob-4 { width:100px; height:100px; background:#a7f3d0; bottom:20%; right:10%;      animation: bgFloat1 7s ease-in-out 2s infinite; }
+  .login-blob-1 { width:520px; height:520px; background:#3a7a31; top:-180px; right:-140px; animation: bgFloat1 8s ease-in-out infinite; }
+  .login-blob-2 { width:340px; height:340px; background:#5aab4e; bottom:-100px; left:-80px;  animation: bgFloat2 10s ease-in-out infinite; }
+  .login-blob-3 { width:180px; height:180px; background:#6ec463; top:40%; left:8%;          animation: bgFloat3 6s ease-in-out infinite; }
+  .login-blob-4 { width:100px; height:100px; background:#8dd883; bottom:20%; right:10%;      animation: bgFloat1 7s ease-in-out 2s infinite; }
   .login-card {
     background: #ffffff;
     border-radius: 28px;
@@ -3669,7 +3669,7 @@ function LoginScreen() {
         <div className="ldollar ld5">$</div><div className="ldollar ld6">$</div>
 
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"24px", width:"100%", maxWidth:"420px", position:"relative", zIndex:2 }}>
-          {/* Logo directamente sobre el fondo verde */}
+          {/* Logo sobre el fondo verde — mismo color que el fondo del PNG */}
           <img src={`data:image/png;base64,${LOGO_LOGIN_B64}`} alt="SoyPekun"
             style={{ height:"110px", objectFit:"contain" }} />
 
