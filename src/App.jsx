@@ -7787,15 +7787,18 @@ function TropaEditorFields({ tropa, onSave }) {
   const [peso, setPeso] = React.useState(defaultPeso);
   const [gdp,  setGdp]  = React.useState(defaultGdp);
   const isGainCat = tropa.cat === "terneras" || tropa.cat === "terneros" || tropa.cat === "recria";
+  const savePeso = (e) => { e.stopPropagation(); const v = parseFloat(peso); if (v > 0) onSave({ pesoEntradaKg: v }); };
+  const saveGdp  = (e) => { e.stopPropagation(); const v = parseFloat(gdp);  if (v >= 0) onSave({ gdpEstimado: v }); };
   return (
-    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100" onClick={e => e.stopPropagation()}>
       <div className="bg-emerald-50 rounded-xl px-3 py-2">
         <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
         <input
           type="number" min="30" step="5"
           value={peso}
           onChange={e => setPeso(e.target.value)}
-          onBlur={() => { const v = parseFloat(peso); if (v > 0) onSave({ pesoEntradaKg: v }); }}
+          onBlur={savePeso}
+          onClick={e => e.stopPropagation()}
           className="w-full text-sm font-black text-emerald-800 bg-white border border-emerald-200 rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-400"
         />
       </div>
@@ -7805,7 +7808,8 @@ function TropaEditorFields({ tropa, onSave }) {
           type="number" min="0" step="0.05"
           value={gdp}
           onChange={e => setGdp(e.target.value)}
-          onBlur={() => { const v = parseFloat(gdp); if (v >= 0) onSave({ gdpEstimado: v }); }}
+          onBlur={saveGdp}
+          onClick={e => e.stopPropagation()}
           className="w-full text-sm font-black text-violet-800 bg-white border border-violet-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-400"
         />
         <p className="text-xs text-slate-400 mt-1">{!isGainCat ? "0 = peso estable" : tropa.cat === "recria" ? "típico 0.5" : "típico 0.6"}</p>
@@ -9635,7 +9639,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             </button>
           </div>
         )}
-        {vista === "tropas"  && <VistaTropas />}
+        {vista === "tropas"  && VistaTropas()}
         {vista === "eventos" && <VistaEventos />}
         {vista === "cobros"  && <VistaCobros />}
         {vista === "resumen" && <VistaResumen />}
