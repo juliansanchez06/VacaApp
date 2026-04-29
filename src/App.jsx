@@ -509,7 +509,7 @@ const GLOBAL_STYLE = `
     to   { width: 56px; opacity: 1; }
   }
   .login-slogan-badge {
-    background: linear-gradient(135deg, #064e3b, #059669);
+    background: linear-gradient(135deg, #163d44, #1e5560);
     color: #a7f3d0;
     font-size: 9px;
     font-weight: 800;
@@ -582,7 +582,7 @@ const GLOBAL_STYLE = `
   .login-btn {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+    background: linear-gradient(135deg, #163d44 0%, #1e5560 100%);
     color: #fff;
     border: none;
     border-radius: 14px;
@@ -967,7 +967,7 @@ const GLOBAL_STYLE = `
 
   /* ── Card gradient backgrounds ───────────────────────────────────────── */
   .card-green {
-    background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 100%);
+    background: linear-gradient(135deg, #163d44 0%, #1a4a52 40%, #1e5560 100%);
   }
   .card-multi {
     background: linear-gradient(135deg, #312e81 0%, #4c1d95 30%, #7c3aed 60%, #db2777 100%);
@@ -3633,13 +3633,13 @@ function LoginScreen() {
     @keyframes lcardIn{from{opacity:0;transform:translateY(40px) scale(0.93)}to{opacity:1;transform:translateY(0) scale(1)}}
     .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;}
     .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;}
-    .lbadge{background:linear-gradient(135deg,#064e3b,#059669);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
+    .lbadge{background:linear-gradient(135deg,#163d44,#1e5560);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
     .lslogan{font-size:10px;font-weight:700;letter-spacing:.18em;color:#6b7280;text-transform:uppercase;margin:0;}
     .lh2{font-size:21px;font-weight:900;color:#111827;text-align:center;margin:1rem 0 .25rem;letter-spacing:-.4px;}
     .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.2rem;line-height:1.55;}
     .ltabs{display:flex;gap:6px;margin-bottom:1.25rem;background:#f3f4f6;border-radius:14px;padding:4px;}
     .ltab{flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;background:transparent;color:#6b7280;}
-    .ltab.active{background:#fff;color:#064e3b;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+    .ltab.active{background:#fff;color:#163d44;box-shadow:0 2px 8px rgba(0,0,0,.1);}
     .linpwrap{position:relative;margin-bottom:.7rem;}
     .linpicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;}
     .linptoggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:.45;cursor:pointer;background:none;border:none;padding:0;display:flex;}
@@ -3647,7 +3647,7 @@ function LoginScreen() {
     .linp:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.14);}
     .linp.lerr{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12);}
     .linp::placeholder{color:#9ca3af;}
-    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#064e3b,#059669);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
+    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#163d44,#1e5560);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
     .lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,78,59,.4);}
     .lbtn:active{transform:scale(.97);}
     .lbtn:disabled{opacity:.7;cursor:not-allowed;transform:none!important;}
@@ -4613,10 +4613,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Cría: produce terneros para destete, ingreso = peso destete × cab × precio nov × factor
   const precioNovKg     = global.precioNovilloInmag ?? 1800;
   const precioInvKg     = global.precioInvernada    ?? 1600;  // terneros/invernada
-  // Si hay destetes parciales registrados, usar ese número real; sino proyectar por %
-  const cabDestetados = (criaDatos.ternerosDestetados ?? 0) > 0
-    ? criaDatos.ternerosDestetados
-    : Math.round((criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * (criaDatos.pctDestete ?? 75) / 100);
+  // Terneros destetados reales vs proyección:
+  // - Si ya se registraron destetes parciales → usar ese número real
+  // - Si hay terneros al pie todavía sin destetar → ingreso = 0 (el destete no ocurrió)
+  // - Si no hay terneros al pie → proyectar por % (para planificación)
+  const ternerosAlPie = criaDatos.ternerosNoDestetados ?? 0;
+  const ternerosYaDestetados = criaDatos.ternerosDestetados ?? 0;
+  const cabDestetados = ternerosYaDestetados > 0
+    ? ternerosYaDestetados   // destetes parciales ya registrados → usar real
+    : ternerosAlPie > 0
+      ? 0                    // hay terneros al pie sin destetar → todavía no hay ingreso
+      : Math.round((criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * (criaDatos.pctDestete ?? 75) / 100); // sin terneros → proyección
   const pesoDestete2    = criaDatos.pesoDesteteKg ?? 187; // kg al destete — editable en Stock → Cría
   const ingresoCria     = cabDestetados * pesoDestete2 * precioInvKg;   // terneros al destete → precio invernada
 
@@ -10220,7 +10227,7 @@ export default function App() {
           .app-spinner { animation: appSpin 0.8s linear infinite; }
         ` }} />
         <div style={{
-          minHeight:"100vh", background:"#3a7d2c",
+          minHeight:"100vh", background:"#163d44",
           display:"flex", alignItems:"center", justifyContent:"center",
           flexDirection:"column", gap:"16px",
         }}>
