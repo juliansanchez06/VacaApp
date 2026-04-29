@@ -7799,38 +7799,46 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [tropaSuplemento, setTropaSuplemento] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  // precioNov vive en el store para que persista en Firestore
-  const precioNov    = pastaje?.precioNov ?? precioNovillo;
-  const setPrecioNov = (v) => setPastaje({ precioNov: v });
+  // ── Todo el estado de pastaje vive aquí — solo sube al padre con debounce ──
+  const [localPastaje, setLocalPastaje] = React.useState(() => pastaje ?? {});
+  const syncTimerRef = React.useRef(null);
 
-  // ── Estados de VistaCobros (elevados al nivel del componente) ─────────────
+  // Sync DOWN from parent only on first mount
+  React.useEffect(() => {
+    setLocalPastaje(pastaje ?? {});
+  }, []); // eslint-disable-line
+
+  // Update local and debounce sync to parent (500ms)
+  const updateLocal = React.useCallback((patch) => {
+    setLocalPastaje(prev => {
+      const next = { ...prev, ...patch };
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => setPastaje(patch), 500);
+      return next;
+    });
+  }, [setPastaje]);
+
+  const precioNov    = localPastaje?.precioNov ?? precioNovillo;
+  const setPrecioNov = (v) => updateLocal({ precioNov: v });
+
+  // ── Estados de VistaCobros ────────────────────────────────────────────────
   const hoy = new Date().toISOString().slice(0, 10);
   const [modoCobro,    setModoCobro]    = useState("semestral");
   const [fechaHasta,   setFechaHasta]   = useState(hoy);
   const [showLiquidar, setShowLiquidar] = useState(false);
   const [expandPag,    setExpandPag]    = useState(false);
   const [expandId,     setExpandId]     = useState(null);
-  const [propCobro,    setPropCobro]    = useState(null); // null → se inicializa al primer render
-  // ── Estado local de tropas para evitar re-renders del padre ─────────────
-  const [tropasLocal, setTropasLocal] = React.useState(() => pastaje?.tropas ?? []);
-  // Sync from parent only on mount or when parent changes from outside
-  React.useEffect(() => {
-    setTropasLocal(pastaje?.tropas ?? []);
-  }, [(pastaje?.tropas ?? []).length]);  // sync when count changes
+  const [propCobro,    setPropCobro]    = useState(null);
 
-  const periodos = pastaje?.periodos ?? [];
-  const precios  = pastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 };
-  const terceros = pastaje?.terceros ?? [];
-  const tropas   = tropasLocal;
+  const tropas   = localPastaje?.tropas   ?? [];
+  const periodos = localPastaje?.periodos ?? [];
+  const precios  = localPastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, terneros: 5.5, recria: 5.5 };
+  const terceros = localPastaje?.terceros ?? [];
 
-  const setTropas = (fn) => {
-    const next = typeof fn === "function" ? fn(tropasLocal) : fn;
-    setTropasLocal(next);
-    setPastaje({ tropas: next });
-  };
-  const setPeriodos = (fn) => setPastaje({ periodos: typeof fn === "function" ? fn(periodos) : fn });
-  const setPrecios  = (p)  => setPastaje({ precios:  { ...precios, ...p } });
-  const setTerceros = (fn) => setPastaje({ terceros: typeof fn === "function" ? fn(terceros) : fn });
+  const setTropas   = (fn) => updateLocal({ tropas:   typeof fn === "function" ? fn(tropas)   : fn });
+  const setPeriodos = (fn) => updateLocal({ periodos: typeof fn === "function" ? fn(periodos) : fn });
+  const setPrecios  = (p)  => updateLocal({ precios:  { ...precios, ...p } });
+  const setTerceros = (fn) => updateLocal({ terceros: typeof fn === "function" ? fn(terceros) : fn });
 
   const CATS = [
     { id: "vacas",    label: "Vacas / Vaquillonas",       emoji: "🐄", color: "emerald" },
@@ -9342,25 +9350,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">
                   Confirmar y generar cobro ✓
                 </button>
-                <button onClick={() => {
-                  const prop = terceros.find(t => t.id == propCobroActivo);
-                  exportarPDF(
-                    "Liquidación pastaje — " + (prop?.nombre ?? "Propietario"),
-                    [
-                      { label: "Propietario",     value: prop?.nombre ?? "-" },
-                      { label: "Período hasta",   value: fmtFecha(fechaHastaEfectiva) },
-                      { label: "Modo",            value: modoCobro },
-                      ...liquidacionPreview.map(l => ({ label: l.tropa + " (" + fmtN(Math.round(l.kg)) + " kg nov)", value: fmtPesos(l.totalPesos) })),
-                      { label: "─────────────", value: "─────────────" },
-                      { label: "TOTAL PERÍODO",  value: fmtPesos(totalPreview) },
-                      { label: "  Pastaje",      value: fmtPesos(pesosPreview) + " (" + fmtN(Math.round(kgPreview)) + " kg)" },
-                      ...(supPreview > 0 ? [{ label: "  Suplemento", value: fmtPesos(supPreview) }] : []),
-                    ]
-                  );
-                }}
-                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition-all active:scale-95">
-                  🖨️ Exportar resumen PDF
-                </button>
               </div>
             ) : (
               <div className="text-center py-6 text-slate-400">
@@ -9529,13 +9518,46 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                     <span className="text-sm font-semibold text-slate-700">{t.nombre}</span>
                     {cabTotal > 0 && <span className="text-xs text-slate-400 ml-2">{cabTotal} cab</span>}
                   </div>
-                  <button onClick={() => { if (!window.confirm(`¿Eliminar propietario "${t.nombre}"?`)) return; setTerceros(prev => prev.filter(x => x.id !== t.id)); }}
+                  <button onClick={() => { setTerceros(prev => prev.filter(x => x.id !== t.id)); }}
                     className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors">✕</button>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {/* Exportar resumen */}
+        <button onClick={() => {
+          const fecha = new Date().toLocaleDateString("es-AR", { dateStyle: "long" });
+          exportarPDF(
+            "Resumen Pastaje — " + fecha,
+            [
+              { label: "Fecha",           value: fecha },
+              { label: "Cab. en pastaje", value: totalCab + " cab" },
+              { label: "Devengado hoy",   value: fmtN(Math.round(totalKgDev)) + " kg nov · $" + fmtK1(totalKgDev * precioNov) },
+              { label: "Por cobrar",      value: fmtN(Math.round(kgCobPend)) + " kg nov" },
+              { label: "─ Por categoría ─", value: "─" },
+              ...CATS.map(c => {
+                const cab = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+                const kg  = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + kgDevengados(t, null), 0);
+                if (!cab) return null;
+                return { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg" };
+              }).filter(Boolean),
+              { label: "─ Por origen ─", value: "─" },
+              ...porOrigen.map(o => ({
+                label: o.origen + " (" + o.cab + " cab)",
+                value: fmtN(Math.round(o.kgDev)) + " kg · $" + fmtK1(o.kgDev * precioNov)
+              })),
+              { label: "─ Tropas activas ─", value: "─" },
+              ...tropas.map(t => ({
+                label: t.origen + " (" + (t.cabActual ?? t.cab) + " cab · desde " + (t.fechaIngreso ?? "-") + ")",
+                value: fmtN(Math.round(kgDevengados(t, null))) + " kg devengados"
+              })),
+            ]
+          );
+        }} className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm transition-all active:scale-95 flex items-center justify-center gap-2">
+          🖨️ Exportar resumen del campo PDF
+        </button>
       </div>
     );
   };
