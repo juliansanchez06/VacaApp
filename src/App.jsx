@@ -7820,6 +7820,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [tropaEgreso, setTropaEgreso] = useState(null);
   const [tropaSuplemento, setTropaSuplemento] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [propSelec, setPropSelec] = useState(null); // elevado aquí para sobrevivir re-renders
 
   // ── Todo el estado de pastaje vive aquí, NUNCA sube al padre durante edición ──
   const [localPastaje, setLocalPastaje] = React.useState(() => pastaje ?? {});
@@ -8466,8 +8467,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   // ── Vista Tropas ──────────────────────────────────────────────────────────
   // ── Vista Tropas ──────────────────────────────────────────────────────────
   const VistaTropas = () => {
-    const [propSelec, setPropSelec] = useState(null);
-
     const svcLabel = { verano: "Serv. verano", "otoño": "Serv. otoño" };
     const svcColor = { verano: "bg-sky-100 text-sky-700 border-sky-200", "otoño": "bg-amber-100 text-amber-700 border-amber-200" };
 
