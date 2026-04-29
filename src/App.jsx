@@ -180,15 +180,35 @@ const vacaStore = createStore((set, get) => ({
   },
   // ── Stock del campo ───────────────────────────────────────────────────────
   campoCria: {
-    vacas: 54, vaquillonas1: 21, vaquillonas2: 0, ternerosNoDestetados: 0, toros: 2, vacias: 8,
+    // ── Stock permanente ──────────────────────────────────────────────────
+    vacas: 54, vaquillonas1: 21, vaquillonas2: 0, toros: 2, vacias: 8,
     vacaCut: 0, vaqRechazo: 0,
-    ternerosDestetados: 0, // acumulado del año hasta ahora (destetes parciales)
-    pctPreniez: 85, pctDestete: 75, pctMortandadCria: 2,
+    pctMortandadCria: 2,
     pctMachos: 50, pctReposicion: 70,
-    paricionMes: 9, paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1, mesesDestete: 6,
-    pesoDesteteKg: 187,
     pesoVacaDescarte: 380,
     gdpTernero: 1.0,
+
+    // ── Ciclos de parición (verano y/o otoño) ────────────────────────────
+    // Cada ciclo: { id, servicio, paricionMes, paricionAnio, mesesDestete,
+    //              pctPreniez, pctDestete, pesoDesteteKg,
+    //              ternerosAlPie, estado: "al_pie"|"destetado",
+    //              ternerosDestetados, fechaDesteReal }
+    ciclos: [
+      {
+        id: "ciclo_1",
+        servicio: "primavera",
+        paricionMes: 9,
+        paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1,
+        mesesDestete: 6,
+        pctPreniez: 85,
+        pctDestete: 75,
+        pesoDesteteKg: 187,
+        ternerosAlPie: 0,
+        estado: "al_pie",
+        ternerosDestetados: 0,
+        fechaDesteReal: null,
+      }
+    ],
   },
   campoRecria: {
     ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
@@ -4538,6 +4558,42 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const setRecriaActiva = anoViendo ? () => {} : setRecria;
   const setTermActiva   = anoViendo ? () => {} : setTerminacion;
 
+  // ── Helpers para ciclos de parición ──────────────────────────────────────
+  const ciclos = criaDatos.ciclos ?? [{
+    id: "ciclo_legacy",
+    servicio: "primavera",
+    paricionMes: criaDatos.paricionMes ?? 9,
+    paricionAnio: criaDatos.paricionAnio ?? new Date().getFullYear() - 1,
+    mesesDestete: criaDatos.mesesDestete ?? 6,
+    pctPreniez: criaDatos.pctPreniez ?? 85,
+    pctDestete: criaDatos.pctDestete ?? 75,
+    pesoDesteteKg: criaDatos.pesoDesteteKg ?? 187,
+    ternerosAlPie: totalTernerosAlPie ?? 0,
+    estado: (totalTernerosAlPie ?? 0) > 0 ? "al_pie" : "al_pie",
+    ternerosDestetados: criaDatos.ternerosDestetados ?? 0,
+    fechaDesteReal: null,
+  }];
+
+  // Compatibilidad con código viejo que usa estas variables
+  const paricionMes  = ciclos[0]?.paricionMes  ?? 9;
+  const paricionAnio = ciclos[0]?.paricionAnio ?? new Date().getFullYear() - 1;
+  const mesesDestete = ciclos[0]?.mesesDestete ?? 6;
+  // gdpTernero ya definido arriba desde campoStore
+
+  // Total terneros al pie (suma de todos los ciclos)
+  const totalTernerosAlPie = ciclos.reduce((s, c) => s + (c.ternerosAlPie ?? 0), 0);
+
+  // Total terneros destetados (para rendimiento — solo ciclos estado "destetado")
+  const totalTernerosDestetados = ciclos
+    .filter(c => c.estado === "destetado")
+    .reduce((s, c) => s + (c.ternerosDestetados ?? 0), 0);
+
+  // Peso destete promedio ponderado
+  const pesoDestete2 = ciclos.length > 0
+    ? Math.round(ciclos.reduce((s, c) => s + (c.pesoDesteteKg ?? 187) * (c.ternerosDestetados || c.ternerosAlPie || 1), 0)
+        / ciclos.reduce((s, c) => s + (c.ternerosDestetados || c.ternerosAlPie || 1), 0))
+    : (criaDatos.pesoDesteteKg ?? 187);
+
   // ── Costos estructura detallados ──────────────────────────────────────────
   const costoMensualEmpleado = (e) => {
     const bruto = e.sueldo * e.cantidad;
@@ -4554,7 +4610,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const litrosTotalesMes   = viajesState.viajesAlMes * viajesState.kmPorViaje * (viajesState.litrosCada100 / 100);
   const costoViajesMes     = litrosTotalesMes * gasoil;
 
-  const totalStockCampo = criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.ternerosNoDestetados + criaDatos.toros
+  const totalStockCampo = criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + totalTernerosAlPie + criaDatos.toros
     + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0)
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
     + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0)
@@ -4576,7 +4632,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const totalEV = (criaDatos.vacas ?? 0) * 1.0
     + ((criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 0.85
     + (criaDatos.toros ?? 0) * 1.3
-    + (criaDatos.ternerosNoDestetados ?? 0) * 0.55
+    + (totalTernerosAlPie ?? 0) * 0.55
     + (criaDatos.vacias ?? 0) * 1.0
     + (reciaDatos.ternerosLiquidaMachos ?? 0) * 0.7
     + (reciaDatos.ternerosLiquidaHembras ?? 0) * 0.7
@@ -4614,17 +4670,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const precioNovKg     = global.precioNovilloInmag ?? 1800;
   const precioInvKg     = global.precioInvernada    ?? 1600;  // terneros/invernada
   // Terneros destetados reales vs proyección:
-  // - Si ya se registraron destetes parciales → usar ese número real
-  // - Si hay terneros al pie todavía sin destetar → ingreso = 0 (el destete no ocurrió)
-  // - Si no hay terneros al pie → proyectar por % (para planificación)
-  const ternerosAlPie = criaDatos.ternerosNoDestetados ?? 0;
-  const ternerosYaDestetados = criaDatos.ternerosDestetados ?? 0;
-  const cabDestetados = ternerosYaDestetados > 0
-    ? ternerosYaDestetados   // destetes parciales ya registrados → usar real
-    : ternerosAlPie > 0
-      ? 0                    // hay terneros al pie sin destetar → todavía no hay ingreso
-      : Math.round((criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * (criaDatos.pctDestete ?? 75) / 100); // sin terneros → proyección
-  const pesoDestete2    = criaDatos.pesoDesteteKg ?? 187; // kg al destete — editable en Stock → Cría
+  const cabDestetados = totalTernerosDestetados > 0
+    ? totalTernerosDestetados   // hay ciclos ya destetados → usar real
+    : totalTernerosAlPie > 0
+      ? 0                        // hay terneros al pie sin destetar → ingreso = 0
+      : Math.round((criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * ((ciclos[0]?.pctDestete ?? criaDatos.pctDestete ?? 75) / 100)); // proyección
+  // pesoDestete2 ya definido arriba desde ciclos // kg al destete — editable en Stock → Cría
   const ingresoCria     = cabDestetados * pesoDestete2 * precioInvKg;   // terneros al destete → precio invernada
 
   // Recría: produce novillos invernada, ingreso = peso × cab × precio invernada
@@ -4638,7 +4689,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const ingresoTerm     = cabTermSale * pesoTerm * precioNovKg;
 
   // Costos asignados (proporcional al stock de cada actividad)
-  const cabCria  = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.toros + criaDatos.ternerosNoDestetados + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0));
+  const cabCria  = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.toros + totalTernerosAlPie + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0));
   const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0);
   const cabTerm  = cabTermSale;
   const totalCabAct = Math.max(1, cabCria + cabRec + cabTerm);
@@ -4770,7 +4821,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const datosSync = {
     cantidad: criaDatos.vacas + criaDatos.vaquillonas,
-    pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
+    pctDestete: Math.round(totalTernerosAlPie / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
     pesoTerneroDestetado: 165,
     anosVidaUtil: 6,
   };
@@ -4780,20 +4831,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const hoy = new Date();
 
   // Todo lo demás viene de criaDatos (sincronizado con Stock → Cría)
-  const paricionMes  = criaDatos.paricionMes  ?? 9;
   // Auto-corregir año de parición: si el destete calculado está a más de 180 días,
   // el año probablemente está mal — restar 1 año automáticamente
-  const paricionAnioRaw = criaDatos.paricionAnio ?? (hoy.getMonth() >= 9 ? hoy.getFullYear() : hoy.getFullYear() - 1);
-  const mDestAuto = criaDatos.mesesDestete ?? 6;
-  const destTestMes = (paricionMes + mDestAuto) % 12;
-  const destTestAnio = (paricionMes + mDestAuto) >= 12 ? paricionAnioRaw + 1 : paricionAnioRaw;
-  const diasParaDestTest = Math.round((new Date(destTestAnio, destTestMes, 1) - hoy) / 86400000);
-  const paricionAnio = diasParaDestTest > 180 ? paricionAnioRaw - 1 : paricionAnioRaw;
-  const meseDestete  = criaDatos.mesesDestete ?? 6;
-  const pctMachos    = criaDatos.pctMachos    ?? 50;
-  const pctReposicion= criaDatos.pctReposicion?? 30;
-  const pctPreniez   = criaDatos.pctPreniez   ?? 85;
-  const pctDestete   = criaDatos.pctDestete   ?? 75;
+  const meseDestete   = ciclos[0]?.mesesDestete ?? 6;
+  const pctMachos     = criaDatos.pctMachos    ?? 50;
+  const pctReposicion = criaDatos.pctReposicion ?? 30;
+  const pctPreniez    = ciclos[0]?.pctPreniez   ?? 85;
+  const pctDestete    = ciclos[0]?.pctDestete   ?? 75;
   const mortCria     = (criaDatos.pctMortandadCria  ?? 2) / 100;
   const mortRecria   = (reciaDatos.pctMortandadRecria  ?? 2) / 100;
   const mortFeedlot  = (terminacionDatos.pctMortandadFeedlot ?? 2) / 100;
@@ -5149,7 +5193,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐮</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
-                        <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+criaDatos.ternerosNoDestetados+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+totalTernerosAlPie+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarCria}
@@ -5163,7 +5207,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       { label:"Vaquillonas",     val: criaDatos.vaquillonas,           color:"text-emerald-700" },
                       { label:"Toros",           val: criaDatos.toros,                 color:"text-slate-700"   },
                       { label:"Vacías (desc.)",  val: criaDatos.vacias||0,             color:"text-rose-600"    },
-                      { label:"Tern. no dest.",  val: criaDatos.ternerosNoDestetados,  color:"text-blue-700"    },
+                      { label:"Tern. no dest.",  val: totalTernerosAlPie,  color:"text-blue-700"    },
                       { label:"% Preñez",        val: `${criaDatos.pctPreniez??85}%`,  color:"text-emerald-700" },
                       { label:"% Destete",       val: `${criaDatos.pctDestete??75}%`,  color:"text-emerald-700" },
                       { label:"% Mort. cría",    val: `${criaDatos.pctMortandadCria??2}%`, color:"text-slate-500" },
@@ -5322,15 +5366,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Terneros al pie</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <EditField label="Terneros no destetados" value={criaDatos.ternerosNoDestetados} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre — no computan rendimiento aún" />
+                      <EditField label="Terneros no destetados" value={totalTernerosAlPie} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre — no computan rendimiento aún" />
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">Destetados este año</p>
                           <p className="text-2xl font-black text-emerald-700">{criaDatos.ternerosDestetados ?? 0}</p>
                         </div>
-                        {(criaDatos.ternerosNoDestetados ?? 0) > 0 && (
+                        {(totalTernerosAlPie ?? 0) > 0 && (
                           <DesteteParcialBtn
-                            ternerosNoDestetados={criaDatos.ternerosNoDestetados}
+                            ternerosNoDestetados={totalTernerosAlPie}
                             onDestetar={(cant) => {
                               setCriaActiva(p => ({
                                 ...p,
@@ -5371,26 +5415,140 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     </div>
                   </div>
   
-                  {/* Parición y destete */}
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Parición y destete</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <span className="text-xs text-slate-500 font-semibold">Mes de parición</span>
-                        <select value={criaDatos.paricionMes??9} onChange={e=>setCriaActiva(p=>({...p,paricionMes:Number(e.target.value)}))}
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
-                          {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m,i)=><option key={i} value={i}>{m}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-slate-500 font-semibold">Año de parición</span>
-                        <select value={criaDatos.paricionAnio??new Date().getFullYear()} onChange={e=>setCriaActiva(p=>({...p,paricionAnio:Number(e.target.value)}))}
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
-                          {[new Date().getFullYear()-1,new Date().getFullYear(),new Date().getFullYear()+1].map(y=><option key={y} value={y}>{y}</option>)}
-                        </select>
-                      </div>
-                      <EditField label="Meses al destete" value={criaDatos.mesesDestete??6} onChange={v=>setCriaActiva(p=>({...p,mesesDestete:v}))} step={1} suffix=" meses" hint={`Destete: ${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][((criaDatos.paricionMes??9)+(criaDatos.mesesDestete??6))%12]}`} minVal={1} />
+                  {/* Ciclos de parición */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Ciclos de parición</p>
+                      <button onClick={() => setCriaActiva(p => ({
+                        ...p,
+                        ciclos: [...(p.ciclos ?? []), {
+                          id: "ciclo_" + Date.now(),
+                          servicio: "otoño",
+                          paricionMes: 4,
+                          paricionAnio: new Date().getFullYear(),
+                          mesesDestete: 7,
+                          pctPreniez: 85,
+                          pctDestete: 75,
+                          pesoDesteteKg: 187,
+                          ternerosAlPie: 0,
+                          estado: "al_pie",
+                          ternerosDestetados: 0,
+                          fechaDesteReal: null,
+                        }]
+                      }))}
+                        className="text-xs font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl transition-all active:scale-95">
+                        + Agregar ciclo
+                      </button>
                     </div>
+                    {ciclos.map((ciclo, idx) => {
+                      const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+                      const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                      const mesDest = (ciclo.paricionMes + ciclo.mesesDestete) % 12;
+                      const anioDest = (ciclo.paricionMes + ciclo.mesesDestete) >= 12 ? ciclo.paricionAnio + 1 : ciclo.paricionAnio;
+                      const diasParaDest = Math.round((new Date(anioDest, mesDest, 1) - new Date()) / 86400000);
+                      const madresCiclo = criaDatos.vacas + (criaDatos.vaquillonas1??0) + (criaDatos.vaquillonas2??0);
+                      const ternNacidos = Math.round(madresCiclo * (ciclo.pctPreniez / 100));
+                      const ternDestProyec = Math.round(ternNacidos * (ciclo.pctDestete / 100));
+                      const updateCiclo = (patch) => setCriaActiva(p => ({
+                        ...p,
+                        ciclos: (p.ciclos ?? []).map((c, i) => i === idx ? { ...c, ...patch } : c)
+                      }));
+                      const deleteCiclo = () => setCriaActiva(p => ({
+                        ...p,
+                        ciclos: (p.ciclos ?? []).filter((_, i) => i !== idx)
+                      }));
+                      const isDestetado = ciclo.estado === "destetado";
+                      return (
+                        <div key={ciclo.id} className={"border-2 rounded-2xl overflow-hidden " + (isDestetado ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white")}>
+                          {/* Header del ciclo */}
+                          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <span className={"text-xs font-black px-2 py-0.5 rounded-full " + (isDestetado ? "bg-emerald-200 text-emerald-800" : "bg-amber-100 text-amber-800")}>
+                                {isDestetado ? "✅ Destetado" : "🐄 Al pie"}
+                              </span>
+                              <select value={ciclo.servicio} onChange={e => updateCiclo({ servicio: e.target.value })}
+                                className="text-xs font-black bg-transparent text-slate-700 focus:outline-none">
+                                <option value="primavera">Servicio primavera</option>
+                                <option value="otoño">Servicio otoño</option>
+                                <option value="verano">Servicio verano</option>
+                              </select>
+                            </div>
+                            {ciclos.length > 1 && (
+                              <button onClick={deleteCiclo} className="text-xs text-slate-300 hover:text-red-500 font-black px-1">✕</button>
+                            )}
+                          </div>
+                          <div className="p-4 space-y-4">
+                            {/* Parición */}
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <span className="text-xs text-slate-500 font-semibold">Mes parición</span>
+                                <select value={ciclo.paricionMes} onChange={e => updateCiclo({ paricionMes: Number(e.target.value) })}
+                                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                                  {MESES.map((m,i) => <option key={i} value={i}>{m}</option>)}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-xs text-slate-500 font-semibold">Año</span>
+                                <select value={ciclo.paricionAnio} onChange={e => updateCiclo({ paricionAnio: Number(e.target.value) })}
+                                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-400">
+                                  {[new Date().getFullYear()-1, new Date().getFullYear(), new Date().getFullYear()+1].map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                              </div>
+                              <EditField label="Meses al destete" value={ciclo.mesesDestete} onChange={v => updateCiclo({ mesesDestete: v })} step={1} suffix=" m" hint={"Destete: " + MESES_C[mesDest] + " " + anioDest} minVal={1} />
+                            </div>
+
+                            {/* Terneros al pie */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                <p className="text-xs text-slate-500 font-bold mb-1">🐂 Terneros al pie</p>
+                                <input type="number" min="0" value={ciclo.ternerosAlPie ?? 0}
+                                  onChange={e => updateCiclo({ ternerosAlPie: parseInt(e.target.value)||0 })}
+                                  className="w-full text-2xl font-black text-amber-800 bg-transparent focus:outline-none" />
+                                <p className="text-xs text-slate-400">sin destetar aún</p>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                                <p className="text-xs text-slate-500 font-bold mb-1">📅 Destete estimado</p>
+                                <p className="text-lg font-black text-slate-700">{MESES_C[mesDest]} {anioDest}</p>
+                                <p className={"text-xs font-semibold " + (diasParaDest > 0 ? "text-blue-600" : "text-emerald-600")}>
+                                  {diasParaDest > 0 ? "Faltan " + diasParaDest + " días" : "✅ Ya podés destetar"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* % Preñez y destete */}
+                            <div className="grid grid-cols-3 gap-3">
+                              <EditField label="% Preñez" value={ciclo.pctPreniez} onChange={v => updateCiclo({ pctPreniez: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternNacidos + " terneros nacidos"} />
+                              <EditField label="% Destete" value={ciclo.pctDestete} onChange={v => updateCiclo({ pctDestete: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternDestProyec + " terneros proyectados"} />
+                              <EditField label="Peso destete (kg)" value={ciclo.pesoDesteteKg} onChange={v => updateCiclo({ pesoDesteteKg: Math.max(100, Math.min(300, v)) })} step={5} suffix=" kg" />
+                            </div>
+
+                            {/* Botón destete */}
+                            {!isDestetado && (
+                              <DesteteParcialBtn
+                                ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
+                                onDestetar={(cant) => {
+                                  const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
+                                  updateCiclo({
+                                    ternerosAlPie: restantes,
+                                    ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
+                                    estado: restantes === 0 ? "destetado" : "al_pie",
+                                    fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
+                                  });
+                                  onToast("✅ " + cant + " terneros destetados" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
+                                }}
+                              />
+                            )}
+                            {isDestetado && (
+                              <div className="bg-emerald-100 rounded-xl px-3 py-2 flex items-center justify-between">
+                                <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados el {ciclo.fechaDesteReal ?? "—"}</span>
+                                <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, fechaDesteReal: null })}
+                                  className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
   
                   {/* Machos/hembras + reposición */}
@@ -5540,7 +5698,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <button
                     onClick={() => onSincronizar({
                       target: "vientres",
-                      descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(criaDatos.ternerosNoDestetados/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
+                      descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(totalTernerosAlPie/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
                       inputs: {
                         cantidad: criaDatos.vacas + criaDatos.vaquillonas,
                         pesoCompra: 380,
@@ -5549,7 +5707,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         mesesRecriaPreServicio: 15,
                         anosVidaUtil: 6,
                         kgIatf: 8,
-                        pctDestete: Math.round(criaDatos.ternerosNoDestetados / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
+                        pctDestete: Math.round(totalTernerosAlPie / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
                         pesoTerneroDestetado: 160,
                         precioTerneroKg: 2000,
                         pesoVacaDescarte: 380,
@@ -6629,7 +6787,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               <td className="py-2 pr-3 font-black text-slate-500 text-xs">{anoGanadero} <span className="text-slate-400 font-normal">actual</span></td>
                               <td className="text-right py-2 pr-2 font-mono font-bold text-slate-700">{criaDatos.vacas}</td>
                               <td className="text-right py-2 pr-2 font-mono text-slate-600">{criaDatos.vaquillonas}</td>
-                              <td className="text-right py-2 pr-2 font-mono text-sky-700">{criaDatos.ternerosNoDestetados}</td>
+                              <td className="text-right py-2 pr-2 font-mono text-sky-700">{totalTernerosAlPie}</td>
                               <td className="text-right py-2 pr-2 font-mono text-violet-700">{reciaDatos.novillos}</td>
                               <td className="text-right py-2 font-mono font-bold text-emerald-700">{evPorHa.toFixed(2)}</td>
                             </tr>
