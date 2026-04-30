@@ -5547,16 +5547,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               />
                             )}
                             {isDestetado && (
-                              <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
-                                  <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
-                                    className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                              <div className="space-y-2">
+                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
+                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
+                                      className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
+                                    <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
+                                  </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
-                                  <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
-                                </div>
+                                {/* Estrategia de reposición */}
+                                {(ciclo.hembrasDestetadas ?? 0) > 0 && (() => {
+                                  const hembras    = ciclo.hembrasDestetadas ?? 0;
+                                  const pctRep     = criaDatos.pctReposicion ?? 30;
+                                  const paraReponer = Math.round(hembras * pctRep / 100);
+                                  const paraVenta   = hembras - paraReponer;
+                                  return (
+                                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-2">
+                                      <p className="text-xs font-black text-rose-700 uppercase tracking-widest">♀ Estrategia hembras</p>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white rounded-xl p-2 text-center border border-rose-200">
+                                          <p className="text-xs text-slate-500">Reposición ({pctRep}%)</p>
+                                          <p className="text-2xl font-black text-rose-700">{paraReponer}</p>
+                                          <p className="text-xs text-slate-400">→ vaquillonas</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-2 text-center border border-rose-200">
+                                          <p className="text-xs text-slate-500">Venta ({100-pctRep}%)</p>
+                                          <p className="text-2xl font-black text-amber-600">{paraVenta}</p>
+                                          <p className="text-xs text-slate-400">→ a recría / liquidar</p>
+                                        </div>
+                                      </div>
+                                      <p className="text-xs text-slate-400">% reposición editable en Stock → Cría → % Reposición</p>
+                                    </div>
+                                  );
+                                })()}
+                                {/* Estrategia machos */}
+                                {(ciclo.machosDestetados ?? 0) > 0 && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                                    <p className="text-xs font-black text-blue-700 uppercase tracking-widest">♂ Estrategia machos</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-white rounded-xl p-2 text-center border border-blue-200">
+                                        <p className="text-xs text-slate-500">Recría propia</p>
+                                        <p className="text-2xl font-black text-blue-700">{ciclo.machosDestetados ?? 0}</p>
+                                        <p className="text-xs text-slate-400">→ novillos</p>
+                                      </div>
+                                      <div className="bg-white rounded-xl p-2 text-center border border-blue-200">
+                                        <p className="text-xs text-slate-500">Peso entrada</p>
+                                        <p className="text-2xl font-black text-blue-700">{ciclo.pesoDesteteKg ?? 187} kg</p>
+                                        <p className="text-xs text-slate-400">al inicio recría</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -8066,54 +8111,92 @@ function SyncDescartesBtn({ criaDatos, setCriaActiva, setTermActiva, onToast }) 
 
 // Componente para destete parcial
 function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
-  const [cant, setCant] = React.useState(ternerosNoDestetados > 0 ? ternerosNoDestetados : "");
-  const [open, setOpen] = React.useState(false);
   const pctM = pctMachos ?? 50;
-  const cantNum = parseInt(cant) || 0;
-  const machos  = Math.round(cantNum * pctM / 100);
-  const hembras = cantNum - machos;
+  const [machos,  setMachos]  = React.useState(0);
+  const [hembras, setHembras] = React.useState(0);
+  const [open, setOpen] = React.useState(false);
+  const total = (parseInt(machos)||0) + (parseInt(hembras)||0);
+
+  const handleOpen = () => {
+    // Pre-fill con la proyección basada en terneros al pie y % machos
+    const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
+    setMachos(Math.round(tot * pctM / 100));
+    setHembras(tot - Math.round(tot * pctM / 100));
+    setOpen(true);
+  };
 
   if (!open) return (
-    <button onClick={() => { setCant(ternerosNoDestetados > 0 ? ternerosNoDestetados : ""); setOpen(true); }}
-      className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2">
+    <button onClick={handleOpen}
+      className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2">
       🐄 Registrar destete
     </button>
   );
+
   return (
-    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
-      <p className="text-xs font-black text-emerald-700">¿Cuántos terneros destetar?</p>
-      <div className="flex items-center gap-3">
-        <input
-          type="number" min="1"
-          value={cant}
-          onChange={e => setCant(e.target.value)}
-          placeholder="0"
-          className="w-24 text-center border-2 border-emerald-300 rounded-xl px-3 py-2 text-lg font-black focus:outline-none focus:border-emerald-500 bg-white"
-        />
-        <div className="flex-1 grid grid-cols-2 gap-2">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 text-center">
-            <p className="text-xs text-blue-600 font-bold">♂ Machos</p>
-            <p className="font-black text-blue-800 text-lg">{machos}</p>
+    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-4">
+      <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Machos */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3 space-y-2">
+          <p className="text-xs font-black text-blue-700">♂ Machos</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMachos(m => Math.max(0, (parseInt(m)||0) - 1))}
+              className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+            <input
+              type="number" min="0"
+              value={machos}
+              onChange={e => setMachos(e.target.value)}
+              className="flex-1 text-center text-xl font-black text-blue-800 bg-white border-2 border-blue-200 rounded-xl px-2 py-1 focus:outline-none focus:border-blue-400"
+            />
+            <button onClick={() => setMachos(m => (parseInt(m)||0) + 1)}
+              className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
           </div>
-          <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-1.5 text-center">
-            <p className="text-xs text-rose-600 font-bold">♀ Hembras</p>
-            <p className="font-black text-rose-800 text-lg">{hembras}</p>
+          <p className="text-xs text-blue-500 text-center">→ recría</p>
+        </div>
+
+        {/* Hembras */}
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-3 space-y-2">
+          <p className="text-xs font-black text-rose-700">♀ Hembras</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setHembras(h => Math.max(0, (parseInt(h)||0) - 1))}
+              className="w-8 h-8 rounded-lg bg-rose-500 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+            <input
+              type="number" min="0"
+              value={hembras}
+              onChange={e => setHembras(e.target.value)}
+              className="flex-1 text-center text-xl font-black text-rose-800 bg-white border-2 border-rose-200 rounded-xl px-2 py-1 focus:outline-none focus:border-rose-400"
+            />
+            <button onClick={() => setHembras(h => (parseInt(h)||0) + 1)}
+              className="w-8 h-8 rounded-lg bg-rose-500 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
           </div>
+          <p className="text-xs text-rose-500 text-center">→ reposición / venta</p>
         </div>
       </div>
-      <p className="text-xs text-slate-400">Distribución: {pctM}% machos / {100-pctM}% hembras</p>
+
+      {/* Total */}
+      <div className={"rounded-xl px-3 py-2 text-center " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
+        <span className="text-sm font-black text-slate-700">Total: {total} terneros</span>
+        {ternerosNoDestetados > 0 && total !== ternerosNoDestetados && (
+          <span className="text-xs text-amber-600 ml-2">(al pie: {ternerosNoDestetados})</span>
+        )}
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={() => {
-            if (cantNum < 1) return;
-            onDestetar(cantNum, machos, hembras);
+            const m = parseInt(machos)||0;
+            const h = parseInt(hembras)||0;
+            if (m + h < 1) return;
+            onDestetar(m + h, m, h);
             setOpen(false);
           }}
-          disabled={cantNum < 1}
+          disabled={total < 1}
           className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-black transition-all active:scale-95">
-          ✓ Destetar {cantNum > 0 ? cantNum + " terneros" : ""}
+          ✓ Confirmar destete
         </button>
-        <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-black active:scale-95">✕</button>
+        <button onClick={() => setOpen(false)}
+          className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-black active:scale-95">✕</button>
       </div>
     </div>
   );
