@@ -1,65 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
-// ─── Micro store (Zustand-like) + localStorage persist ───────────────────────
-const LS_KEY = "soypekun_store_v2";
-
-function loadFromLS() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; }
-}
-function saveToLS(state) {
-  try {
-    // Solo guardar los datos del campo, no UI state
-    const toSave = {
-      global: state.global, gastos: state.gastos,
-      campoCria: state.campoCria, campoRecria: state.campoRecria,
-      campoTerminacion: state.campoTerminacion, campoPastaje: state.campoPastaje,
-      campo: state.campo, simulaciones: state.simulaciones,
-      savedAt: Date.now(),
-    };
-    localStorage.setItem(LS_KEY, JSON.stringify(toSave));
-  } catch (e) { console.warn("localStorage write failed:", e); }
-}
-
-// Cola de operaciones pendientes para sync offline
-const QUEUE_KEY = "soypekun_pending_queue";
-function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); } catch { return []; } }
-function saveQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {} }
-
-let pendingQueue = loadQueue();
-
-function enqueueSync(userEmail, state) {
-  // Reemplazar cualquier operación previa del mismo usuario (última escritura gana)
-  pendingQueue = pendingQueue.filter(op => op.userEmail !== userEmail);
-  pendingQueue.push({ userEmail, state, timestamp: Date.now() });
-  saveQueue(pendingQueue);
-}
-
-async function flushQueue() {
-  if (pendingQueue.length === 0) return;
-  const ops = [...pendingQueue];
-  pendingQueue = [];
-  saveQueue([]);
-  for (const op of ops) {
-    try {
-      await guardarEstadoData(op.userEmail, op.state);
-      console.log("✅ Sync offline → Firestore para", op.userEmail);
-    } catch (e) {
-      // Re-encolar si falla
-      pendingQueue.push(op);
-      saveQueue(pendingQueue);
-      console.warn("❌ Sync failed, re-enqueued:", e.message);
-    }
-  }
-}
-
-// Detectar cuando vuelve la conexión y hacer flush automático
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    console.log("🌐 Conexión restaurada — sincronizando...");
-    flushQueue();
-  });
-}
-
+// ─── Micro store (Zustand-like, no external dep) ─────────────────────────────
+// Funciona igual que Zustand: suscripción reactiva, persistencia opcional.
 function createStore(init) {
   let state = {};
   const listeners = new Set();
@@ -93,8 +35,9 @@ import {
 } from "firebase/auth";
 import {
   getFirestore,
-  enableIndexedDbPersistence,
-  doc, setDoc, getDoc, onSnapshot,
+  doc,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
@@ -112,15 +55,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db   = getFirestore(firebaseApp);
 
-// ── Firestore offline persistence (IndexedDB) ─────────────────────────────────
-enableIndexedDbPersistence(db).catch(err => {
-  if (err.code === "failed-precondition") {
-    console.warn("Firestore offline: múltiples tabs abiertas — solo la primera tiene persistencia offline");
-  } else if (err.code === "unimplemented") {
-    console.warn("Firestore offline: este browser no soporta IndexedDB");
-  }
-});
-
 // Deshabilitar heartbeat y analytics automáticos que causan errores 404
 try {
   firebaseApp.automaticDataCollectionEnabled = false;
@@ -128,15 +62,8 @@ try {
 
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-// ── Guardar / cargar estado en Firestore (con soporte offline) ───────────────
-// Función pura que guarda datos en Firestore
-async function guardarEstadoData(userEmail, payload) {
-  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
-  const ref = doc(db, "usuarios", key);
-  await setDoc(ref, payload, { merge: true });
-}
-
-// Guarda todos los datos del store — funciona offline (encola si no hay internet)
+// ── Guardar / cargar estado en Firestore ─────────────────────────────────────
+// Guarda todos los datos del store en /usuarios/{email}/estado
 async function guardarEstado(userEmail) {
   if (!userEmail || !db) {
     console.error("❌ guardarEstado: userEmail o db nulo", { userEmail, db });
@@ -157,96 +84,54 @@ async function guardarEstado(userEmail) {
     historialAnos:    s.historialAnos,
     savedAt:          new Date().toISOString(),
   };
-
-  // Siempre guardar en localStorage (disponible offline)
-  saveToLS(payload);
-
-  // Si hay internet → guardar en Firestore directo
-  if (navigator.onLine) {
-    try {
-      const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
-      console.log("🔵 Escribiendo en Firestore:", `usuarios/${key}`);
-      const ref = doc(db, "usuarios", key);
-      await setDoc(ref, payload, { merge: true });
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        console.log("✅ Verificado en Firestore - savedAt:", snap.data().savedAt);
-      }
-    } catch(e) {
-      // Si falla el write online, encolar para después
-      console.warn("⚠️ Firestore write failed, encolando para sync:", e.message);
-      enqueueSync(userEmail, payload);
-    }
+  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+  console.log("🔵 Escribiendo en Firestore:", `usuarios/${key}`, "payload keys:", Object.keys(payload));
+  const ref = doc(db, "usuarios", key);
+  await setDoc(ref, payload, { merge: true });
+  // Verificar que se escribió
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    console.log("✅ Verificado en Firestore - savedAt:", snap.data().savedAt);
   } else {
-    // Sin internet → encolar para cuando vuelva la conexión
-    console.log("📴 Sin conexión — guardado localmente, sync pendiente");
-    enqueueSync(userEmail, payload);
+    console.error("❌ El documento NO existe después de setDoc");
+    throw new Error("El documento no se guardó");
   }
 }
 
-// Carga el estado desde Firestore con fallback a localStorage cuando offline
+// Carga el estado desde Firestore con reintentos
 async function cargarEstado(userEmail, intentos = 3) {
   if (!userEmail || !db) return false;
   const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
   const ref = doc(db, "usuarios", key);
-
-  function applyData(data) {
-    const s = vacaStore.getState();
-    if (data.global)            s.setGlobal(data.global);
-    if (data.gastos)            s.setGastos(data.gastos);
-    if (data.campoCria)         s.setCampoCria(data.campoCria);
-    if (data.campoRecria)       s.setCampoRecria(data.campoRecria);
-    if (data.campoTerminacion)  s.setCampoTerminacion(data.campoTerminacion);
-    if (data.campoPastaje)      s.setCampoPastaje(data.campoPastaje);
-    if (data.campo)             s.setCampo(data.campo);
-    if (data.movimientos)       vacaStore.setState({ movimientos: data.movimientos });
-    if (data.simulaciones)      vacaStore.setState({ simulaciones: data.simulaciones });
-    if (data.historialAnos)     vacaStore.setState({ historialAnos: data.historialAnos });
-    if (data.anoGanaderoActual) vacaStore.setState({ anoGanaderoActual: data.anoGanaderoActual });
-    vacaStore.setState({ firestoreCargado: true });
-  }
-
-  // Sin internet → usar localStorage
-  if (!navigator.onLine) {
-    const lsData = loadFromLS();
-    if (lsData) {
-      console.log("📴 Sin conexión — cargando desde localStorage");
-      applyData(lsData);
-      return true;
-    }
-    return false;
-  }
-
   for (let i = 0; i < intentos; i++) {
     try {
       const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        const lsData = loadFromLS();
-        if (lsData) { applyData(lsData); return true; }
-        return false;
-      }
+      if (!snap.exists()) return false;
       const data = snap.data();
-      applyData(data);
-      saveToLS(data);
+      const s = vacaStore.getState();
+      if (data.global)           s.setGlobal(data.global);
+      if (data.gastos)           s.setGastos(data.gastos);
+      if (data.campoCria)        s.setCampoCria(data.campoCria);
+      if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
+      if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
+      if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
+      if (data.campo)            s.setCampo(data.campo);
+      if (data.movimientos)      vacaStore.setState({ movimientos: data.movimientos });
+      if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
+      if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
+      vacaStore.setState({ firestoreCargado: true });
       return true;
     } catch (err) {
       if (i < intentos - 1) {
         await new Promise(r => setTimeout(r, 1500 * (i + 1)));
       } else {
-        const lsData = loadFromLS();
-        if (lsData) {
-          console.warn("⚠️ Firestore no disponible, usando localStorage:", err.message);
-          applyData(lsData);
-          return true;
-        }
-        console.warn("❌ cargarEstado falló:", err.message);
+        console.warn("Firestore no disponible:", err.message);
         return false;
       }
     }
   }
   return false;
 }
-
 
 // ── Emails autorizados ────────────────────────────────────────────────────────
 const EMAILS_AUTORIZADOS = [
@@ -10592,29 +10477,6 @@ export default function App() {
   const [user,         setUser]         = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [datosListos,  setDatosListos]  = useState(false);
-  const [isOnline,     setIsOnline]     = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
-  const [syncPending,  setSyncPending]  = useState(() => loadQueue().length > 0);
-  const [syncing,      setSyncing]      = useState(false);
-
-  // ── Detectar cambios de conexión ─────────────────────────────────────────
-  useEffect(() => {
-    const goOnline = async () => {
-      setIsOnline(true);
-      if (loadQueue().length > 0) {
-        setSyncing(true);
-        await flushQueue();
-        setSyncPending(loadQueue().length > 0);
-        setSyncing(false);
-      }
-    };
-    const goOffline = () => setIsOnline(false);
-    window.addEventListener("online",  goOnline);
-    window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online",  goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
-  }, []);
 
   // ── Escuchar cambios de auth ──────────────────────────────────────────────
   useEffect(() => {
@@ -10669,34 +10531,9 @@ export default function App() {
 
   // ── Autenticado → App principal ───────────────────────────────────────────
   return (
-    <>
-      {/* ── Banner de estado de conexión ───────────────────────── */}
-      {(!isOnline || syncPending || syncing) && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
-          padding: "8px 16px",
-          background: syncing ? "#1e40af" : syncPending ? "#d97706" : "#374151",
-          color: "#fff", fontSize: "12px", fontWeight: "700",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-        }}>
-          {syncing ? (
-            <><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>🔄</span> Sincronizando datos con el servidor...</>
-          ) : syncPending ? (
-            <><span>📤</span> Tenés cambios pendientes — se subirán cuando haya internet</>
-          ) : (
-            <><span>📴</span> Sin conexión — trabajás en modo offline. Los cambios se guardan localmente.</>
-          )}
-        </div>
-      )}
-      <div style={{ paddingTop: (!isOnline || syncPending || syncing) ? "36px" : "0" }}>
-        <EstrategiaComercial
-          userEmail={user.email}
-          onLogout={handleLogout}
-          isOnline={isOnline}
-          syncPending={syncPending}
-        />
-      </div>
-    </>
+    <EstrategiaComercial
+      userEmail={user.email}
+      onLogout={handleLogout}
+    />
   );
 }
