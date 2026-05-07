@@ -9017,14 +9017,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     { id: "cobros",  label: "Cobros",  emoji: "💰" },
     { id: "resumen", label: "Resumen", emoji: "📊" },
   ];
-  const TabBtn = ({ id, label, emoji }) => (
-    <button onClick={() => setVista(id)}
-      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-black text-xs tracking-wide transition-all whitespace-nowrap
-        ${vista === id ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700"}`}>
-      <span>{emoji}</span><span>{label}</span>
-    </button>
-  );
-
   // ── Vista Tropas ──────────────────────────────────────────────────────────
   // ── Vista Tropas ──────────────────────────────────────────────────────────
   const VistaTropas = () => {
@@ -10204,7 +10196,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         </button>
       </div>
       <div className="flex gap-2 flex-wrap">
-        {TABS.map(t => <TabBtn key={t.id} {...t} />)}
+        {TABS.map(({ id, label, emoji }) => (
+          <button key={id} onClick={() => setVista(id)}
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-black text-xs tracking-wide transition-all whitespace-nowrap
+              ${vista === id ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700"}`}>
+            <span>{emoji}</span><span>{label}</span>
+          </button>
+        ))}
       </div>
       <div key={vista}>
         {/* Banner de corrección de fechas */}
