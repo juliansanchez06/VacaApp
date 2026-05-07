@@ -1,7 +1,65 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
-// ─── Micro store (Zustand-like, no external dep) ─────────────────────────────
-// Funciona igual que Zustand: suscripción reactiva, persistencia opcional.
+// ─── Micro store (Zustand-like) + localStorage persist ───────────────────────
+const LS_KEY = "soypekun_store_v2";
+
+function loadFromLS() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; }
+}
+function saveToLS(state) {
+  try {
+    // Solo guardar los datos del campo, no UI state
+    const toSave = {
+      global: state.global, gastos: state.gastos,
+      campoCria: state.campoCria, campoRecria: state.campoRecria,
+      campoTerminacion: state.campoTerminacion, campoPastaje: state.campoPastaje,
+      campo: state.campo, simulaciones: state.simulaciones,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(toSave));
+  } catch (e) { console.warn("localStorage write failed:", e); }
+}
+
+// Cola de operaciones pendientes para sync offline
+const QUEUE_KEY = "soypekun_pending_queue";
+function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); } catch { return []; } }
+function saveQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {} }
+
+let pendingQueue = loadQueue();
+
+function enqueueSync(userEmail, state) {
+  // Reemplazar cualquier operación previa del mismo usuario (última escritura gana)
+  pendingQueue = pendingQueue.filter(op => op.userEmail !== userEmail);
+  pendingQueue.push({ userEmail, state, timestamp: Date.now() });
+  saveQueue(pendingQueue);
+}
+
+async function flushQueue() {
+  if (pendingQueue.length === 0) return;
+  const ops = [...pendingQueue];
+  pendingQueue = [];
+  saveQueue([]);
+  for (const op of ops) {
+    try {
+      await guardarEstadoData(op.userEmail, op.state);
+      console.log("✅ Sync offline → Firestore para", op.userEmail);
+    } catch (e) {
+      // Re-encolar si falla
+      pendingQueue.push(op);
+      saveQueue(pendingQueue);
+      console.warn("❌ Sync failed, re-enqueued:", e.message);
+    }
+  }
+}
+
+// Detectar cuando vuelve la conexión y hacer flush automático
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    console.log("🌐 Conexión restaurada — sincronizando...");
+    flushQueue();
+  });
+}
+
 function createStore(init) {
   let state = {};
   const listeners = new Set();
@@ -35,9 +93,7 @@ import {
 } from "firebase/auth";
 import {
   getFirestore,
-  doc,
-  setDoc,
-  getDoc,
+  doc, setDoc, getDoc,
 } from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
@@ -55,6 +111,15 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db   = getFirestore(firebaseApp);
 
+// ── Firestore offline persistence (IndexedDB) ─────────────────────────────────
+enableIndexedDbPersistence(db).catch(err => {
+  if (err.code === "failed-precondition") {
+    console.warn("Firestore offline: múltiples tabs abiertas — solo la primera tiene persistencia offline");
+  } else if (err.code === "unimplemented") {
+    console.warn("Firestore offline: este browser no soporta IndexedDB");
+  }
+});
+
 // Deshabilitar heartbeat y analytics automáticos que causan errores 404
 try {
   firebaseApp.automaticDataCollectionEnabled = false;
@@ -62,8 +127,15 @@ try {
 
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-// ── Guardar / cargar estado en Firestore ─────────────────────────────────────
-// Guarda todos los datos del store en /usuarios/{email}/estado
+// ── Guardar / cargar estado en Firestore (con soporte offline) ───────────────
+// Función pura que guarda datos en Firestore
+async function guardarEstadoData(userEmail, payload) {
+  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+  const ref = doc(db, "usuarios", key);
+  await setDoc(ref, payload, { merge: true });
+}
+
+// Guarda todos los datos del store — funciona offline (encola si no hay internet)
 async function guardarEstado(userEmail) {
   if (!userEmail || !db) {
     console.error("❌ guardarEstado: userEmail o db nulo", { userEmail, db });
@@ -84,54 +156,96 @@ async function guardarEstado(userEmail) {
     historialAnos:    s.historialAnos,
     savedAt:          new Date().toISOString(),
   };
-  const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
-  console.log("🔵 Escribiendo en Firestore:", `usuarios/${key}`, "payload keys:", Object.keys(payload));
-  const ref = doc(db, "usuarios", key);
-  await setDoc(ref, payload, { merge: true });
-  // Verificar que se escribió
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    console.log("✅ Verificado en Firestore - savedAt:", snap.data().savedAt);
+
+  // Siempre guardar en localStorage (disponible offline)
+  saveToLS(payload);
+
+  // Si hay internet → guardar en Firestore directo
+  if (navigator.onLine) {
+    try {
+      const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
+      console.log("🔵 Escribiendo en Firestore:", `usuarios/${key}`);
+      const ref = doc(db, "usuarios", key);
+      await setDoc(ref, payload, { merge: true });
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        console.log("✅ Verificado en Firestore - savedAt:", snap.data().savedAt);
+      }
+    } catch(e) {
+      // Si falla el write online, encolar para después
+      console.warn("⚠️ Firestore write failed, encolando para sync:", e.message);
+      enqueueSync(userEmail, payload);
+    }
   } else {
-    console.error("❌ El documento NO existe después de setDoc");
-    throw new Error("El documento no se guardó");
+    // Sin internet → encolar para cuando vuelva la conexión
+    console.log("📴 Sin conexión — guardado localmente, sync pendiente");
+    enqueueSync(userEmail, payload);
   }
 }
 
-// Carga el estado desde Firestore con reintentos
+// Carga el estado desde Firestore con fallback a localStorage cuando offline
 async function cargarEstado(userEmail, intentos = 3) {
   if (!userEmail || !db) return false;
   const key = userEmail.replace(/\./g, "_").replace(/@/g, "_at_");
   const ref = doc(db, "usuarios", key);
+
+  function applyData(data) {
+    const s = vacaStore.getState();
+    if (data.global)            s.setGlobal(data.global);
+    if (data.gastos)            s.setGastos(data.gastos);
+    if (data.campoCria)         s.setCampoCria(data.campoCria);
+    if (data.campoRecria)       s.setCampoRecria(data.campoRecria);
+    if (data.campoTerminacion)  s.setCampoTerminacion(data.campoTerminacion);
+    if (data.campoPastaje)      s.setCampoPastaje(data.campoPastaje);
+    if (data.campo)             s.setCampo(data.campo);
+    if (data.movimientos)       vacaStore.setState({ movimientos: data.movimientos });
+    if (data.simulaciones)      vacaStore.setState({ simulaciones: data.simulaciones });
+    if (data.historialAnos)     vacaStore.setState({ historialAnos: data.historialAnos });
+    if (data.anoGanaderoActual) vacaStore.setState({ anoGanaderoActual: data.anoGanaderoActual });
+    vacaStore.setState({ firestoreCargado: true });
+  }
+
+  // Sin internet → usar localStorage
+  if (!navigator.onLine) {
+    const lsData = loadFromLS();
+    if (lsData) {
+      console.log("📴 Sin conexión — cargando desde localStorage");
+      applyData(lsData);
+      return true;
+    }
+    return false;
+  }
+
   for (let i = 0; i < intentos; i++) {
     try {
       const snap = await getDoc(ref);
-      if (!snap.exists()) return false;
+      if (!snap.exists()) {
+        const lsData = loadFromLS();
+        if (lsData) { applyData(lsData); return true; }
+        return false;
+      }
       const data = snap.data();
-      const s = vacaStore.getState();
-      if (data.global)           s.setGlobal(data.global);
-      if (data.gastos)           s.setGastos(data.gastos);
-      if (data.campoCria)        s.setCampoCria(data.campoCria);
-      if (data.campoRecria)      s.setCampoRecria(data.campoRecria);
-      if (data.campoTerminacion) s.setCampoTerminacion(data.campoTerminacion);
-      if (data.campoPastaje)     s.setCampoPastaje(data.campoPastaje);
-      if (data.campo)            s.setCampo(data.campo);
-      if (data.movimientos)      vacaStore.setState({ movimientos: data.movimientos });
-      if (data.simulaciones)     vacaStore.setState({ simulaciones: data.simulaciones });
-      if (data.historialAnos)    vacaStore.setState({ historialAnos: data.historialAnos });
-      vacaStore.setState({ firestoreCargado: true });
+      applyData(data);
+      saveToLS(data);
       return true;
     } catch (err) {
       if (i < intentos - 1) {
         await new Promise(r => setTimeout(r, 1500 * (i + 1)));
       } else {
-        console.warn("Firestore no disponible:", err.message);
+        const lsData = loadFromLS();
+        if (lsData) {
+          console.warn("⚠️ Firestore no disponible, usando localStorage:", err.message);
+          applyData(lsData);
+          return true;
+        }
+        console.warn("❌ cargarEstado falló:", err.message);
         return false;
       }
     }
   }
   return false;
 }
+
 
 // ── Emails autorizados ────────────────────────────────────────────────────────
 const EMAILS_AUTORIZADOS = [
@@ -5547,16 +5661,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               />
                             )}
                             {isDestetado && (
-                              <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
-                                  <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
-                                    className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                              <div className="space-y-2">
+                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
+                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
+                                      className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
+                                    <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
+                                  </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
-                                  <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
-                                </div>
+                                {/* Estrategia de reposición */}
+                                {(ciclo.hembrasDestetadas ?? 0) > 0 && (() => {
+                                  const hembras    = ciclo.hembrasDestetadas ?? 0;
+                                  const pctRep     = criaDatos.pctReposicion ?? 30;
+                                  const paraReponer = Math.round(hembras * pctRep / 100);
+                                  const paraVenta   = hembras - paraReponer;
+                                  return (
+                                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-2">
+                                      <p className="text-xs font-black text-rose-700 uppercase tracking-widest">♀ Estrategia hembras</p>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white rounded-xl p-2 text-center border border-rose-200">
+                                          <p className="text-xs text-slate-500">Reposición ({pctRep}%)</p>
+                                          <p className="text-2xl font-black text-rose-700">{paraReponer}</p>
+                                          <p className="text-xs text-slate-400">→ vaquillonas</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-2 text-center border border-rose-200">
+                                          <p className="text-xs text-slate-500">Venta ({100-pctRep}%)</p>
+                                          <p className="text-2xl font-black text-amber-600">{paraVenta}</p>
+                                          <p className="text-xs text-slate-400">→ a recría / liquidar</p>
+                                        </div>
+                                      </div>
+                                      <p className="text-xs text-slate-400">% reposición editable en Stock → Cría → % Reposición</p>
+                                    </div>
+                                  );
+                                })()}
+                                {/* Estrategia machos */}
+                                {(ciclo.machosDestetados ?? 0) > 0 && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                                    <p className="text-xs font-black text-blue-700 uppercase tracking-widest">♂ Estrategia machos</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-white rounded-xl p-2 text-center border border-blue-200">
+                                        <p className="text-xs text-slate-500">Recría propia</p>
+                                        <p className="text-2xl font-black text-blue-700">{ciclo.machosDestetados ?? 0}</p>
+                                        <p className="text-xs text-slate-400">→ novillos</p>
+                                      </div>
+                                      <div className="bg-white rounded-xl p-2 text-center border border-blue-200">
+                                        <p className="text-xs text-slate-500">Peso entrada</p>
+                                        <p className="text-2xl font-black text-blue-700">{ciclo.pesoDesteteKg ?? 187} kg</p>
+                                        <p className="text-xs text-slate-400">al inicio recría</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -7585,8 +7744,9 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
       ? Math.round(costoInflado / (pesoSalida * l.cabezas * (1 - l.comisionVenta / 100)))
       : Math.round(costoInflado / Math.max(1, pesoSalida * l.cabezas));
     // Precio mínimo gordo (feedlot): con más kg
-    const pesoGordo         = Math.round(pesoSalida + 60 * 1.1); // ~60 días feedlot típico
-    const costoFeedlotMin   = l.costoFeedlotCab * l.cabezas * 60;
+    const diasFeedlotMin      = l.diasFeedlot ?? 60;
+    const pesoGordo           = Math.round(pesoSalida + diasFeedlotMin * (l.gdpFeedlot ?? 1.1));
+    const costoFeedlotMin     = l.costoFeedlotCab * l.cabezas * diasFeedlotMin;
     const costoTotalGordo   = costoInflado + costoFeedlotMin;
     const precioMinGordo    = on("comisionVenta") && l.comisionVenta > 0
       ? Math.round(costoTotalGordo / (pesoGordo * l.cabezas * (1 - l.comisionVenta / 100)))
@@ -7862,7 +8022,7 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
                 <p className="text-xs text-slate-400 mt-1">{fmtM(calc.precioMinInvernada * calc.pesoSalida * lote.cabezas)} total</p>
               </div>
               <div className="bg-white border-2 border-amber-200 rounded-2xl p-3 text-center">
-                <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">🏭 Gordo (~60d)</p>
+                <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">🏭 Gordo (~{lote.diasFeedlot ?? 60}d)</p>
                 <p className="text-xs text-slate-400">{calc.pesoGordo} kg/cab est.</p>
                 <p className="text-2xl font-black text-amber-800">${fmt(calc.precioMinGordo)}</p>
                 <p className="text-xs text-amber-600 font-semibold">/kg vivo</p>
@@ -7973,6 +8133,37 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
             </div>
           )}
         </div>
+
+      {/* Guardar simulación */}
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <BotonExportarPDF color="slate"
+          titulo="Simulador Compra Recría"
+          secciones={[
+            { label: "Lotes simulados", value: lotes.length + " lote(s)" },
+            { label: "Total cabezas", value: totales.cabezas + " cab" },
+            { label: "Inversión total", value: fmtM(totales.costoTotal) },
+            { label: "USD", value: usd(totales.costoTotal) },
+            { label: "─────────────", value: "─────────────" },
+            ...lotes.map(l => {
+              const c = calcLote(l);
+              return { label: (l.categoria==="machos"?"♂":"♀") + " " + l.nombre + " (" + l.cabezas + " cab)", value: fmtM(c.costoTotal) };
+            }),
+            { label: "─────────────", value: "─────────────" },
+            { label: "Lote activo — Margen estimado", value: fmtM(calcLote(lotes[loteActivo]).margen) },
+            { label: "Precio venta invernada mín.", value: "$" + fmt(calcLote(lotes[loteActivo]).precioMinInvernada) + "/kg" },
+            { label: "Precio venta gordo mín.", value: "$" + fmt(calcLote(lotes[loteActivo]).precioMinGordo) + "/kg" },
+          ]}
+        />
+        <BotonGuardarSim color="amber"
+          onGuardar={() => onGuardar && onGuardar({
+            tipo: "compra-recria",
+            label: `Compra recría — ${totales.cabezas} cab / ${fmtM(totales.costoTotal)}`,
+            lotes: lotes.map(l => ({ ...l, calc: calcLote(l) })),
+            totales,
+            fecha: new Date().toISOString(),
+          })}
+        />
+      </div>
       </div>
     </div>
   );
@@ -8066,54 +8257,92 @@ function SyncDescartesBtn({ criaDatos, setCriaActiva, setTermActiva, onToast }) 
 
 // Componente para destete parcial
 function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
-  const [cant, setCant] = React.useState(ternerosNoDestetados > 0 ? ternerosNoDestetados : "");
-  const [open, setOpen] = React.useState(false);
   const pctM = pctMachos ?? 50;
-  const cantNum = parseInt(cant) || 0;
-  const machos  = Math.round(cantNum * pctM / 100);
-  const hembras = cantNum - machos;
+  const [machos,  setMachos]  = React.useState(0);
+  const [hembras, setHembras] = React.useState(0);
+  const [open, setOpen] = React.useState(false);
+  const total = (parseInt(machos)||0) + (parseInt(hembras)||0);
+
+  const handleOpen = () => {
+    // Pre-fill con la proyección basada en terneros al pie y % machos
+    const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
+    setMachos(Math.round(tot * pctM / 100));
+    setHembras(tot - Math.round(tot * pctM / 100));
+    setOpen(true);
+  };
 
   if (!open) return (
-    <button onClick={() => { setCant(ternerosNoDestetados > 0 ? ternerosNoDestetados : ""); setOpen(true); }}
-      className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2">
+    <button onClick={handleOpen}
+      className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2">
       🐄 Registrar destete
     </button>
   );
+
   return (
-    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-3">
-      <p className="text-xs font-black text-emerald-700">¿Cuántos terneros destetar?</p>
-      <div className="flex items-center gap-3">
-        <input
-          type="number" min="1"
-          value={cant}
-          onChange={e => setCant(e.target.value)}
-          placeholder="0"
-          className="w-24 text-center border-2 border-emerald-300 rounded-xl px-3 py-2 text-lg font-black focus:outline-none focus:border-emerald-500 bg-white"
-        />
-        <div className="flex-1 grid grid-cols-2 gap-2">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 text-center">
-            <p className="text-xs text-blue-600 font-bold">♂ Machos</p>
-            <p className="font-black text-blue-800 text-lg">{machos}</p>
+    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-4">
+      <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Machos */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3 space-y-2">
+          <p className="text-xs font-black text-blue-700">♂ Machos</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMachos(m => Math.max(0, (parseInt(m)||0) - 1))}
+              className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+            <input
+              type="number" min="0"
+              value={machos}
+              onChange={e => setMachos(e.target.value)}
+              className="flex-1 text-center text-xl font-black text-blue-800 bg-white border-2 border-blue-200 rounded-xl px-2 py-1 focus:outline-none focus:border-blue-400"
+            />
+            <button onClick={() => setMachos(m => (parseInt(m)||0) + 1)}
+              className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
           </div>
-          <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-1.5 text-center">
-            <p className="text-xs text-rose-600 font-bold">♀ Hembras</p>
-            <p className="font-black text-rose-800 text-lg">{hembras}</p>
+          <p className="text-xs text-blue-500 text-center">→ recría</p>
+        </div>
+
+        {/* Hembras */}
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-3 space-y-2">
+          <p className="text-xs font-black text-rose-700">♀ Hembras</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setHembras(h => Math.max(0, (parseInt(h)||0) - 1))}
+              className="w-8 h-8 rounded-lg bg-rose-500 text-white font-black text-sm flex items-center justify-center active:scale-95">−</button>
+            <input
+              type="number" min="0"
+              value={hembras}
+              onChange={e => setHembras(e.target.value)}
+              className="flex-1 text-center text-xl font-black text-rose-800 bg-white border-2 border-rose-200 rounded-xl px-2 py-1 focus:outline-none focus:border-rose-400"
+            />
+            <button onClick={() => setHembras(h => (parseInt(h)||0) + 1)}
+              className="w-8 h-8 rounded-lg bg-rose-500 text-white font-black text-sm flex items-center justify-center active:scale-95">+</button>
           </div>
+          <p className="text-xs text-rose-500 text-center">→ reposición / venta</p>
         </div>
       </div>
-      <p className="text-xs text-slate-400">Distribución: {pctM}% machos / {100-pctM}% hembras</p>
+
+      {/* Total */}
+      <div className={"rounded-xl px-3 py-2 text-center " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
+        <span className="text-sm font-black text-slate-700">Total: {total} terneros</span>
+        {ternerosNoDestetados > 0 && total !== ternerosNoDestetados && (
+          <span className="text-xs text-amber-600 ml-2">(al pie: {ternerosNoDestetados})</span>
+        )}
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={() => {
-            if (cantNum < 1) return;
-            onDestetar(cantNum, machos, hembras);
+            const m = parseInt(machos)||0;
+            const h = parseInt(hembras)||0;
+            if (m + h < 1) return;
+            onDestetar(m + h, m, h);
             setOpen(false);
           }}
-          disabled={cantNum < 1}
+          disabled={total < 1}
           className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-black transition-all active:scale-95">
-          ✓ Destetar {cantNum > 0 ? cantNum + " terneros" : ""}
+          ✓ Confirmar destete
         </button>
-        <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-black active:scale-95">✕</button>
+        <button onClick={() => setOpen(false)}
+          className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-black active:scale-95">✕</button>
       </div>
     </div>
   );
@@ -10394,6 +10623,29 @@ export default function App() {
   const [user,         setUser]         = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [datosListos,  setDatosListos]  = useState(false);
+  const [isOnline,     setIsOnline]     = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [syncPending,  setSyncPending]  = useState(() => loadQueue().length > 0);
+  const [syncing,      setSyncing]      = useState(false);
+
+  // ── Detectar cambios de conexión ─────────────────────────────────────────
+  useEffect(() => {
+    const goOnline = async () => {
+      setIsOnline(true);
+      if (loadQueue().length > 0) {
+        setSyncing(true);
+        await flushQueue();
+        setSyncPending(loadQueue().length > 0);
+        setSyncing(false);
+      }
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online",  goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online",  goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   // ── Escuchar cambios de auth ──────────────────────────────────────────────
   useEffect(() => {
@@ -10448,9 +10700,34 @@ export default function App() {
 
   // ── Autenticado → App principal ───────────────────────────────────────────
   return (
-    <EstrategiaComercial
-      userEmail={user.email}
-      onLogout={handleLogout}
-    />
+    <>
+      {/* ── Banner de estado de conexión ───────────────────────── */}
+      {(!isOnline || syncPending || syncing) && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
+          padding: "8px 16px",
+          background: syncing ? "#1e40af" : syncPending ? "#d97706" : "#374151",
+          color: "#fff", fontSize: "12px", fontWeight: "700",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+        }}>
+          {syncing ? (
+            <><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>🔄</span> Sincronizando datos con el servidor...</>
+          ) : syncPending ? (
+            <><span>📤</span> Tenés cambios pendientes — se subirán cuando haya internet</>
+          ) : (
+            <><span>📴</span> Sin conexión — trabajás en modo offline. Los cambios se guardan localmente.</>
+          )}
+        </div>
+      )}
+      <div style={{ paddingTop: (!isOnline || syncPending || syncing) ? "36px" : "0" }}>
+        <EstrategiaComercial
+          userEmail={user.email}
+          onLogout={handleLogout}
+          isOnline={isOnline}
+          syncPending={syncPending}
+        />
+      </div>
+    </>
   );
 }
