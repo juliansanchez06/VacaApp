@@ -110,16 +110,6 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db   = getFirestore(firebaseApp);
-
-// ── Firestore offline persistence (IndexedDB) ─────────────────────────────────
-enableIndexedDbPersistence(db).catch(err => {
-  if (err.code === "failed-precondition") {
-    console.warn("Firestore offline: múltiples tabs abiertas — solo la primera tiene persistencia offline");
-  } else if (err.code === "unimplemented") {
-    console.warn("Firestore offline: este browser no soporta IndexedDB");
-  }
-});
-
 // Deshabilitar heartbeat y analytics automáticos que causan errores 404
 try {
   firebaseApp.automaticDataCollectionEnabled = false;
