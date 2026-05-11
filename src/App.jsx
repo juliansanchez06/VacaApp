@@ -4614,7 +4614,7 @@ Sos directo — primero el veredicto, después el análisis. Máximo 250 palabra
         ? `DATOS DEL CAMPO:\n${contexto}\n\n${pregunta ? `CONSULTA: ${pregunta}` : "Dame tu análisis y veredicto sobre estos datos."}`
         : pregunta;
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
