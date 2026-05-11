@@ -4582,6 +4582,123 @@ function calcHistorialKgHa(historialAnos, pVacaDescarte, pTerneroInvernada, pNov
   return result;
 }
 
+// ── Asesor Ganadero IA ────────────────────────────────────────────────────────
+// Llama a la API de Anthropic con el contexto del campo o simulador
+function AsesorIA({ contexto, titulo, placeholder, color = "emerald" }) {
+  const [open,     setOpen]     = React.useState(false);
+  const [pregunta, setPregunta] = React.useState("");
+  const [respuesta,setRespuesta]= React.useState("");
+  const [loading,  setLoading]  = React.useState(false);
+  const [error,    setError]    = React.useState("");
+
+  const COLORS = {
+    emerald: { btn: "bg-emerald-600 hover:bg-emerald-700", border: "border-emerald-300", bg: "bg-emerald-50", text: "text-emerald-800" },
+    amber:   { btn: "bg-amber-500 hover:bg-amber-600",     border: "border-amber-300",   bg: "bg-amber-50",   text: "text-amber-800"   },
+    blue:    { btn: "bg-blue-600 hover:bg-blue-700",       border: "border-blue-300",     bg: "bg-blue-50",    text: "text-blue-800"    },
+    violet:  { btn: "bg-violet-600 hover:bg-violet-700",   border: "border-violet-300",  bg: "bg-violet-50",  text: "text-violet-800"  },
+  };
+  const c = COLORS[color] || COLORS.emerald;
+
+  const consultar = async () => {
+    if (!pregunta.trim() && !contexto) return;
+    setLoading(true);
+    setRespuesta("");
+    setError("");
+    try {
+      const sistemaPrompt = `Sos un asesor ganadero experto en ganadería vacuna argentina. 
+Analizás datos reales del campo y dás recomendaciones concretas, prácticas y directas.
+Usás números cuando es relevante. Hablás en castellano argentino.
+Sos directo — primero el veredicto, después el análisis. Máximo 250 palabras.`;
+
+      const mensajeUsuario = contexto
+        ? `DATOS DEL CAMPO:\n${contexto}\n\n${pregunta ? `CONSULTA: ${pregunta}` : "Dame tu análisis y veredicto sobre estos datos."}`
+        : pregunta;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: sistemaPrompt,
+          messages: [{ role: "user", content: mensajeUsuario }],
+        }),
+      });
+      const data = await response.json();
+      const texto = data?.content?.[0]?.text ?? "";
+      if (!texto) throw new Error(data?.error?.message || "Sin respuesta");
+      setRespuesta(texto);
+    } catch (e) {
+      setError("Error al consultar: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-white text-xs font-black transition-all active:scale-95 shadow-md ${c.btn}`}>
+      🤖 Consultá al asesor IA
+    </button>
+  );
+
+  return (
+    <div className={`border-2 rounded-3xl overflow-hidden ${c.border}`}>
+      <div className={`px-4 py-3 flex items-center justify-between ${c.bg}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🤖</span>
+          <div>
+            <p className={`text-xs font-black uppercase tracking-widest ${c.text}`}>Asesor Ganadero IA</p>
+            {titulo && <p className="text-xs text-slate-500">{titulo}</p>}
+          </div>
+        </div>
+        <button onClick={() => { setOpen(false); setRespuesta(""); setPregunta(""); }}
+          className="text-slate-400 hover:text-slate-600 font-black text-sm px-2">✕</button>
+      </div>
+
+      {/* Contexto automático */}
+      {contexto && (
+        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
+          <p className="text-xs text-slate-400 font-semibold">📊 Datos enviados al asesor:</p>
+          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{contexto.slice(0, 150)}...</p>
+        </div>
+      )}
+
+      <div className="p-4 space-y-3">
+        {/* Input de pregunta */}
+        <div>
+          <textarea
+            value={pregunta}
+            onChange={e => setPregunta(e.target.value)}
+            placeholder={placeholder || "¿Qué querés saber? (opcional — si no escribís nada, el asesor analiza los datos automáticamente)"}
+            rows={2}
+            className={`w-full border-2 ${c.border} rounded-xl px-3 py-2 text-sm focus:outline-none resize-none`}
+          />
+        </div>
+
+        <button onClick={consultar} disabled={loading}
+          className={`w-full py-2.5 rounded-xl text-white text-sm font-black transition-all active:scale-95 disabled:opacity-60 ${c.btn}`}>
+          {loading ? "⏳ Analizando..." : "🔍 Analizar"}
+        </button>
+
+        {/* Respuesta */}
+        {respuesta && (
+          <div className={`${c.bg} border ${c.border} rounded-2xl p-4`}>
+            <p className={`text-xs font-black uppercase tracking-widest ${c.text} mb-2`}>📋 Análisis del asesor</p>
+            <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{respuesta}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-xs text-red-600 font-bold">{error}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
@@ -7210,6 +7327,24 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 );
               })()}
 
+
+              {/* ── Asesor Ganadero IA ── */}
+              <AsesorIA
+                color="emerald"
+                titulo="Análisis del rendimiento de tu campo"
+                placeholder="Ej: ¿Qué actividad me conviene potenciar? ¿Qué riesgos ves en mi estructura?"
+                contexto={[
+                  `Campo: ${hectareas} ha | Stock: ${totalCabAct} cab | ${hectareas ? (totalCabAct/hectareas).toFixed(1) : 0} cab/ha`,
+                  `Margen bruto total: $${Math.round(margenBrutoTotal).toLocaleString("es-AR")} (${Math.round(margenBrutoTotal/(dolar||1)).toLocaleString("es-AR")} USD)`,
+                  `Margen/ha: $${hectareas ? Math.round(margenBrutoTotal/hectareas).toLocaleString("es-AR") : 0}`,
+                  `Cría: ${cabCria} cab | Margen: $${Math.round(margenBrutoCria).toLocaleString("es-AR")}`,
+                  `Recría: ${cabRec} cab | Margen: $${Math.round(margenBrutoRec).toLocaleString("es-AR")}`,
+                  `Terminación: ${cabTerm} cab | Margen: $${Math.round(margenBrutoTerm).toLocaleString("es-AR")}`,
+                  `Rendimiento: ${kgHaAct} kg/ha | Precio novillo: $${precioNovKg.toLocaleString("es-AR")}/kg`,
+                  `Costo estructura: $${Math.round(costoEstructuraAnual).toLocaleString("es-AR")}/año`,
+                ].join("\n")}
+              />
+
             </div>
           )}
   
@@ -7486,6 +7621,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 </div>
               </div>
             </div>
+
+
+
+
           )}
 
           {seccion === "pastaje" && (
@@ -8123,6 +8262,28 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
             </div>
           )}
         </div>
+
+      {/* Asesor IA — Compra Recría */}
+      <AsesorIA
+        color="amber"
+        titulo="Análisis de la compra de recría"
+        placeholder="Ej: ¿Conviene esta compra? ¿A qué precio mínimo tengo que vender? ¿Qué riesgos tengo?"
+        contexto={(() => {
+          const l = lotes[loteActivo] || lotes[0];
+          if (!l) return "Sin datos de lote cargados";
+          const c = calcLote(l);
+          return [
+            `Lote: ${l.nombre} | ${l.categoria === "machos" ? "Machos ♂" : "Hembras ♀"} | ${l.cabezas} cab`,
+            `Peso ingreso: ${l.pesoIngreso} kg/cab | Precio compra: $${Number(l.precioCompraKg).toLocaleString("es-AR")}/kg`,
+            `Inversión total: $${Math.round(c.costoTotal).toLocaleString("es-AR")}`,
+            `Modalidad: ${l.modalidadVenta === "feedlot" ? "Feedlot" : "Invernada"} | Días feedlot: ${l.diasFeedlot ?? 60}`,
+            `Precio venta estimado: $${Number(l.precioVentaKg).toLocaleString("es-AR")}/kg`,
+            `Margen estimado: $${Math.round(c.margen).toLocaleString("es-AR")}`,
+            `Precio mínimo invernada: $${Math.round(c.precioMinInvernada)}/kg`,
+            `Precio mínimo gordo: $${Math.round(c.precioMinGordo)}/kg`,
+          ].join("\n");
+        })()}
+      />
 
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
