@@ -3,16 +3,16 @@
  * Cachea el bundle de la app para que funcione sin internet.
  * Los datos (Firestore) tienen su propio cache via IndexedDB.
  */
-
-const CACHE = "soypekun-v1";
-
+ 
+const CACHE = "soypekun-v2";
+ 
 // Al instalar: cachear la página principal
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(["/", "/index.html"])).then(() => self.skipWaiting())
   );
 });
-
+ 
 // Al activar: limpiar caches viejas
 self.addEventListener("activate", (e) => {
   e.waitUntil(
@@ -21,11 +21,11 @@ self.addEventListener("activate", (e) => {
       .then(() => self.clients.claim())
   );
 });
-
+ 
 // Fetch: Cache First para assets, Network First para la página
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-
+ 
   // No interceptar Firestore, Firebase, APIs externas
   if (
     e.request.method !== "GET" ||
@@ -34,7 +34,7 @@ self.addEventListener("fetch", (e) => {
     url.hostname.includes("anthropic") ||
     url.pathname.includes("/api/")
   ) return;
-
+ 
   // Assets del bundle (JS, CSS, imágenes) → Cache First
   if (
     url.pathname.startsWith("/assets/") ||
@@ -57,7 +57,7 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
-
+ 
   // Página principal → Network First, fallback a caché
   e.respondWith(
     fetch(e.request)
@@ -70,8 +70,9 @@ self.addEventListener("fetch", (e) => {
       .catch(() => caches.match(e.request).then(c => c || caches.match("/index.html")))
   );
 });
-
+ 
 // Mensaje de la app (ej: nueva versión disponible)
 self.addEventListener("message", (e) => {
   if (e.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
+ 
