@@ -4229,10 +4229,14 @@ function makeActs(p) {
         { label: "Sanidad y nutricion", valor: cabTerm+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadTerm, positivo: false },
       ],
     },
-    { id: "pastaje", label: "\uD83E\uDD1D Pastaje", cab: cabPastaje, color: "teal", ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
+    { id: "pastaje", label: "\uD83E\uDD1D Pastaje", cab: cabPastaje, color: "teal",
+      ingreso: ingresoPastaje + (p.devengadoPastajeHoy ?? 0),
+      costo: 0,
+      margen: ingresoPastaje + (p.devengadoPastajeHoy ?? 0),
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Cobros periodo", valor: fmt(Math.round(kgPastaje))+" kg nov devengados", total: ingresoPastaje, positivo: true },
+        { label: "Cobros periodo (efectivo)", valor: fmt(Math.round(kgPastaje))+" kg cobrados", total: ingresoPastaje, positivo: true },
+        { label: "Devengado hasta hoy", valor: fmt(Math.round(p.kgDevengadosPastaje ?? 0))+" kg × precio novillo", total: p.devengadoPastajeHoy ?? 0, positivo: true },
         { label: "Costos directos", tipo: "header" },
         { label: "Sin costo directo adicional", valor: "Usa infraestructura de estructura", total: 0, positivo: false },
       ],
@@ -6596,6 +6600,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ingresoPastaje={ingresoPastaje}
                 kgPastaje={kgPastaje}
                 cabPastaje={cabPastaje}
+                kgDevengadosPastaje={kgDevengadosPastaje}
+                devengadoPastajeHoy={devengadoPastajeHoy}
                 margenExport={margenBrutoExport}
                 ingresoExport={ingresoExport}
                 costoExport={costoExport}
