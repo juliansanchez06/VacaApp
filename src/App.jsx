@@ -568,7 +568,39 @@ const GLOBAL_STYLE = `
     position: relative;
     overflow: hidden;
   }
-  /* ── Floating $ signs ──────────────────────────────────────────────── */
+  /* ── Mobile readability ─────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    /* Bigger base text on mobile */
+    body { font-size: 15px; }
+
+    /* Nav sidebar labels bigger */
+    .nav-label { font-size: 13px !important; }
+
+    /* KPI numbers bigger */
+    .kpi-value { font-size: 1.5rem !important; }
+
+    /* Section labels */
+    .section-label { font-size: 11px !important; }
+
+    /* Stock cards inner text */
+    .stock-card-value { font-size: 1.25rem !important; }
+    .stock-card-label { font-size: 11px !important; }
+
+    /* Hint text minimum size */
+    .text-xs { font-size: 12px !important; line-height: 1.5 !important; }
+    .text-sm { font-size: 14px !important; line-height: 1.5 !important; }
+
+    /* Numbers always big */
+    .font-mono.font-black { font-size: 1.2rem !important; }
+
+    /* Buttons more tappable */
+    button { min-height: 40px; }
+
+    /* EditField inputs bigger */
+    input[type="number"], input[type="text"], input[type="date"], select, textarea {
+      font-size: 16px !important; /* Prevents iOS zoom on focus */
+    }
+  }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
   @keyframes floatDollar3{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-30px) rotate(5deg)}}
@@ -5319,14 +5351,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 simulator-enter">
           {[
             { label:"Total hacienda", value:`${totalStockCampo} cab`, color:"text-slate-800", icon:"🐄" },
-            { label:"Cría",           value:`${criaDatos.vacas+criaDatos.vaquillonas} madres`, color:"text-emerald-700", icon:"🐮" },
+            { label:"Cría",           value:`${criaDatos.vacas+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)} madres`, color:"text-emerald-700", icon:"🐮" },
             { label:"Recría",         value:`${reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} cab`, color:"text-blue-700", icon:"🐂" },
             { label:"Terminación",    value:`${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} cab`, color:"text-amber-700", icon:"🥩" },
           ].map((k,i) => (
             <div key={i} className="kpi-pop bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col gap-1 shadow-sm card-hover">
-              <span className="text-sm">{k.icon}</span>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{k.label}</span>
-              <span className={`font-mono font-black text-xl ${k.color}`}>{k.value}</span>
+              <span className="text-xl">{k.icon}</span>
+              <span className="text-xs sm:text-xs font-bold uppercase tracking-wider text-slate-400">{k.label}</span>
+              <span className={`font-mono font-black text-2xl sm:text-xl ${k.color}`}>{k.value}</span>
             </div>
           ))}
         </div>
@@ -10917,11 +10949,12 @@ export default function App() {
       {(!isOnline || syncPending || syncing) && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
-          padding: "8px 16px",
+          padding: "10px 16px",
           background: syncing ? "#1e40af" : syncPending ? "#d97706" : "#374151",
-          color: "#fff", fontSize: "12px", fontWeight: "700",
+          color: "#fff", fontSize: "13px", fontWeight: "700",
           display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          textAlign: "center",
         }}>
           {syncing ? (
             <><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>🔄</span> Sincronizando datos con el servidor...</>
