@@ -1669,6 +1669,23 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
         </div>
       </div>
 
+      {/* Asesor IA — Poder de Compra */}
+      <AsesorIA
+        color="blue"
+        titulo="Análisis del poder de compra"
+        placeholder="Ej: ¿Es buen momento para comprar? ¿Qué relación ternero/novillo conviene? ¿Cuándo vender?"
+        contexto={[
+          `Poder de Compra`,
+          `Precio compra: $${inputs.precioCompra}/kg`,
+          `Precio venta: $${inputs.precioVenta}/kg`,
+          `Relación compra/venta: ${inputs.precioVenta > 0 ? (inputs.precioCompra/inputs.precioVenta).toFixed(2) : "n/d"}`,
+          `Peso compra: ${inputs.pesoCompra} kg | Peso venta: ${inputs.pesoVenta} kg`,
+          `Cabezas: ${inputs.cantidad}`,
+          `Margen estimado: ${fmtMoney ? fmtMoney(calc?.margen ?? 0) : ""}`,
+          `Inflación: ${inputs.inflacion}%/mes | Meses: ${inputs.meses}`,
+        ].filter(Boolean).join("\n")}
+      />
+
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
         <BotonExportarPDF color="slate"
@@ -2320,6 +2337,25 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
           </button>
         </div>
       </div>
+
+      {/* Asesor IA — Proyecto Vientres */}
+      <AsesorIA
+        color="emerald"
+        titulo="Análisis del proyecto de vientres"
+        placeholder="Ej: ¿Es rentable este proyecto? ¿Cuánto tarda en recuperar la inversión? ¿Qué riesgos hay?"
+        contexto={[
+          `Proyecto Vientres — ${inputs.cantidad} cab | ${inputs.anios} años`,
+          `Inversión inicial: ${fmtMoney(calc.inversionInicial)}`,
+          `Precio compra: $${inputs.precioCompra}/kg | Peso entrada: ${inputs.pesoEntrada} kg`,
+          `Ingreso total proyectado: ${fmtMoney(calc.ingresoTotalProyecto)}`,
+          `Costo total: ${fmtMoney(calc.costoTotalProyecto)}`,
+          `Margen neto: ${fmtMoney(calc.margenNetoProyecto)}`,
+          `TIR estimada: ${calc.tir ? calc.tir.toFixed(1) + "%" : "n/d"}`,
+          `ROI: ${calc.roi ? calc.roi.toFixed(1) + "%" : "n/d"}`,
+          `Precio novillo: $${inputs.precioVenta}/kg`,
+          `Inflación: ${inputs.inflacion}%/mes`,
+        ].filter(Boolean).join("\n")}
+      />
 
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
@@ -3005,6 +3041,21 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
           ]}
         />
       </div>
+
+      {/* Asesor IA — Comparador Invernada */}
+      <AsesorIA
+        color="violet"
+        titulo="Análisis del comparador de invernada"
+        placeholder="Ej: ¿Qué descarte conviene vender primero? ¿Qué escenario es más rentable? ¿Cuál es el riesgo?"
+        contexto={[
+          `Comparador Invernada`,
+          `Precio venta: $${base.precioVenta?.toLocaleString?.("es-AR") ?? base.precioVenta}/kg`,
+          `Inflación mensual: ${inflacionMensual}%/mes`,
+          `Meses al mercado: ${base.meses}`,
+          `Escenario A — Venta directa: ${fmtMoney ? fmtMoney(resA?.ingreso ?? 0) : ""}`,
+          `Escenario B — Invernada: ${fmtMoney ? fmtMoney(resB?.ingreso ?? 0) : ""}`,
+        ].filter(Boolean).join("\n")}
+      />
 
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
