@@ -570,36 +570,38 @@ const GLOBAL_STYLE = `
   }
   /* ── Mobile readability ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    /* Bigger base text on mobile */
-    body { font-size: 15px; }
+    body { font-size: 16px; }
 
-    /* Nav sidebar labels bigger */
-    .nav-label { font-size: 13px !important; }
+    /* Todos los textos chicos se agrandan */
+    .text-xs  { font-size: 13px !important; line-height: 1.6 !important; }
+    .text-sm  { font-size: 15px !important; line-height: 1.6 !important; }
+    .text-base{ font-size: 16px !important; }
+    .text-lg  { font-size: 18px !important; }
+    .text-xl  { font-size: 20px !important; }
+    .text-2xl { font-size: 24px !important; }
+    .text-3xl { font-size: 28px !important; }
 
-    /* KPI numbers bigger */
-    .kpi-value { font-size: 1.5rem !important; }
+    /* Números mono siempre grandes */
+    .font-mono { font-size: 18px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl { font-size: 26px !important; }
+    .font-mono.text-xl  { font-size: 22px !important; }
 
-    /* Section labels */
-    .section-label { font-size: 11px !important; }
+    /* Uppercase labels */
+    .uppercase.tracking-widest { font-size: 11px !important; letter-spacing: 0.05em !important; }
+    .uppercase.tracking-wider  { font-size: 12px !important; }
 
-    /* Stock cards inner text */
-    .stock-card-value { font-size: 1.25rem !important; }
-    .stock-card-label { font-size: 11px !important; }
+    /* Inputs, selects — evitar zoom en iOS */
+    input, select, textarea { font-size: 16px !important; }
 
-    /* Hint text minimum size */
-    .text-xs { font-size: 12px !important; line-height: 1.5 !important; }
-    .text-sm { font-size: 14px !important; line-height: 1.5 !important; }
+    /* Botones más fáciles de tocar */
+    button { min-height: 44px !important; }
 
-    /* Numbers always big */
-    .font-mono.font-black { font-size: 1.2rem !important; }
+    /* Cards con más padding */
+    .rounded-2xl { padding: 14px !important; }
+    .rounded-3xl { padding: 16px !important; }
 
-    /* Buttons more tappable */
-    button { min-height: 40px; }
-
-    /* EditField inputs bigger */
-    input[type="number"], input[type="text"], input[type="date"], select, textarea {
-      font-size: 16px !important; /* Prevents iOS zoom on focus */
-    }
+    /* Hints y subtextos */
+    p.text-xs, span.text-xs { font-size: 13px !important; }
   }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
