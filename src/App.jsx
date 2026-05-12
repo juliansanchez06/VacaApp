@@ -4771,8 +4771,38 @@ Sos directo — primero el veredicto, después el análisis. Máximo 250 palabra
         {/* Respuesta */}
         {respuesta && (
           <div className={`${c.bg} border ${c.border} rounded-2xl p-4`}>
-            <p className={`text-xs font-black uppercase tracking-widest ${c.text} mb-2`}>📋 Análisis del asesor</p>
-            <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{respuesta}</p>
+            <p className={`text-xs font-black uppercase tracking-widest ${c.text} mb-3`}>📋 Análisis del asesor</p>
+            <div className="text-sm text-slate-700 leading-relaxed space-y-2">
+              {respuesta.split('\n').map((line, i) => {
+                if (!line.trim()) return <div key={i} className="h-1" />;
+                // H3 ###
+                if (line.startsWith('### ')) return <h3 key={i} className="font-black text-slate-800 text-base mt-3 mb-1">{line.replace('### ','')}</h3>;
+                // H2 ##
+                if (line.startsWith('## ')) return <h2 key={i} className="font-black text-slate-900 text-lg mt-3 mb-1 border-b border-slate-200 pb-1">{line.replace('## ','')}</h2>;
+                // H1 #
+                if (line.startsWith('# ')) return <h1 key={i} className="font-black text-slate-900 text-xl mt-3 mb-2">{line.replace('# ','')}</h1>;
+                // List item -
+                if (line.startsWith('- ') || line.startsWith('* ')) {
+                  const content = line.replace(/^[-*] /, '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+                  return <div key={i} className="flex gap-2 items-start"><span className={`${c.text} font-black mt-0.5`}>•</span><span dangerouslySetInnerHTML={{__html: content}} /></div>;
+                }
+                // Numbered list
+                if (/^\d+\./.test(line)) {
+                  const content = line.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+                  return <div key={i} className="flex gap-2 items-start"><span className={`${c.text} font-black min-w-[20px]`}>{line.match(/^\d+/)[0]}.</span><span dangerouslySetInnerHTML={{__html: content.replace(/^\d+\.\s*/,'')}} /></div>;
+                }
+                // Warning ⚠️
+                if (line.includes('⚠️') || line.includes('Atención')) {
+                  const content = line.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+                  return <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-amber-800 text-sm" dangerouslySetInnerHTML={{__html: content}} />;
+                }
+                // Separator ---
+                if (/^-{3,}$/.test(line.trim())) return <hr key={i} className="border-slate-200 my-2" />;
+                // Normal paragraph with bold
+                const content = line.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+                return <p key={i} dangerouslySetInnerHTML={{__html: content}} />;
+              })}
+            </div>
           </div>
         )}
 
@@ -5090,7 +5120,22 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const margenBrutoCria = ingresoCria - sanidadCria;
   const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
   const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
-  const margenBrutoPastaje = ingresoPastaje;
+  // Devengado de pastaje hasta hoy (kg × precio novillo) — incluye lo cobrado + lo pendiente
+  const precioNovPastaje = campoPastaje?.precioNov ?? precioNovilloGlobal ?? 4300;
+  const hoyPast = new Date().toISOString().slice(0, 10);
+  const diasEntrePast2 = (desde, hasta) => {
+    if (!desde) return 0;
+    const parse = s => { const [y,m,d] = String(s).slice(0,10).split("-").map(Number); return new Date(y,m-1,d); };
+    return Math.max(0, Math.floor((parse(hasta) - parse(desde)) / 86400000));
+  };
+  const kgDevengadosPastaje = (campoPastaje?.tropas ?? []).reduce((s, t) => {
+    const cab  = t.cabActual ?? t.cab ?? 0;
+    const kgM  = (campoPastaje?.precios ?? {})[t.cat] ?? 6;
+    const dias = diasEntrePast2(t.ultimoCobro || t.fechaIngreso, hoyPast);
+    return s + cab * kgM * (dias / 30);
+  }, 0);
+  const devengadoPastajeHoy = kgDevengadosPastaje * precioNovPastaje;
+  const margenBrutoPastaje = ingresoPastaje + devengadoPastajeHoy;
   // margenBrutoExport se calcula más abajo, después de definir margenExport
   // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
   // ── MARGEN BRUTO TOTAL — ahora que margenExport está definido ─────────────
