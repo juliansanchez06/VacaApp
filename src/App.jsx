@@ -10719,15 +10719,25 @@ function EstrategiaComercial({ userEmail, onLogout }) {
 
           <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
 
-            {/* Back button — big and vivid */}
-            <button
-              onClick={() => setVistaActual("inicio")}
-              className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95 group"
-              style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}
-            >
-              <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-              <span>Volver al Menú</span>
-            </button>
+            {/* Back button → vuelve al menú de simuladores */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setVistaActual("simulador-menu")}
+                className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95 group"
+                style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}
+              >
+                <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+                <span>Simuladores</span>
+              </button>
+              <button
+                onClick={() => setVistaActual("campo")}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2.5 rounded-2xl shadow-md transition-all active:scale-95"
+                title="Ir a Mi Campo"
+              >
+                <span>🐄</span>
+                <span className="hidden sm:inline">Mi Campo</span>
+              </button>
+            </div>
 
             {/* Logo + module badge — center */}
             <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
