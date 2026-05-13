@@ -1086,6 +1086,15 @@ const GLOBAL_STYLE = `
     transform-origin: center center;
   }
 
+  /* Modal fade — solo opacity, sin transform, para no romper position:fixed */
+  @keyframes modalFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .modal-fade-in {
+    animation: modalFadeIn 0.18s ease both;
+  }
+
   /* ── Dashboard card hover ───────────────────────────────────────────── */
   .dash-card-inner {
     transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
@@ -8673,108 +8682,6 @@ function TropaEditorFields({ tropa, onSave }) {
   );
 }
 
-function ModalEgresoInner({ tropa, onClose, diasEntre, precios, fmtFecha, fmtN, setTropas, setPeriodos, toast, ModalWrapper }) {
-  const cabActual = tropa.cabActual ?? tropa.cab;
-  const [form, setForm] = useState({
-    cantidad: cabActual,
-    fechaEgreso: new Date().toISOString().slice(0, 10),
-    motivo: "venta",
-    obs: "",
-  });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
-  const cab = Math.min(Number(form.cantidad) || 0, cabActual);
-  const ultimoCobro = tropa.ultimoCobro || tropa.fechaIngreso;
-  const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
-  const diasTotales    = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
-  const kgMes  = (precios || {})[tropa.cat] ?? 6;
-  const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
-
-  const guardar = () => {
-    if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
-    const tramoEgreso = {
-      fecha: form.fechaEgreso,
-      cab,
-      desdeCorte: ultimoCobro,
-      dias: diasDesdeCorte,
-      kgTramo: Math.round(kgTramo * 10) / 10,
-      motivo: form.motivo,
-      obs: form.obs,
-    };
-    setTropas(prev => prev.map(t =>
-      t.id === tropa.id
-        ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso] }
-        : t
-    ));
-    setPeriodos(prev => [...prev, {
-      id: Date.now(), tipo: "evento", subtipo: "egreso",
-      tropaOrigen: tropa.origen, cat: tropa.cat,
-      cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
-      diasEstadia: diasTotales,
-      kgTramoInfo: Math.round(kgTramo * 10) / 10,
-      estado: "registrado",
-    }]);
-    toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
-    onClose();
-  };
-
-  return (
-    <ModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
-      <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
-        ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
-          <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")}
-            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
-          <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")}
-            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
-          <select value={form.motivo} onChange={set("motivo")}
-            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            <option value="venta">Venta / terminación</option>
-            <option value="descarte">Descarte</option>
-            <option value="mortandad">Mortandad</option>
-            <option value="retiro">Retiro dueño</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-          <input value={form.obs} onChange={set("obs")} placeholder="Opcional"
-            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-      </div>
-      <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
-        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-white rounded-xl p-2 border border-slate-200">
-            <p className="text-xs text-slate-400">Días en campo</p>
-            <p className="font-black text-slate-800 text-sm">{diasTotales} días</p>
-          </div>
-          <div className="bg-white rounded-xl p-2 border border-slate-200">
-            <p className="text-xs text-slate-400">Desde último cobro</p>
-            <p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p>
-          </div>
-          <div className="bg-white rounded-xl p-2 border border-slate-200">
-            <p className="text-xs text-slate-400">kg aprox. del tramo</p>
-            <p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p>
-          </div>
-        </div>
-        <p className="text-xs text-slate-400 italic">
-          Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30
-        </p>
-      </div>
-    </ModalWrapper>
-  );
-}
-
 function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
   const [vista, setVista] = useState("tropas");
   const [modal, setModal] = useState(null);
@@ -8972,7 +8879,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       style={{ background: "rgba(15,23,42,0.6)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto sim-zoom-enter">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto modal-fade-in">
         <div className="flex items-center justify-between">
           <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
@@ -9079,7 +8986,122 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     );
   };
 
-  // ── Modal Egreso — usa ModalEgresoInner (componente externo) directamente en el render
+  // ── Modal Egreso — solo movimiento de stock, sin cobro ───────────────────
+  // El cobro se liquida siempre por período (trimestre/semestre/año/fecha).
+  // El egreso registra el cambio de cabezas y el tramo que "cerró" para esa
+  // cantidad, de modo que la liquidación futura lo tome correctamente.
+  const ModalEgreso = ({ tropa, onClose }) => {
+    const cabActual = tropa.cabActual ?? tropa.cab;
+    const [form, setForm] = useState({
+      cantidad: cabActual,
+      fechaEgreso: new Date().toISOString().slice(0, 10),
+      motivo: "venta",
+      obs: "",
+    });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const cab = Math.min(Number(form.cantidad) || 0, cabActual);
+    // Días desde el último corte de cobro (o desde ingreso si nunca se cobró)
+    const ultimoCobro = (tropa.ultimoCobro) || tropa.fechaIngreso;
+    const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
+    const diasTotales    = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
+    const kgMes = precios[tropa.cat] ?? 6;
+    // kg del tramo que se cierra (desde último corte hasta egreso)
+    const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
+
+    const guardar = () => {
+      if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
+      // Registrar el movimiento de stock en la tropa:
+      // - bajamos cabezas
+      // - guardamos el tramo cerrado para que la próxima liquidación no lo duplique
+      const tramoEgreso = {
+        fecha: form.fechaEgreso,
+        cab,
+        desdeCorte: ultimoCobro,
+        dias: diasDesdeCorte,
+        kgTramo: Math.round(kgTramo * 10) / 10,
+        motivo: form.motivo,
+        obs: form.obs,
+      };
+      setTropas(prev => prev.map(t =>
+        t.id === tropa.id
+          ? {
+              ...t,
+              cabActual: (t.cabActual ?? t.cab) - cab,
+              tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso],
+            }
+          : t
+      ));
+      // También lo registramos en periodos como evento visible en la pestaña Eventos
+      setPeriodos(prev => [...prev, {
+        id: Date.now(), tipo: "evento", subtipo: "egreso",
+        tropaOrigen: tropa.origen, cat: tropa.cat,
+        cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
+        diasEstadia: diasTotales,
+        kgTramoInfo: Math.round(kgTramo * 10) / 10,
+        estado: "registrado",
+      }]);
+      toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
+      onClose();
+    };
+
+    return (
+      <ModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
+          ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
+            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
+            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
+            <select value={form.motivo} onChange={set("motivo")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="venta">Venta / terminación</option>
+              <option value="descarte">Descarte</option>
+              <option value="mortandad">Mortandad</option>
+              <option value="retiro">Retiro dueño</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional"
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+        {/* Info del tramo que queda descolgado hasta el próximo cobro */}
+        <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Días en campo</p>
+              <p className="font-black text-slate-800 text-sm">{diasTotales} días</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Desde último cobro</p>
+              <p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">kg aprox. del tramo</p>
+              <p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 italic">
+            Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30
+          </p>
+        </div>
+      </ModalWrapper>
+    );
+  };
 
   // ── Modal Evento ──────────────────────────────────────────────────────────
   const ModalEvento = ({ onClose }) => {
@@ -10513,7 +10535,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       {modal === "tropa"   && <ModalNuevaTropa   onClose={() => setModal(null)} />}
       {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
       {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
-      {tropaEgreso         && <ModalEgresoInner tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} diasEntre={diasEntre} precios={precios} fmtFecha={fmtFecha} fmtN={fmtN} setTropas={setTropas} setPeriodos={setPeriodos} toast={toast} ModalWrapper={ModalWrapper} />}
+      {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
       {tropaSuplemento     && <ModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} />}
     </div>
   );
