@@ -10272,7 +10272,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {pendientes.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por cobrar ({pendientes.length})</p>
-            {pendientes.map(c => <CobRow key={c.id} c={c} />)}
+            {pendientes.map(c => <div key={c.id}>{CobRow({ c })}</div>)}
           </div>
         )}
 
@@ -10292,7 +10292,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             </button>
             {expandPag && (
               <div className="mt-3 space-y-2">
-                {pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <CobRow key={c.id} c={c} />)}
+                {pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <div key={c.id}>{CobRow({ c })}</div>)}
                 <button onClick={() => {
                   const prop = terceros.find(t => t.id == propCobroActivo);
                   exportarPDF(
