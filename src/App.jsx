@@ -8674,6 +8674,317 @@ function TropaEditorFields({ tropa, onSave }) {
   );
 }
 
+// ─── Modales de Pastaje — definidos como funciones de módulo para evitar
+// re-montaje al re-renderizar PastajeCampo ────────────────────────────────
+
+// ─── Modales de Pastaje — definidos como funciones de módulo para evitar
+// re-montaje al re-renderizar PastajeCampo ────────────────────────────────
+
+function PastajeModalWrapper({ titulo, children, onClose, onGuardar }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
+      style={{ background: "rgba(15,23,42,0.6)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
+        </div>
+        {children}
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-sm hover:bg-slate-50 transition-all">Cancelar</button>
+          <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PastajeModalNuevaTropa({ onClose, tropas, terceros, CATS, setTropas, toast }) {
+  const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
+  const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
+  const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
+  const set = (k) => (e) => {
+    const val = e.target ? e.target.value : e;
+    setForm(p => {
+      const next = { ...p, [k]: val };
+      if (k === "cat") { next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200; next.gdpEstimado = GDP_DEFAULTS[val] ?? 0.5; }
+      if (k === "tropaOrigenId") {
+        const madre = tropas.find(t => String(t.id) === String(val));
+        next.tropaOrigenNombre = madre ? madre.origen : "";
+        if (madre) next.origen = madre.origen;
+      }
+      return next;
+    });
+  };
+  const guardar = () => {
+    if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
+    if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
+    setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), pesoEntradaKg: parseFloat(form.pesoEntradaKg) || 0, gdpEstimado: parseFloat(form.gdpEstimado) || 0, id: Date.now() }]);
+    toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
+    onClose();
+  };
+  return (
+    <PastajeModalWrapper titulo="Nueva tropa de pastaje" onClose={onClose} onGuardar={guardar}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
+          <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, Marca líquida, Compra…" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Propietario (tercero)</label>
+          <select value={form.terceroId} onChange={set("terceroId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            <option value="">— Seleccioná propietario —</option>
+            {terceros.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+          </select>
+          {terceros.length === 0 && <p className="text-xs text-amber-600 mt-1">⚠ Primero agregá un propietario en la pestaña Tropas</p>}
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
+          <select value={form.cat} onChange={set("cat")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            {CATS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas</label>
+          <input type="number" min="1" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha ingreso</label>
+          <input type="date" value={form.fechaIngreso} onChange={set("fechaIngreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</label>
+          <select value={form.servicio} onChange={set("servicio")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            <option value="ninguno">Sin servicio</option>
+            <option value="verano">Servicio verano</option>
+            <option value="otoño">Servicio otoño</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso entrada (kg/cab)</label>
+          <input type="number" min="50" value={form.pesoEntradaKg} onChange={set("pesoEntradaKg")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          <p className="text-xs text-slate-400 mt-1">Terneros: 180 kg · Recría: 200 kg</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GDP estimado (kg/día)</label>
+          <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
+        </div>
+        {tropas.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cría de tropa existente (opcional)</label>
+            <select value={form.tropaOrigenId} onChange={set("tropaOrigenId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="">— Sin vínculo (tropa independiente) —</option>
+              {tropas.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">Si estos animales son crías de otra tropa, vinculálos para trazabilidad.</p>
+          </div>
+        )}
+      </div>
+    </PastajeModalWrapper>
+  );
+}
+
+function PastajeModalEgreso({ tropa, onClose, diasEntre, precios, fmtFecha, fmtN, setTropas, setPeriodos, toast }) {
+  const cabActual = tropa.cabActual ?? tropa.cab;
+  const [form, setForm] = useState({ cantidad: cabActual, fechaEgreso: new Date().toISOString().slice(0, 10), motivo: "venta", obs: "" });
+  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+  const cab = Math.min(Number(form.cantidad) || 0, cabActual);
+  const ultimoCobro = tropa.ultimoCobro || tropa.fechaIngreso;
+  const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
+  const diasTotales = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
+  const kgMes = (precios || {})[tropa.cat] ?? 6;
+  const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
+  const guardar = () => {
+    if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
+    const tramoEgreso = { fecha: form.fechaEgreso, cab, desdeCorte: ultimoCobro, dias: diasDesdeCorte, kgTramo: Math.round(kgTramo * 10) / 10, motivo: form.motivo, obs: form.obs };
+    setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso] } : t));
+    setPeriodos(prev => [...prev, { id: Date.now(), tipo: "evento", subtipo: "egreso", tropaOrigen: tropa.origen, cat: tropa.cat, cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs, diasEstadia: diasTotales, kgTramoInfo: Math.round(kgTramo * 10) / 10, estado: "registrado" }]);
+    toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
+    onClose();
+  };
+  return (
+    <PastajeModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+      <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
+        ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
+          <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
+          <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
+          <select value={form.motivo} onChange={set("motivo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            <option value="venta">Venta / terminación</option>
+            <option value="descarte">Descarte</option>
+            <option value="mortandad">Mortandad</option>
+            <option value="retiro">Retiro dueño</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+          <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+      </div>
+      <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">Días en campo</p><p className="font-black text-slate-800 text-sm">{diasTotales} días</p></div>
+          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">Desde último cobro</p><p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p></div>
+          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">kg aprox. del tramo</p><p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p></div>
+        </div>
+        <p className="text-xs text-slate-400 italic">Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30</p>
+      </div>
+    </PastajeModalWrapper>
+  );
+}
+
+function PastajeModalEvento({ onClose, tropas, setTropas, setPeriodos, toast }) {
+  const [form, setForm] = useState({ tipo: "servicio-verano", tropaId: tropas[0]?.id ?? "", fecha: new Date().toISOString().slice(0, 10), cab: 0, obs: "" });
+  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+  const tropaSelec = tropas.find(t => String(t.id) === String(form.tropaId));
+  const guardar = () => {
+    const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: form.tipo, estado: "registrado" };
+    setPeriodos(prev => [...prev, { ...evento, tipo: "evento" }]);
+    if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
+      setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
+    }
+    toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
+    onClose();
+  };
+  return (
+    <PastajeModalWrapper titulo="Registrar evento" onClose={onClose} onGuardar={guardar}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de evento</label>
+          <select value={form.tipo} onChange={set("tipo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            <option value="servicio-verano">Servicio verano</option>
+            <option value="servicio-otoño">Servicio otoño</option>
+            <option value="destete">Destete</option>
+            <option value="mortandad">Mortandad</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tropa</label>
+          <select value={form.tropaId} onChange={set("tropaId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+            {tropas.filter(t => (t.cabActual ?? t.cab) > 0).map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+          <input type="date" value={form.fecha} onChange={set("fecha")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{form.tipo === "mortandad" ? "Bajas" : "Cabezas involucradas"}</label>
+          <input type="number" min="0" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+          <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+        </div>
+      </div>
+    </PastajeModalWrapper>
+  );
+}
+
+const MESES_LABELS_SUP = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+function PastajeModalSuplemento({ tropa, onClose, setTropas, toast }) {
+  const fmtN2 = (n) => Math.round(n).toLocaleString("es-AR");
+  const fmtP2 = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+  const supInicial = tropa.suplemento ?? { activo: false, precioPorKg: 0, kgDiaPorMes: {}, usarFechas: false, fechaDesde: "", fechaHasta: "" };
+  const [sup, setSup] = useState(supInicial);
+  const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
+  const setKgMes = (m, val) => setSup(p => ({ ...p, kgDiaPorMes: { ...p.kgDiaPorMes, [m]: parseFloat(val) || 0 } }));
+  const setRango = (meses, val) => setSup(p => { const nuevo = { ...p.kgDiaPorMes }; meses.forEach(m => { nuevo[m] = val; }); return { ...p, kgDiaPorMes: nuevo }; });
+  const cab = tropa.cabActual ?? tropa.cab;
+  const previewMeses = MESES_LABELS_SUP.map((lbl, i) => { const m = i + 1; const kg = sup.kgDiaPorMes?.[m] ?? 0; const diasMes = new Date(2026, m, 0).getDate(); return { m, lbl, kg, kgTotal: kg * diasMes * cab, pesos: kg * diasMes * cab * (sup.precioPorKg || 0) }; });
+  const kgAnual = previewMeses.reduce((s, x) => s + x.kgTotal, 0);
+  const pesosAnual = previewMeses.reduce((s, x) => s + x.pesos, 0);
+  const guardar = () => {
+    const tieneConsumo = Object.values(sup.kgDiaPorMes ?? {}).some(v => v > 0);
+    setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, suplemento: { ...sup, activo: tieneConsumo && sup.precioPorKg > 0 } } : t));
+    toast(`✅ Suplemento de ${tropa.origen} actualizado`, "success");
+    onClose();
+  };
+  return (
+    <PastajeModalWrapper titulo={`💊 Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+      <div className="space-y-5">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio del suplemento ($/kg)</label>
+          <input type="number" step="10" min="0" value={sup.precioPorKg} onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-amber-400" />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo por mes (kg/animal/día)</p>
+          </div>
+          <p className="text-xs text-slate-400 mb-3">Dejá en 0 los meses que no consume</p>
+          <div className="space-y-1.5">
+            {MESES_LABELS_SUP.map((lbl, i) => {
+              const m = i + 1; const kg = sup.kgDiaPorMes?.[m] ?? 0; const activo = kg > 0; const kgMesTotal = kg * new Date(2026, m, 0).getDate() * cab;
+              return (
+                <div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+                  <span className={`text-xs font-black w-8 ${activo ? "text-amber-700" : "text-slate-400"}`}>{lbl}</span>
+                  <input type="number" step="0.1" min="0" value={kg === 0 ? "" : kg} placeholder="0" onChange={e => setKgMes(m, e.target.value)} className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo ? "border-amber-300 bg-white text-amber-800 focus:border-amber-500" : "border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`} />
+                  <span className="text-xs text-slate-400">kg/ani/día</span>
+                  {activo && sup.precioPorKg > 0 && <div className="ml-auto text-right"><span className="text-xs text-amber-600 font-bold">{fmtN2(Math.round(kgMesTotal))} kg</span><span className="text-xs text-slate-400 ml-2">{fmtP2(kgMesTotal * sup.precioPorKg)}</span></div>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-2 mt-3 flex-wrap">
+            <button onClick={() => setRango([1,2,3,4,5,6,7,8,9,10,11,12], 0)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">Limpiar todo</button>
+            <button onClick={() => setRango([4,5,6,7,8,9], sup.kgDiaPorMes?.[4] || 2)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">Otoño-inv (Abr→Sep)</button>
+            <button onClick={() => setRango([10,11,12,1,2,3], sup.kgDiaPorMes?.[10] || 1)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all">Primavera-ver</button>
+          </div>
+        </div>
+        {kgAnual > 0 && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5">
+            <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2">Proyección anual · {cab} cab</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center"><p className="text-xs text-amber-500">kg totales/año</p><p className="font-black text-amber-800 text-lg">{fmtN2(Math.round(kgAnual))} kg</p></div>
+              <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center"><p className="text-xs text-amber-500">$ totales/año</p><p className="font-black text-amber-800 text-lg">{fmtP2(pesosAnual)}</p></div>
+            </div>
+            <div className="mt-3 flex items-end gap-1 h-12">
+              {previewMeses.map(x => { const maxKg = Math.max(...previewMeses.map(p => p.kgTotal), 1); const h = Math.round((x.kgTotal / maxKg) * 100); return (<div key={x.m} className="flex-1 flex flex-col items-center gap-0.5" title={`${x.lbl}: ${fmtN2(Math.round(x.kgTotal))} kg`}><div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, background: h > 0 ? "#d97706" : "#e2e8f0", minHeight: h > 0 ? 3 : 0 }} /><span className="text-[9px] text-slate-400">{x.lbl.slice(0,1)}</span></div>); })}
+            </div>
+          </div>
+        )}
+      </div>
+    </PastajeModalWrapper>
+  );
+}
+
+function PastajeModalTercero({ onClose, setTerceros, toast }) {
+  const [nombre, setNombre] = useState("");
+  const guardar = () => {
+    if (!nombre.trim()) return;
+    setTerceros(prev => [...prev, { id: Date.now(), nombre: nombre.trim() }]);
+    toast(`✅ Tercero "${nombre}" agregado`, "success");
+    onClose();
+  };
+  return (
+    <PastajeModalWrapper titulo="Agregar tercero" onClose={onClose} onGuardar={guardar}>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del tercero</label>
+        <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: García, Estancia Don Juan…"
+          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+          autoFocus onKeyDown={e => e.key === "Enter" && guardar()} />
+      </div>
+    </PastajeModalWrapper>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
   const [vista, setVista] = useState("tropas");
   const [modal, setModal] = useState(null);
@@ -8865,451 +9176,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     return `${d}/${m}/${y.slice(2)}`;
   };
   const toast = onToast || ((msg) => console.log(msg));
-
-  // ── Modal Wrapper ─────────────────────────────────────────────────────────
-  const ModalWrapper = ({ titulo, children, onClose, onGuardar }) => createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(15,23,42,0.6)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
-        </div>
-        {children}
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-sm hover:bg-slate-50 transition-all">Cancelar</button>
-          <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-
-  // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
-  const ModalNuevaTropa = ({ onClose }) => {
-    const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
-    const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
-    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
-    const set = (k) => (e) => {
-      const val = e.target ? e.target.value : e;
-      setForm(p => {
-        const next = { ...p, [k]: val };
-        if (k === "cat") {
-          next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200;
-          next.gdpEstimado   = GDP_DEFAULTS[val]  ?? 0.5;
-        }
-        if (k === "tropaOrigenId") {
-          const madre = tropas.find(t => String(t.id) === String(val));
-          next.tropaOrigenNombre = madre ? madre.origen : "";
-          // Auto-fill origen with mother tropa name
-          if (madre) next.origen = madre.origen;
-        }
-        return next;
-      });
-    };
-    const guardar = () => {
-      if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
-      if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
-      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), pesoEntradaKg: parseFloat(form.pesoEntradaKg) || 0, gdpEstimado: parseFloat(form.gdpEstimado) || 0, id: Date.now() }]);
-      toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
-      onClose();
-    };
-    return (
-      <ModalWrapper titulo="Nueva tropa de pastaje" onClose={onClose} onGuardar={guardar}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
-            <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, Marca líquida, Compra…"
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Propietario (tercero)</label>
-            <select value={form.terceroId} onChange={set("terceroId")}
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              <option value="">— Seleccioná propietario —</option>
-              {terceros.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-            </select>
-            {terceros.length === 0 && <p className="text-xs text-amber-600 mt-1">⚠ Primero agregá un propietario en la pestaña Tropas</p>}
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
-            <select value={form.cat} onChange={set("cat")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              {CATS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas</label>
-            <input type="number" min="1" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha ingreso</label>
-            <input type="date" value={form.fechaIngreso} onChange={set("fechaIngreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</label>
-            <select value={form.servicio} onChange={set("servicio")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              <option value="ninguno">Sin servicio</option>
-              <option value="verano">Servicio verano</option>
-              <option value="otoño">Servicio otoño</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso entrada (kg/cab)</label>
-            <input type="number" min="50" value={form.pesoEntradaKg} onChange={set("pesoEntradaKg")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            <p className="text-xs text-slate-400 mt-1">Terneros: 180 kg · Recría: 200 kg</p>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GDP estimado (kg/día)</label>
-            <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
-          </div>
-          {tropas.length > 0 && (
-            <div className="sm:col-span-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cría de tropa existente (opcional)</label>
-              <select value={form.tropaOrigenId} onChange={set("tropaOrigenId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-                <option value="">— Sin vínculo (tropa independiente) —</option>
-                {tropas.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
-              </select>
-              <p className="text-xs text-slate-400 mt-1">Si estos animales son crías de otra tropa, vinculálos para trazabilidad. Si la tropa madre se vende, esta tropa queda registrada igual.</p>
-            </div>
-          )}
-        </div>
-      </ModalWrapper>
-    );
-  };
-
-  // ── Modal Egreso — solo movimiento de stock, sin cobro ───────────────────
-  // El cobro se liquida siempre por período (trimestre/semestre/año/fecha).
-  // El egreso registra el cambio de cabezas y el tramo que "cerró" para esa
-  // cantidad, de modo que la liquidación futura lo tome correctamente.
-  const ModalEgreso = ({ tropa, onClose }) => {
-    const cabActual = tropa.cabActual ?? tropa.cab;
-    const [form, setForm] = useState({
-      cantidad: cabActual,
-      fechaEgreso: new Date().toISOString().slice(0, 10),
-      motivo: "venta",
-      obs: "",
-    });
-    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
-    const cab = Math.min(Number(form.cantidad) || 0, cabActual);
-    // Días desde el último corte de cobro (o desde ingreso si nunca se cobró)
-    const ultimoCobro = (tropa.ultimoCobro) || tropa.fechaIngreso;
-    const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
-    const diasTotales    = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
-    const kgMes = precios[tropa.cat] ?? 6;
-    // kg del tramo que se cierra (desde último corte hasta egreso)
-    const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
-
-    const guardar = () => {
-      if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
-      // Registrar el movimiento de stock en la tropa:
-      // - bajamos cabezas
-      // - guardamos el tramo cerrado para que la próxima liquidación no lo duplique
-      const tramoEgreso = {
-        fecha: form.fechaEgreso,
-        cab,
-        desdeCorte: ultimoCobro,
-        dias: diasDesdeCorte,
-        kgTramo: Math.round(kgTramo * 10) / 10,
-        motivo: form.motivo,
-        obs: form.obs,
-      };
-      setTropas(prev => prev.map(t =>
-        t.id === tropa.id
-          ? {
-              ...t,
-              cabActual: (t.cabActual ?? t.cab) - cab,
-              tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso],
-            }
-          : t
-      ));
-      // También lo registramos en periodos como evento visible en la pestaña Eventos
-      setPeriodos(prev => [...prev, {
-        id: Date.now(), tipo: "evento", subtipo: "egreso",
-        tropaOrigen: tropa.origen, cat: tropa.cat,
-        cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
-        diasEstadia: diasTotales,
-        kgTramoInfo: Math.round(kgTramo * 10) / 10,
-        estado: "registrado",
-      }]);
-      toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
-      onClose();
-    };
-
-    return (
-      <ModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
-        <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
-          ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
-            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")}
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
-            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")}
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
-            <select value={form.motivo} onChange={set("motivo")}
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              <option value="venta">Venta / terminación</option>
-              <option value="descarte">Descarte</option>
-              <option value="mortandad">Mortandad</option>
-              <option value="retiro">Retiro dueño</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-            <input value={form.obs} onChange={set("obs")} placeholder="Opcional"
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-        </div>
-        {/* Info del tramo que queda descolgado hasta el próximo cobro */}
-        <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white rounded-xl p-2 border border-slate-200">
-              <p className="text-xs text-slate-400">Días en campo</p>
-              <p className="font-black text-slate-800 text-sm">{diasTotales} días</p>
-            </div>
-            <div className="bg-white rounded-xl p-2 border border-slate-200">
-              <p className="text-xs text-slate-400">Desde último cobro</p>
-              <p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p>
-            </div>
-            <div className="bg-white rounded-xl p-2 border border-slate-200">
-              <p className="text-xs text-slate-400">kg aprox. del tramo</p>
-              <p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p>
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 italic">
-            Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30
-          </p>
-        </div>
-      </ModalWrapper>
-    );
-  };
-
-  // ── Modal Evento ──────────────────────────────────────────────────────────
-  const ModalEvento = ({ onClose }) => {
-    const [form, setForm] = useState({ tipo: "servicio-verano", tropaId: tropas[0]?.id ?? "", fecha: new Date().toISOString().slice(0, 10), cab: 0, obs: "" });
-    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
-    const tropaSelec = tropas.find(t => String(t.id) === String(form.tropaId));
-    const guardar = () => {
-      const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: form.tipo, estado: "registrado" };
-      setPeriodos(prev => [...prev, { ...evento, tipo: "evento" }]);
-      if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
-        setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
-      }
-      toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
-      onClose();
-    };
-    return (
-      <ModalWrapper titulo="Registrar evento" onClose={onClose} onGuardar={guardar}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de evento</label>
-            <select value={form.tipo} onChange={set("tipo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              <option value="servicio-verano">Servicio verano</option>
-              <option value="servicio-otoño">Servicio otoño</option>
-              <option value="destete">Destete</option>
-              <option value="mortandad">Mortandad</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tropa</label>
-            <select value={form.tropaId} onChange={set("tropaId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              {tropas.filter(t => (t.cabActual ?? t.cab) > 0).map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
-            <input type="date" value={form.fecha} onChange={set("fecha")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{form.tipo === "mortandad" ? "Bajas" : "Cabezas involucradas"}</label>
-            <input type="number" min="0" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-            <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          </div>
-        </div>
-      </ModalWrapper>
-    );
-  };
-
-  // ── Modal Suplemento ─────────────────────────────────────────────────────
-  const MESES_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const ModalSuplemento = ({ tropa, onClose }) => {
-    const supInicial = tropa.suplemento ?? {
-      activo: false, precioPorKg: 0,
-      kgDiaPorMes: {},
-      usarFechas: false, fechaDesde: "", fechaHasta: "",
-    };
-    const [sup, setSup] = useState(supInicial);
-    const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
-
-    // kg/día de un mes en particular
-    const setKgMes = (m, val) => setSup(p => ({
-      ...p,
-      kgDiaPorMes: { ...p.kgDiaPorMes, [m]: parseFloat(val) || 0 },
-    }));
-
-    const cab = tropa.cabActual ?? tropa.cab;
-
-    // Atajos: poner el mismo valor a un rango de meses
-    const setRango = (meses, val) => setSup(p => {
-      const nuevo = { ...p.kgDiaPorMes };
-      meses.forEach(m => { nuevo[m] = val; });
-      return { ...p, kgDiaPorMes: nuevo };
-    });
-
-    // Preview total por mes
-    const previewMeses = MESES_LABELS.map((lbl, i) => {
-      const m   = i + 1;
-      const kg  = sup.kgDiaPorMes?.[m] ?? 0;
-      const diasMes = new Date(2026, m, 0).getDate(); // días en ese mes
-      return { m, lbl, kg, kgTotal: kg * diasMes * cab, pesos: kg * diasMes * cab * (sup.precioPorKg || 0) };
-    });
-    const kgAnual   = previewMeses.reduce((s, x) => s + x.kgTotal, 0);
-    const pesosAnual = previewMeses.reduce((s, x) => s + x.pesos, 0);
-
-    const guardar = () => {
-      const tieneConsumo = Object.values(sup.kgDiaPorMes ?? {}).some(v => v > 0);
-      setTropas(prev => prev.map(t =>
-        t.id === tropa.id
-          ? { ...t, suplemento: { ...sup, activo: tieneConsumo && sup.precioPorKg > 0 } }
-          : t
-      ));
-      toast(`✅ Suplemento de ${tropa.origen} actualizado`, "success");
-      onClose();
-    };
-
-    return (
-      <ModalWrapper titulo={`💊 Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
-        <div className="space-y-5">
-
-          {/* Precio del suplemento */}
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio del suplemento ($/kg)</label>
-            <input type="number" step="10" min="0" value={sup.precioPorKg}
-              onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)}
-              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-amber-400" />
-          </div>
-
-          {/* Grilla de consumo por mes */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo por mes (kg/animal/día)</p>
-            </div>
-            <p className="text-xs text-slate-400 mb-3">Dejá en 0 los meses que no consume</p>
-
-            <div className="space-y-1.5">
-              {MESES_LABELS.map((lbl, i) => {
-                const m      = i + 1;
-                const kg     = sup.kgDiaPorMes?.[m] ?? 0;
-                const activo = kg > 0;
-                const kgMesTotal = kg * new Date(2026, m, 0).getDate() * cab;
-                return (
-                  <div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
-                    <span className={`text-xs font-black w-8 ${activo ? "text-amber-700" : "text-slate-400"}`}>{lbl}</span>
-                    <input
-                      type="number" step="0.1" min="0" value={kg === 0 ? "" : kg}
-                      placeholder="0"
-                      onChange={e => setKgMes(m, e.target.value)}
-                      className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo ? "border-amber-300 bg-white text-amber-800 focus:border-amber-500" : "border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`}
-                    />
-                    <span className="text-xs text-slate-400">kg/ani/día</span>
-                    {activo && sup.precioPorKg > 0 && (
-                      <div className="ml-auto text-right">
-                        <span className="text-xs text-amber-600 font-bold">{fmtN(Math.round(kgMesTotal))} kg</span>
-                        <span className="text-xs text-slate-400 ml-2">{fmtPesos(kgMesTotal * sup.precioPorKg)}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Atajos */}
-            <div className="flex gap-2 mt-3 flex-wrap">
-              <button onClick={() => setRango([1,2,3,4,5,6,7,8,9,10,11,12], 0)}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
-                Limpiar todo
-              </button>
-              <button onClick={() => setRango([4,5,6,7,8,9], sup.kgDiaPorMes?.[4] || 2)}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">
-                Otoño-inv (Abr→Sep)
-              </button>
-              <button onClick={() => setRango([10,11,12,1,2,3], sup.kgDiaPorMes?.[10] || 1)}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all">
-                Primavera-ver
-              </button>
-            </div>
-          </div>
-
-          {/* Resumen anual */}
-          {kgAnual > 0 && (
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5">
-              <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2">Proyección anual · {cab} cab</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
-                  <p className="text-xs text-amber-500">kg totales/año</p>
-                  <p className="font-black text-amber-800 text-lg">{fmtN(Math.round(kgAnual))} kg</p>
-                </div>
-                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
-                  <p className="text-xs text-amber-500">$ totales/año</p>
-                  <p className="font-black text-amber-800 text-lg">{fmtPesos(pesosAnual)}</p>
-                </div>
-              </div>
-              {/* Barra visual por mes */}
-              <div className="mt-3 flex items-end gap-1 h-12">
-                {previewMeses.map(x => {
-                  const maxKg = Math.max(...previewMeses.map(p => p.kgTotal), 1);
-                  const h = Math.round((x.kgTotal / maxKg) * 100);
-                  return (
-                    <div key={x.m} className="flex-1 flex flex-col items-center gap-0.5" title={`${x.lbl}: ${fmtN(Math.round(x.kgTotal))} kg`}>
-                      <div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, background: h > 0 ? "#d97706" : "#e2e8f0", minHeight: h > 0 ? 3 : 0 }} />
-                      <span className="text-[9px] text-slate-400">{x.lbl.slice(0,1)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </ModalWrapper>
-    );
-  };
-
-  // ── Modal Tercero ─────────────────────────────────────────────────────────
-  const ModalTercero = ({ onClose }) => {
-    const [nombre, setNombre] = useState("");
-    const guardar = () => {
-      if (!nombre.trim()) return;
-      setTerceros(prev => [...prev, { id: Date.now(), nombre: nombre.trim() }]);
-      toast(`✅ Tercero "${nombre}" agregado`, "success");
-      onClose();
-    };
-    return (
-      <ModalWrapper titulo="Agregar tercero" onClose={onClose} onGuardar={guardar}>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del tercero</label>
-          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: García, Estancia Don Juan…"
-            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
-            autoFocus onKeyDown={e => e.key === "Enter" && guardar()} />
-        </div>
-      </ModalWrapper>
-    );
-  };
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const TABS = [
@@ -10525,11 +10391,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {vista === "cobros"  && <VistaCobros />}
         {vista === "resumen" && <VistaResumen />}
       </div>
-      {modal === "tropa"   && <ModalNuevaTropa   onClose={() => setModal(null)} />}
-      {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
-      {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
-      {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
-      {tropaSuplemento     && <ModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} />}
+      {modal === "tropa"   && <PastajeModalNuevaTropa onClose={() => setModal(null)} tropas={tropas} terceros={terceros} CATS={CATS} setTropas={setTropas} toast={toast} />}
+      {modal === "evento"  && <PastajeModalEvento      onClose={() => setModal(null)} tropas={tropas} setTropas={setTropas} setPeriodos={setPeriodos} toast={toast} />}
+      {modal === "tercero" && <PastajeModalTercero      onClose={() => setModal(null)} setTerceros={setTerceros} toast={toast} />}
+      {tropaEgreso         && <PastajeModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} diasEntre={diasEntre} precios={precios} fmtFecha={fmtFecha} fmtN={fmtN} setTropas={setTropas} setPeriodos={setPeriodos} toast={toast} />}
+      {tropaSuplemento     && <PastajeModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} setTropas={setTropas} toast={toast} />}
     </div>
   );
 }
