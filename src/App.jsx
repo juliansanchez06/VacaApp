@@ -8792,7 +8792,7 @@ function PastajeModalEgreso({ tropa, onClose, diasEntre, precios, fmtFecha, fmtN
     if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
     const tramoEgreso = { fecha: form.fechaEgreso, cab, desdeCorte: ultimoCobro, dias: diasDesdeCorte, kgTramo: Math.round(kgTramo * 10) / 10, motivo: form.motivo, obs: form.obs };
     setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso] } : t));
-    setPeriodos(prev => [...prev, { id: Date.now(), tipo: "evento", subtipo: "egreso", tropaOrigen: tropa.origen, cat: tropa.cat, cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs, diasEstadia: diasTotales, kgTramoInfo: Math.round(kgTramo * 10) / 10, estado: "registrado" }]);
+    setPeriodos(prev => [...prev, { id: Date.now(), tipo: "evento", subtipo: "egreso", tropaOrigen: tropa.origen, cat: tropa.cat, cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs, diasEstadia: diasTotales, diasDesdeCorte, kgMes, kgTramoInfo: Math.round(kgTramo * 10) / 10, estado: "registrado" }]);
     toast(`✅ Egreso: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
     onClose();
   };
@@ -9486,14 +9486,21 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                     )}
                     {esEgreso && ev.diasEstadia > 0 && (
                       <div className="bg-slate-50 rounded-xl p-2.5">
-                        <p className="text-slate-400 mb-0.5">Días en campo</p>
+                        <p className="text-slate-400 mb-0.5">Días totales en campo</p>
                         <p className="font-black text-slate-700">{ev.diasEstadia} días</p>
+                      </div>
+                    )}
+                    {esEgreso && ev.diasDesdeCorte > 0 && (
+                      <div className="bg-slate-50 rounded-xl p-2.5">
+                        <p className="text-slate-400 mb-0.5">Días desde último cobro</p>
+                        <p className="font-black text-slate-700">{ev.diasDesdeCorte} días</p>
                       </div>
                     )}
                     {esEgreso && ev.kgTramoInfo > 0 && (
                       <div className="bg-amber-50 rounded-xl p-2.5 col-span-2">
                         <p className="text-amber-600 mb-0.5">Kg del tramo (a liquidar)</p>
                         <p className="font-black text-amber-800">{fmtN(Math.round(ev.kgTramoInfo))} kg nov</p>
+                        <p className="text-xs text-amber-500 mt-0.5">{ev.cab} cab × {ev.kgMes ?? "—"} kg/mes × {ev.diasDesdeCorte ?? ev.diasEstadia} días ÷ 30</p>
                       </div>
                     )}
                     {ev.motivo && (
