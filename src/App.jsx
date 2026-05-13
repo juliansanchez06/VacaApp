@@ -9644,7 +9644,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const confirmarLiquidacion = () => {
       if (preview.length === 0) { toast("No hay kg a liquidar en este período", "warn"); return; }
-      // Crear el registro de cobro
+
+      // Snapshot del estado anterior de cada tropa involucrada — para poder deshacer
+      const snapshotTropas = preview.map(l => {
+        const t = tropas.find(x => x.id === l.tropaId);
+        return { tropaId: l.tropaId, ultimoCobro: t?.ultimoCobro ?? null, tramosEgreso: t?.tramosEgreso ?? [] };
+      });
+
       const nuevoCobro = {
         id: Date.now(), tipo: "cobro-periodo",
         propietarioId: propCobroActivo,
@@ -9656,14 +9662,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         totalPesos: totalPreview,
         estado: "pendiente",
         fechaCreacion: hoy,
+        snapshotTropas, // ← para restaurar al deshacer
       };
       setPeriodos(prev => [...prev, nuevoCobro]);
-      // Actualizar ultimoCobro en cada tropa: guardar el día SIGUIENTE al corte
-      // para que el próximo período arranque desde ahí sin solapar el último día
       const fechaSiguiente = (() => {
         const [y, m, d] = fechaHastaEfectiva.split("-").map(Number);
-        const dt = new Date(y, m - 1, d + 1);
-        return dt.toISOString().slice(0, 10);
+        return new Date(y, m - 1, d + 1).toISOString().slice(0, 10);
       })();
       setTropas(prev => prev.map(t => {
         const linea = preview.find(l => l.tropaId === t.id);
@@ -9926,12 +9930,20 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 </button>
               )}
               <button onClick={() => {
-                if (!window.confirm("¿Eliminar este cobro? Esta acción no se puede deshacer.")) return;
+                if (!window.confirm("¿Deshacer este cobro?\nSe restaurarán las fechas y tramos de egreso de cada tropa al estado anterior.")) return;
+                // Restaurar snapshot de tropas si existe
+                if (c.snapshotTropas?.length > 0) {
+                  setTropas(prev => prev.map(t => {
+                    const snap = c.snapshotTropas.find(s => s.tropaId === t.id);
+                    if (!snap) return t;
+                    return { ...t, ultimoCobro: snap.ultimoCobro, tramosEgreso: snap.tramosEgreso };
+                  }));
+                }
                 setPeriodos(prev => prev.filter(p => p.id !== c.id));
-                toast("🗑 Cobro eliminado", "warn");
+                toast("↩️ Cobro deshecho — fechas y tramos restaurados", "success");
               }}
                 className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">
-                ✕
+                ↩️
               </button>
             </div>
           </div>
