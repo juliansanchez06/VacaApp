@@ -9018,6 +9018,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [modoCobro,    setModoCobro]    = useState("semestral");
   const [fechaHasta,   setFechaHasta]   = useState(hoy);
   const [showLiquidar, setShowLiquidar] = useState(false);
+  const [fechaCobroExterno, setFechaCobroExterno] = useState("");
   const [expandPag,    setExpandPag]    = useState(false);
   const [expandId,     setExpandId]     = useState(null);
   const [propCobro,    setPropCobro]    = useState(null);
@@ -9243,16 +9244,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                     if (!nueva) return;
                                     setTropas(prev => prev.map(x => x.id === t.id ? { ...x, fechaIngreso: nueva } : x));
                                     toast(`✅ Fecha de ${t.origen} actualizada a ${fmtFecha(nueva)}`, "success");
-                                  }} className="sr-only" />
-                                </label>
-                                {/* Último cobro editable — para sincronizar con cobros externos */}
-                                <label className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-all flex items-center gap-1" title="Tocá para editar la fecha del último cobro">
-                                  💰 cobrado al {fmtFecha(t.ultimoCobro || t.fechaIngreso)}
-                                  <input type="date" value={t.ultimoCobro || t.fechaIngreso || ""} onChange={e => {
-                                    const nueva = e.target.value;
-                                    if (!nueva) return;
-                                    setTropas(prev => prev.map(x => x.id === t.id ? { ...x, ultimoCobro: nueva } : x));
-                                    toast(`✅ Último cobro de ${t.origen} seteado al ${fmtFecha(nueva)}`, "success");
                                   }} className="sr-only" />
                                 </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
@@ -10080,6 +10071,44 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             <p className="text-2xl font-black text-emerald-800">{fmtN(Math.round(kgPag))} kg</p>
             <p className="text-sm text-emerald-600">${fmtK1(kgPag * precioNov)}</p>
           </div>
+        </div>
+
+        {/* Botón cobro externo — para sincronizar fecha de último cobro hecho fuera de la app */}
+        <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 space-y-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-0.5">Cobro externo</p>
+            <p className="text-xs text-blue-600">Si ya cobraste un período fuera de la app, registrá la fecha para que el próximo cobro arranque desde ahí.</p>
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <p className="text-xs font-bold text-blue-600 mb-1">Fecha del último cobro</p>
+              <input type="date" value={fechaCobroExterno} onChange={e => setFechaCobroExterno(e.target.value)}
+                className="w-full border-2 border-blue-300 rounded-xl px-3 py-2.5 text-sm font-mono font-black text-center focus:outline-none focus:border-blue-500 bg-white" />
+            </div>
+            <button onClick={() => {
+              if (!fechaCobroExterno) { toast("Seleccioná la fecha del cobro externo", "warn"); return; }
+              const fechaSiguiente = (() => {
+                const [y, m, d] = fechaCobroExterno.split("-").map(Number);
+                return new Date(y, m - 1, d + 1).toISOString().slice(0, 10);
+              })();
+              setTropas(prev => prev.map(t => {
+                const esDeLaProp = algunaTieneId
+                  ? (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo
+                  : true;
+                if (!esDeLaProp) return t;
+                return { ...t, ultimoCobro: fechaSiguiente };
+              }));
+              toast(`✅ Último cobro seteado al ${fmtFecha(fechaCobroExterno)} para todas las tropas de ${terceros.find(x=>x.id===propCobroActivo)?.nombre ?? "este propietario"}`, "success");
+            }}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm transition-all active:scale-95 whitespace-nowrap">
+              ✓ Registrar
+            </button>
+          </div>
+          {tropasDelProp.length > 0 && (
+            <p className="text-xs text-blue-500">
+              Próximo cobro arrancará desde: <span className="font-black">{fmtFecha(fechaCobroExterno ? (() => { const [y,m,d] = fechaCobroExterno.split("-").map(Number); return new Date(y,m-1,d+1).toISOString().slice(0,10); })() : (tropasDelProp[0]?.ultimoCobro || tropasDelProp[0]?.fechaIngreso))}</span>
+            </p>
+          )}
         </div>
 
         {/* Botón para abrir liquidador */}
