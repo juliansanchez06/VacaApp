@@ -9564,8 +9564,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
-        // Si fechaIngreso es >= fHasta (dato corrupto), usar fechaDesdeAuto
-        const rawDesde = tropa.ultimoCobro || tropa.fechaIngreso || fechaDesdeAuto;
+        // "desde" es lo más reciente entre el último cobro y la fecha de ingreso de esta tropa
+        // Así una tropa que ingresó después del cobro externo no cobra días que no estuvo
+        const ultimoCobroOIngreso = [tropa.ultimoCobro, tropa.fechaIngreso].filter(Boolean).sort().at(-1) || fechaDesdeAuto;
+        const rawDesde = ultimoCobroOIngreso;
         const desde = rawDesde >= fHasta ? fechaDesdeAuto : rawDesde;
         const kgMes = precios[tropa.cat] ?? 6;
         const cabActual = tropa.cabActual ?? tropa.cab;
@@ -10096,6 +10098,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   ? (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo
                   : true;
                 if (!esDeLaProp) return t;
+                // Solo actualizar si el cobro externo es posterior al ingreso de esta tropa
+                // Si la tropa ingresó después del cobro externo, arranca desde su fechaIngreso
+                if (fechaSiguiente <= (t.fechaIngreso || "")) return t;
                 return { ...t, ultimoCobro: fechaSiguiente };
               }));
               toast(`✅ Último cobro seteado al ${fmtFecha(fechaCobroExterno)} para todas las tropas de ${terceros.find(x=>x.id===propCobroActivo)?.nombre ?? "este propietario"}`, "success");
