@@ -9245,6 +9245,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                     toast(`✅ Fecha de ${t.origen} actualizada a ${fmtFecha(nueva)}`, "success");
                                   }} className="sr-only" />
                                 </label>
+                                {/* Último cobro editable — para sincronizar con cobros externos */}
+                                <label className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 cursor-pointer hover:bg-amber-100 hover:border-amber-400 transition-all flex items-center gap-1" title="Tocá para editar la fecha del último cobro">
+                                  💰 cobrado al {fmtFecha(t.ultimoCobro || t.fechaIngreso)}
+                                  <input type="date" value={t.ultimoCobro || t.fechaIngreso || ""} onChange={e => {
+                                    const nueva = e.target.value;
+                                    if (!nueva) return;
+                                    setTropas(prev => prev.map(x => x.id === t.id ? { ...x, ultimoCobro: nueva } : x));
+                                    toast(`✅ Último cobro de ${t.origen} seteado al ${fmtFecha(nueva)}`, "success");
+                                  }} className="sr-only" />
+                                </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
                                 {t.tropaOrigenNombre && (
