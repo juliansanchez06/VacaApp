@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 
 // ─── Micro store (Zustand-like) + localStorage persist ───────────────────────
 const LS_KEY = "soypekun_store_v2";
@@ -1084,15 +1085,6 @@ const GLOBAL_STYLE = `
   .sim-zoom-enter {
     animation: zoomFromCenter 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     transform-origin: center center;
-  }
-
-  /* Modal fade — solo opacity, sin transform, para no romper position:fixed */
-  @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  .modal-fade-in {
-    animation: modalFadeIn 0.18s ease both;
   }
 
   /* ── Dashboard card hover ───────────────────────────────────────────── */
@@ -8875,11 +8867,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const toast = onToast || ((msg) => console.log(msg));
 
   // ── Modal Wrapper ─────────────────────────────────────────────────────────
-  const ModalWrapper = ({ titulo, children, onClose, onGuardar }) => (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+  const ModalWrapper = ({ titulo, children, onClose, onGuardar }) => createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
       style={{ background: "rgba(15,23,42,0.6)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto modal-fade-in">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
@@ -8890,7 +8882,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
   // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
