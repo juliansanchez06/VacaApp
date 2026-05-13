@@ -9387,7 +9387,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Vista Eventos ─────────────────────────────────────────────────────────
   const VistaEventos = () => {
-    const [expandId, setExpandId] = useState(null);
+    // expandId / setExpandId viven en PastajeCampo para no violar reglas de hooks
     const eventos = periodos
       .filter(p => p.tipo === "evento" || p.tipo === "evento" || p.subtipo === "egreso" || p.tipo === "cobro-periodo" ? false : true)
       .concat(periodos.filter(p => p.subtipo === "egreso" || (p.tipo === "evento" && p.subtipo !== "egreso")))
