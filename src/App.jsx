@@ -10713,6 +10713,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const campoRecria         = useStore(vacaStore, s => s.campoRecria);
   const campoTerminacion    = useStore(vacaStore, s => s.campoTerminacion);
   const campoPastaje        = useStore(vacaStore, s => s.campoPastaje);
+  const campo               = useStore(vacaStore, s => s.campo);
   const movimientos         = useStore(vacaStore, s => s.movimientos) ?? [];
   const setCampoCria        = (p) => vacaStore.getState().setCampoCria(p);
   const setCampoRecria      = (p) => vacaStore.getState().setCampoRecria(p);
