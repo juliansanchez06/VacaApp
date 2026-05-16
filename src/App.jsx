@@ -7782,10 +7782,56 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   );
 } // end MiCampo
 
-function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
+function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, campoRecria, campo, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
+  const fmt = n => Math.round(n).toLocaleString("es-AR");
+
+  // ── Eficiencia de stock (Recría) ──────────────────────────────────────────
+  const cabTotalRecria = (campoRecria?.novillos ?? 0)
+    + (campoRecria?.vaquillonaRecria ?? 0)
+    + (campoRecria?.ternerosCompraMachos ?? 0)
+    + (campoRecria?.ternerosCompraHembras ?? 0)
+    + (campoRecria?.ternerosLiquidaMachos ?? 0)
+    + (campoRecria?.ternerosLiquidaHembras ?? 0);
+  const mortandadPct  = campoRecria?.pctMortandadRecria ?? 2;
+  const cabSobreviven = Math.round(cabTotalRecria * (1 - mortandadPct / 100));
+  const eficienciaStock = cabTotalRecria > 0 ? Math.round((cabSobreviven / cabTotalRecria) * 100) : null;
+  const efColor = eficienciaStock === null ? "text-slate-400"
+    : eficienciaStock >= 95 ? "text-emerald-600"
+    : eficienciaStock >= 88 ? "text-amber-600"
+    : "text-red-600";
+  const efLabel = eficienciaStock === null ? "Sin datos"
+    : eficienciaStock >= 95 ? "Excelente"
+    : eficienciaStock >= 88 ? "Aceptable"
+    : "Bajo";
+
+  // ── Receptividad dinámica (Pastaje) ───────────────────────────────────────
+  // Carga óptima estimada por categoría (EV/cab referencia)
+  const EV_CAT = { terneros: 0.65, terneras: 0.60, recria: 0.85, vacas: 1.0, toros: 1.25 };
+  const tropas = campoPastaje?.tropas ?? [];
+  const hectareas = campo?.hectareas ?? 0;
+  const totalEV = tropas.reduce((s, t) => {
+    const cab = t.cabActual ?? t.cab ?? 0;
+    return s + cab * (EV_CAT[t.cat] ?? 1.0);
+  }, 0);
+  const totalCab = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0);
+  const cargaEV = hectareas > 0 ? totalEV / hectareas : null;
+  // Receptividad promedio referencia: 1.5 EV/ha (editable en el futuro)
+  const receptividadRef = campo?.receptividadEVha ?? 1.5;
+  const pctCarga = cargaEV !== null ? Math.round((cargaEV / receptividadRef) * 100) : null;
+  const recepColor = pctCarga === null ? "text-slate-400"
+    : pctCarga <= 90 ? "text-emerald-600"
+    : pctCarga <= 100 ? "text-amber-500"
+    : "text-red-600";
+  const recepLabel = pctCarga === null ? "Sin datos"
+    : pctCarga <= 90 ? "Subutilizada"
+    : pctCarga <= 100 ? "Al límite"
+    : "Sobrecargada";
+  const recepSemaforo = pctCarga === null ? "⚪" : pctCarga <= 90 ? "🟢" : pctCarga <= 100 ? "🟡" : "🔴";
+
+  const hayIndicadores = cabTotalRecria > 0 || tropas.length > 0;
 
 
   return (
@@ -7884,8 +7930,90 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogo
           </div>
         </div>
 
-        {/* ── Parámetros globales ─────────────────────────────────────────── */}
+        {/* ── Indicadores de campo ────────────────────────────────────────── */}
+        {hayIndicadores && (
+          <div className="max-w-3xl mx-auto mt-6 space-y-3">
+            <p className="text-center text-slate-400 font-semibold text-xs uppercase tracking-widest mb-3">
+              Indicadores de campo
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
+              {/* Eficiencia de stock */}
+              {cabTotalRecria > 0 && (
+                <button onClick={() => onNavigate("campo")}
+                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all active:scale-[0.98]">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Eficiencia de stock</p>
+                      <p className="text-xs text-slate-400">Recría — {fmt(cabTotalRecria)} cab ingresadas</p>
+                    </div>
+                    <span className="text-2xl">{eficienciaStock !== null && eficienciaStock >= 95 ? "🟢" : eficienciaStock !== null && eficienciaStock >= 88 ? "🟡" : "🔴"}</span>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <p className={`text-4xl font-black ${efColor}`}>
+                      {eficienciaStock !== null ? `${eficienciaStock}%` : "—"}
+                    </p>
+                    <div className="mb-1">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        eficienciaStock === null ? "bg-slate-100 text-slate-500"
+                        : eficienciaStock >= 95 ? "bg-emerald-100 text-emerald-700"
+                        : eficienciaStock >= 88 ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-700"
+                      }`}>{efLabel}</span>
+                    </div>
+                  </div>
+                  {/* Barra */}
+                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      eficienciaStock >= 95 ? "bg-emerald-400" : eficienciaStock >= 88 ? "bg-amber-400" : "bg-red-400"
+                    }`} style={{ width: `${eficienciaStock ?? 0}%` }} />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">{fmt(cabSobreviven)} cab llegan · mortandad {mortandadPct}%</p>
+                </button>
+              )}
+
+              {/* Receptividad dinámica */}
+              {tropas.length > 0 && hectareas > 0 && (
+                <button onClick={() => onNavigate("campo")}
+                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-teal-200 transition-all active:scale-[0.98]">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Receptividad pastaje</p>
+                      <p className="text-xs text-slate-400">{fmt(totalCab)} cab · {fmt(hectareas)} ha · ref {receptividadRef} EV/ha</p>
+                    </div>
+                    <span className="text-2xl">{recepSemaforo}</span>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <p className={`text-4xl font-black ${recepColor}`}>
+                      {cargaEV !== null ? `${(Math.round(cargaEV * 100) / 100).toLocaleString("es-AR")}` : "—"}
+                      <span className="text-lg font-semibold text-slate-400 ml-1">EV/ha</span>
+                    </p>
+                    <div className="mb-1">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        pctCarga === null ? "bg-slate-100 text-slate-500"
+                        : pctCarga <= 90 ? "bg-emerald-100 text-emerald-700"
+                        : pctCarga <= 100 ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-700"
+                      }`}>{recepLabel}</span>
+                    </div>
+                  </div>
+                  {/* Barra */}
+                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      pctCarga <= 90 ? "bg-emerald-400" : pctCarga <= 100 ? "bg-amber-400" : "bg-red-400"
+                    }`} style={{ width: `${Math.min(pctCarga ?? 0, 100)}%` }} />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    {pctCarga !== null ? `${pctCarga}% de la receptividad` : "Cargá hectáreas en Mi Campo → Costos estructura"}
+                  </p>
+                </button>
+              )}
+
+            </div>
+          </div>
+        )}
+
+        {/* ── Parámetros globales ─────────────────────────────────────────── */}
         <p className="text-center text-slate-400 mt-5 text-xs font-medium">
           Los cálculos son estimativos · Consultá con tu asesor antes de invertir
         </p>
@@ -10724,6 +10852,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           global={global}
           gastos={gastos}
           simulaciones={simulaciones}
+          campoPastaje={campoPastaje}
+          campoRecria={campoRecria}
+          campo={campo}
           onNavigate={handleNavigate}
           onLogout={onLogout}
         />
