@@ -11065,6 +11065,19 @@ export default function App() {
   const [syncPending,  setSyncPending]  = useState(() => loadQueue().length > 0);
   const [syncing,      setSyncing]      = useState(false);
 
+  // ── Al arrancar online: vaciar cola pendiente automáticamente ────────────
+  useEffect(() => {
+    const autoFlush = async () => {
+      if (navigator.onLine && loadQueue().length > 0) {
+        setSyncing(true);
+        await flushQueue();
+        setSyncPending(loadQueue().length > 0);
+        setSyncing(false);
+      }
+    };
+    autoFlush();
+  }, []);
+
   // ── Detectar cambios de conexión ─────────────────────────────────────────
   useEffect(() => {
     const goOnline = async () => {
@@ -11153,7 +11166,24 @@ export default function App() {
           {syncing ? (
             <><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>🔄</span> Sincronizando datos con el servidor...</>
           ) : syncPending ? (
-            <><span>📤</span> Tenés cambios pendientes — se subirán cuando haya internet</>
+            <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap",justifyContent:"center"}}>
+              <span>📤 Tenés cambios pendientes — se subirán cuando haya internet</span>
+              {isOnline && (
+                <button onClick={async () => {
+                  setSyncing(true);
+                  await flushQueue();
+                  // Si sigue habiendo cola y estamos online, la forzamos a vaciar
+                  if (loadQueue().length > 0) {
+                    localStorage.removeItem(QUEUE_KEY);
+                    pendingQueue = [];
+                  }
+                  setSyncPending(false);
+                  setSyncing(false);
+                }} style={{background:"rgba(255,255,255,0.25)",border:"1px solid rgba(255,255,255,0.5)",color:"#fff",borderRadius:"8px",padding:"3px 10px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
+                  ✓ Marcar como sincronizado
+                </button>
+              )}
+            </div>
           ) : (
             <><span>📴</span> Sin conexión — trabajás en modo offline. Los cambios se guardan localmente.</>
           )}
