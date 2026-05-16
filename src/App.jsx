@@ -532,6 +532,9 @@ function fmtPct(n, dec = 1) {
 
 // ─── Global CSS (slider thumb enlarge + pastel bg) ───────────────────────────
 const GLOBAL_STYLE = `
+  /* ── Viewport fix (por si el index.html no lo tiene) ───────────────── */
+  /* Se inyecta también via JS al montar */
+
   /* ── Background ──────────────────────────────────────────────────── */
   .app-bg { background: #ffffff; min-height: 100vh; }
 
@@ -571,37 +574,33 @@ const GLOBAL_STYLE = `
   }
   /* ── Mobile readability ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    body { font-size: 16px; }
+    /* Fuente base más grande */
+    html { font-size: 17px; }
+    body { font-size: 17px; }
 
-    /* Todos los textos chicos se agrandan */
-    .text-xs  { font-size: 13px !important; line-height: 1.6 !important; }
-    .text-sm  { font-size: 15px !important; line-height: 1.6 !important; }
-    .text-base{ font-size: 16px !important; }
-    .text-lg  { font-size: 18px !important; }
-    .text-xl  { font-size: 20px !important; }
-    .text-2xl { font-size: 24px !important; }
-    .text-3xl { font-size: 28px !important; }
+    /* Textos Tailwind escalados */
+    .text-xs   { font-size: 13px !important; line-height: 1.55 !important; }
+    .text-sm   { font-size: 15px !important; line-height: 1.55 !important; }
+    .text-base { font-size: 17px !important; }
+    .text-lg   { font-size: 19px !important; }
+    .text-xl   { font-size: 22px !important; }
+    .text-2xl  { font-size: 26px !important; }
+    .text-3xl  { font-size: 30px !important; }
+    .text-4xl  { font-size: 36px !important; }
 
-    /* Números mono siempre grandes */
+    /* Números mono */
     .font-mono { font-size: 18px !important; }
     .font-mono.text-2xl, .font-mono.text-3xl { font-size: 26px !important; }
-    .font-mono.text-xl  { font-size: 22px !important; }
+    .font-mono.text-xl { font-size: 22px !important; }
 
-    /* Uppercase labels */
-    .uppercase.tracking-widest { font-size: 11px !important; letter-spacing: 0.05em !important; }
-    .uppercase.tracking-wider  { font-size: 12px !important; }
+    /* Labels uppercase — más chicos pero legibles */
+    .uppercase.tracking-widest { font-size: 10px !important; letter-spacing: 0.08em !important; }
+    .uppercase.tracking-wider  { font-size: 11px !important; }
 
-    /* Inputs, selects — evitar zoom en iOS */
+    /* Inputs — evitar zoom en iOS */
     input, select, textarea { font-size: 16px !important; }
 
-    /* Botones más fáciles de tocar */
-    button { min-height: 44px !important; }
-
-    /* Cards con más padding */
-    .rounded-2xl { padding: 14px !important; }
-    .rounded-3xl { padding: 16px !important; }
-
-    /* Hints y subtextos */
+    /* Hints */
     p.text-xs, span.text-xs { font-size: 13px !important; }
   }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
@@ -10671,6 +10670,17 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [guardando,    setGuardando]    = useState(false);
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
+
+  // ── Viewport fix — asegura escala correcta en mobile ─────────────────────
+  useEffect(() => {
+    let vp = document.querySelector("meta[name='viewport']");
+    if (!vp) {
+      vp = document.createElement("meta");
+      vp.name = "viewport";
+      document.head.appendChild(vp);
+    }
+    vp.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no";
+  }, []);
 
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
 
