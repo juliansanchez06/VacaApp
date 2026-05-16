@@ -9820,148 +9820,156 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     // ── Generador de imagen PNG del cobro ─────────────────────────────────────
     const generarImagenCobro = (cobro) => {
-      const W = 800, padding = 40;
+      const SCALE = 2;           // 2× resolución → se ve grande y nítido en celular
+      const W = 900, padding = 48;
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
       const prop = terceros.find(t => t.id == cobro.propietarioId);
 
       // Genera una imagen. conDinero=false → oculta columna monto y total $
       const generarCanvas = (conDinero, logoImg) => {
-        const H = 320 + lineas.length * 72 + (tieneSuplemento && conDinero ? 160 : 120);
+        const H = 340 + lineas.length * 88 + (tieneSuplemento && conDinero ? 180 : 140);
         const canvas = document.createElement("canvas");
-        canvas.width = W; canvas.height = H;
+        canvas.width  = W * SCALE;
+        canvas.height = H * SCALE;
         const ctx = canvas.getContext("2d");
+        ctx.scale(SCALE, SCALE);   // todo lo que dibujemos usa coords lógicas W×H
 
         // Fondo
         ctx.fillStyle = "#f8fafc";
         ctx.fillRect(0, 0, W, H);
 
-        // Header blanco
+        // ── Header blanco (110px) ─────────────────────────────────────────
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, W, 90);
+        ctx.fillRect(0, 0, W, 110);
         ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(0, 90); ctx.lineTo(W, 90); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 110); ctx.lineTo(W, 110); ctx.stroke();
 
         if (logoImg) {
-          const logoH = 58, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
-          ctx.drawImage(logoImg, padding, 16, logoW, logoH);
+          const logoH = 70, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
+          ctx.drawImage(logoImg, padding, 20, logoW, logoH);
         }
         ctx.textAlign = "right";
-        ctx.fillStyle = "#064e3b"; ctx.font = "bold 13px system-ui, sans-serif";
-        ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 40);
-        ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui, sans-serif";
-        ctx.fillText("soypekun.vercel.app", W - padding, 58);
-        ctx.fillStyle = "#475569"; ctx.font = "11px system-ui, sans-serif";
-        ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 76);
+        ctx.fillStyle = "#064e3b"; ctx.font = "bold 16px system-ui, sans-serif";
+        ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 48);
+        ctx.fillStyle = "#94a3b8"; ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText("soypekun.vercel.app", W - padding, 70);
+        ctx.fillStyle = "#475569"; ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 92);
         ctx.textAlign = "left";
 
-        // Banda verde título
+        // ── Banda verde título (86px) ─────────────────────────────────────
         ctx.fillStyle = "#064e3b";
-        ctx.fillRect(0, 90, W, 70);
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 24px system-ui, sans-serif";
-        ctx.fillText(conDinero ? "Liquidación de Pastaje" : "Resumen de Tropas — Pastaje", padding, 128);
-        ctx.fillStyle = "#6ee7b7"; ctx.font = "14px system-ui, sans-serif";
-        ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 150);
+        ctx.fillRect(0, 110, W, 86);
+        ctx.fillStyle = "#ffffff"; ctx.font = "bold 30px system-ui, sans-serif";
+        ctx.fillText(conDinero ? "Liquidación de Pastaje" : "Resumen de Tropas — Pastaje", padding, 156);
+        ctx.fillStyle = "#6ee7b7"; ctx.font = "17px system-ui, sans-serif";
+        ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 182);
         if (!conDinero) {
-          ctx.fillStyle = "#a7f3d0"; ctx.font = "12px system-ui, sans-serif";
-          ctx.fillText("Solo kg devengados · sin montos", padding + 240, 150);
+          ctx.fillStyle = "#a7f3d0"; ctx.font = "14px system-ui, sans-serif";
+          ctx.fillText("Solo kg devengados · sin montos", padding + 310, 182);
         }
         if (prop) {
-          ctx.fillStyle = "#a7f3d0"; ctx.textAlign = "right"; ctx.font = "bold 14px system-ui, sans-serif";
-          ctx.fillText(`👤 ${prop.nombre}`, W - padding, 128);
+          ctx.fillStyle = "#a7f3d0"; ctx.textAlign = "right"; ctx.font = "bold 17px system-ui, sans-serif";
+          ctx.fillText(`👤 ${prop.nombre}`, W - padding, 156);
           ctx.textAlign = "left";
         }
 
-        // Info configuración
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 160, W, 36);
-        ctx.fillStyle = "#334155"; ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText(`Período: ${fmtFecha(cobro.fechaDesde)} → ${fmtFecha(cobro.fechaHasta)}`, padding, 183);
+        // ── Info período (44px) ───────────────────────────────────────────
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 196, W, 44);
+        ctx.fillStyle = "#334155"; ctx.font = "15px system-ui, sans-serif";
+        ctx.fillText(`Período: ${fmtFecha(cobro.fechaDesde)} → ${fmtFecha(cobro.fechaHasta)}`, padding, 224);
         if (conDinero) {
           ctx.textAlign = "right";
-          ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, W - padding, 183);
+          ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, W - padding, 224);
           ctx.textAlign = "left";
         }
 
-        // Tabla header
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 196, W, 28);
-        ctx.fillStyle = "#94a3b8"; ctx.font = "bold 11px system-ui, sans-serif";
-        ctx.fillText("TROPA / ORIGEN", padding + 8, 215);
+        // ── Tabla header (36px) ───────────────────────────────────────────
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 240, W, 36);
+        ctx.fillStyle = "#94a3b8"; ctx.font = "bold 13px system-ui, sans-serif";
+        ctx.fillText("TROPA / ORIGEN", padding + 10, 264);
         ctx.textAlign = "right";
-        ctx.fillText("KG NOV", conDinero ? W - padding - 120 : W - padding - 8, 215);
-        if (conDinero) ctx.fillText("MONTO", W - padding - 8, 215);
+        ctx.fillText("KG NOV", conDinero ? W - padding - 150 : W - padding - 10, 264);
+        if (conDinero) ctx.fillText("MONTO", W - padding - 10, 264);
         ctx.textAlign = "left";
 
-        // Filas tropas
-        let y = 224;
+        // ── Filas tropas (88px c/u) ───────────────────────────────────────
+        let y = 276;
+        const ROW_H = 88;
         lineas.forEach((l, i) => {
           ctx.fillStyle = i % 2 === 0 ? "#f8fafc" : "#ffffff";
-          ctx.fillRect(0, y, W, 68);
-          ctx.fillStyle = "#10b981"; ctx.fillRect(0, y, 3, 68);
+          ctx.fillRect(0, y, W, ROW_H);
+          ctx.fillStyle = "#10b981"; ctx.fillRect(0, y, 4, ROW_H);
 
-          ctx.fillStyle = "#0f172a"; ctx.font = "bold 15px system-ui, sans-serif";
-          ctx.fillText(l.origen, padding + 8, y + 20);
-          ctx.fillStyle = "#64748b"; ctx.font = "12px system-ui, sans-serif";
-          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 8, y + 38);
+          // Nombre tropa
+          ctx.fillStyle = "#0f172a"; ctx.font = "bold 18px system-ui, sans-serif";
+          ctx.fillText(l.origen, padding + 10, y + 26);
 
+          // Detalle cab / días / desde
+          ctx.fillStyle = "#64748b"; ctx.font = "14px system-ui, sans-serif";
+          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 10, y + 48);
+
+          // Egresos si los hay
           if (l.tramosEnPeriodo?.length > 0) {
-            ctx.fillStyle = "#ea580c"; ctx.font = "11px system-ui, sans-serif";
-            ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 8, y + 56);
+            ctx.fillStyle = "#ea580c"; ctx.font = "13px system-ui, sans-serif";
+            ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 10, y + 70);
           }
 
           // Kg
-          ctx.fillStyle = "#065f46"; ctx.font = "bold 14px system-ui, sans-serif";
+          ctx.fillStyle = "#065f46"; ctx.font = "bold 17px system-ui, sans-serif";
           ctx.textAlign = "right";
-          ctx.fillText(`${fmtN(l.kgTotal)} kg`, conDinero ? W - padding - 120 : W - padding - 8, y + 22);
+          ctx.fillText(`${fmtN(l.kgTotal)} kg`, conDinero ? W - padding - 150 : W - padding - 10, y + 28);
           if (l.supActivo && l.kgSup > 0) {
-            ctx.fillStyle = "#b45309"; ctx.font = "11px system-ui, sans-serif";
-            ctx.fillText(`+${fmtN(l.kgSup)} sup`, conDinero ? W - padding - 120 : W - padding - 8, y + 40);
+            ctx.fillStyle = "#b45309"; ctx.font = "13px system-ui, sans-serif";
+            ctx.fillText(`+${fmtN(l.kgSup)} sup`, conDinero ? W - padding - 150 : W - padding - 10, y + 50);
           }
 
-          // Monto (solo si conDinero)
+          // Monto
           if (conDinero) {
-            ctx.fillStyle = "#0f172a"; ctx.font = "bold 15px system-ui, sans-serif";
-            ctx.fillText(fmtPesos(l.pesos), W - padding - 8, y + 22);
+            ctx.fillStyle = "#0f172a"; ctx.font = "bold 18px system-ui, sans-serif";
+            ctx.fillText(fmtPesos(l.pesos), W - padding - 10, y + 28);
             if (l.supActivo && l.kgSup > 0) {
-              ctx.fillStyle = "#b45309"; ctx.font = "11px system-ui, sans-serif";
-              ctx.fillText(fmtPesos(l.pesosSup), W - padding - 8, y + 40);
+              ctx.fillStyle = "#b45309"; ctx.font = "13px system-ui, sans-serif";
+              ctx.fillText(fmtPesos(l.pesosSup), W - padding - 10, y + 50);
             }
           }
           ctx.textAlign = "left";
-          y += 68;
+          y += ROW_H;
         });
 
-        // Separador
-        ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1;
+        // ── Separador ─────────────────────────────────────────────────────
+        ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         y += 2;
 
-        // Total
-        const totalH = tieneSuplemento && conDinero ? 90 : 72;
+        // ── Total ─────────────────────────────────────────────────────────
+        const totalH = tieneSuplemento && conDinero ? 110 : 90;
         const grad = ctx.createLinearGradient(0, y, W, y);
         grad.addColorStop(0, "#064e3b"); grad.addColorStop(1, "#065f46");
         ctx.fillStyle = grad; ctx.fillRect(0, y, W, totalH);
-        ctx.strokeStyle = "#10b981"; ctx.lineWidth = 2;
+        ctx.strokeStyle = "#10b981"; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
 
-        ctx.fillStyle = "#a7f3d0"; ctx.font = "bold 12px system-ui, sans-serif";
-        ctx.fillText("TOTAL PERÍODO", padding, y + 22);
-        ctx.fillStyle = "#d1fae5"; ctx.font = "16px system-ui, sans-serif";
-        ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 44);
+        ctx.fillStyle = "#a7f3d0"; ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.fillText("TOTAL PERÍODO", padding, y + 26);
+        ctx.fillStyle = "#d1fae5"; ctx.font = "19px system-ui, sans-serif";
+        ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 52);
 
         if (conDinero) {
           if (tieneSuplemento) {
-            ctx.fillStyle = "#fcd34d"; ctx.font = "13px system-ui, sans-serif";
-            ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 66);
+            ctx.fillStyle = "#fcd34d"; ctx.font = "15px system-ui, sans-serif";
+            ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 78);
           }
           ctx.textAlign = "right";
-          ctx.font = "bold 34px system-ui, sans-serif"; ctx.fillStyle = "#6ee7b7";
-          ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 52 : 46));
+          ctx.font = "bold 42px system-ui, sans-serif"; ctx.fillStyle = "#6ee7b7";
+          ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 64 : 58));
           ctx.textAlign = "left";
         }
 
-        // Footer
-        ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui, sans-serif";
-        ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 12);
+        // ── Footer ────────────────────────────────────────────────────────
+        ctx.fillStyle = "#94a3b8"; ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 14);
 
         return canvas;
       };
