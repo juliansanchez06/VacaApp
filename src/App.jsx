@@ -238,35 +238,7 @@ async function cargarEstado(userEmail, intentos = 3) {
 }
 
 
-// ── Emails autorizados — ahora viven en Firestore (config/autorizados) ────────
-const ADMIN_EMAIL = "juliansanchez06@gmail.com";
-
-// Carga la lista desde Firestore. Siempre incluye el admin como fallback.
-async function cargarEmailsAutorizados() {
-  try {
-    const ref = doc(db, "config", "autorizados");
-    const snap = await getDoc(ref);
-    if (snap.exists() && Array.isArray(snap.data().lista)) {
-      const lista = snap.data().lista.map(e => e.toLowerCase().trim());
-      if (!lista.includes(ADMIN_EMAIL)) lista.unshift(ADMIN_EMAIL);
-      return lista;
-    }
-    // Si no existe el doc todavía, crearlo con el admin
-    await setDoc(ref, { lista: [ADMIN_EMAIL] }, { merge: true });
-    return [ADMIN_EMAIL];
-  } catch(e) {
-    console.warn("No se pudo cargar lista de autorizados:", e.message);
-    return [ADMIN_EMAIL];
-  }
-}
-
-async function guardarEmailsAutorizados(lista) {
-  const ref = doc(db, "config", "autorizados");
-  // Siempre asegurar que el admin esté
-  const final = Array.from(new Set([ADMIN_EMAIL, ...lista.map(e => e.toLowerCase().trim())]));
-  await setDoc(ref, { lista: final, updatedAt: new Date().toISOString() }, { merge: true });
-  return final;
-}
+// ── Acceso controlado desde Firebase Authentication (sin lista en código) ────
 
 // ── DEV BYPASS — DESACTIVADO en producción ───────────────────────────────
 const DEV_BYPASS = false;
@@ -3792,13 +3764,10 @@ function LoginScreen() {
     if (!em || !pass) { setErrorMsg("Completá email y contraseña."); setEstado("error"); return; }
     setEstado("loading");
     try {
-      const autorizados = await cargarEmailsAutorizados();
-      if (!autorizados.includes(em)) { setErrorMsg("Este email no está autorizado para acceder."); setEstado("error"); return; }
       await signInWithEmailAndPassword(auth, em, pass);
     } catch(err) {
-      if (err.message === "Este email no está autorizado para acceder.") return;
       const msgs = {
-        "auth/user-not-found":    "No existe una cuenta con ese email. Registrate primero.",
+        "auth/user-not-found":    "No existe una cuenta con ese email.",
         "auth/wrong-password":    "Contraseña incorrecta.",
         "auth/invalid-credential":"Email o contraseña incorrectos.",
         "auth/too-many-requests": "Demasiados intentos. Esperá unos minutos.",
@@ -3816,15 +3785,13 @@ function LoginScreen() {
     if (pass !== pass2) { setErrorMsg("Las contraseñas no coinciden."); setEstado("error"); return; }
     setEstado("loading");
     try {
-      const autorizados = await cargarEmailsAutorizados();
-      if (!autorizados.includes(em)) { setErrorMsg("Este email no está autorizado para registrarse. Pedile acceso al administrador."); setEstado("error"); return; }
       await createUserWithEmailAndPassword(auth, em, pass);
     } catch(err) {
-      if (err.message?.includes("autorizado")) return;
       const msgs = {
         "auth/email-already-in-use": "Ya existe una cuenta con ese email. Iniciá sesión.",
         "auth/weak-password":        "Contraseña muy débil. Usá al menos 6 caracteres.",
         "auth/invalid-email":        "Email inválido.",
+        "auth/admin-restricted-operation": "Este email no está habilitado. Pedile acceso al administrador.",
       };
       setErrorMsg(msgs[err?.code] || `Error: ${err?.code || "desconocido"}`);
       setEstado("error");
@@ -3836,13 +3803,10 @@ function LoginScreen() {
     if (!em) { setErrorMsg("Ingresá tu email."); setEstado("error"); return; }
     setEstado("loading");
     try {
-      const autorizados = await cargarEmailsAutorizados();
-      if (!autorizados.includes(em)) { setErrorMsg("Este email no está autorizado."); setEstado("error"); return; }
       await sendPasswordResetEmail(auth, em);
       setResetOk(true);
       setEstado("ok");
     } catch(err) {
-      if (err.message?.includes("autorizado")) return;
       setErrorMsg("Error al enviar el email. Revisá que el email sea correcto.");
       setEstado("error");
     }
@@ -3943,7 +3907,7 @@ function LoginScreen() {
           </h2>
           <p className="lsub">
             {modo === "login"    ? "Ingresá tus credenciales para acceder." :
-             modo === "register" ? "Solo emails autorizados pueden registrarse." :
+             modo === "register" ? "Creá tu cuenta con el email que te habilitaron." :
                                    "Te mandamos un email para restablecer tu contraseña."}
           </p>
 
@@ -4025,7 +3989,7 @@ function LoginScreen() {
             </div>
           )}
 
-          <p className="lnote">Solo los emails autorizados pueden ingresar.<br/>SoyPekun · Gestión Ganadera Profesional</p>
+          <p className="lnote">SoyPekun · Gestión Ganadera Profesional</p>
         </div>
         </div>
       </div>
@@ -7812,7 +7776,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   );
 } // end MiCampo
 
-function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, campoRecria, campo, onNavigate, onLogout, onAdmin }) {
+function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, campoRecria, campo, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
@@ -7891,15 +7855,10 @@ function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, camp
             </span>
           )}
           {onLogout && (
-            <div className="mt-3" style={{ display:"flex", gap:"8px", justifyContent:"center", flexWrap:"wrap" }}>
+            <div className="mt-3">
               <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 transition-colors font-semibold px-3 py-1 rounded-lg hover:bg-red-50">
                 Cerrar sesión
               </button>
-              {userEmail === ADMIN_EMAIL && onAdmin && (
-                <button onClick={onAdmin} style={{ fontSize:"11px", fontWeight:700, color:"#d97706", background:"#fef3c7", border:"1px solid #fde68a", borderRadius:"8px", padding:"3px 10px", cursor:"pointer" }}>
-                  🔐 Gestionar usuarios
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -10695,126 +10654,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PANEL ADMIN — Gestión de usuarios autorizados (solo admin)
-// ═══════════════════════════════════════════════════════════════════════════
-function PanelAdmin({ onVolver }) {
-  const [lista, setLista]       = useState([]);
-  const [nuevo, setNuevo]       = useState("");
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [msg, setMsg]           = useState(null); // { tipo: "ok"|"err", texto }
-
-  useEffect(() => {
-    cargarEmailsAutorizados().then(l => { setLista(l); setCargando(false); });
-  }, []);
-
-  const mostrarMsg = (tipo, texto) => {
-    setMsg({ tipo, texto });
-    setTimeout(() => setMsg(null), 3500);
-  };
-
-  const agregar = async () => {
-    const em = nuevo.trim().toLowerCase();
-    if (!em || !em.includes("@")) { mostrarMsg("err", "Email inválido."); return; }
-    if (lista.includes(em)) { mostrarMsg("err", "Ese email ya está en la lista."); return; }
-    setGuardando(true);
-    try {
-      const nueva = await guardarEmailsAutorizados([...lista, em]);
-      setLista(nueva);
-      setNuevo("");
-      mostrarMsg("ok", `✅ ${em} habilitado correctamente.`);
-    } catch(e) {
-      mostrarMsg("err", "Error al guardar: " + e.message);
-    } finally { setGuardando(false); }
-  };
-
-  const quitar = async (em) => {
-    if (em === ADMIN_EMAIL) { mostrarMsg("err", "No podés quitarte a vos mismo."); return; }
-    setGuardando(true);
-    try {
-      const nueva = await guardarEmailsAutorizados(lista.filter(e => e !== em));
-      setLista(nueva);
-      mostrarMsg("ok", `🗑 ${em} eliminado.`);
-    } catch(e) {
-      mostrarMsg("err", "Error: " + e.message);
-    } finally { setGuardando(false); }
-  };
-
-  return (
-    <div style={{ minHeight:"100vh", background:"#163d44", display:"flex", flexDirection:"column", alignItems:"center", padding:"2rem 1rem", fontFamily:"sans-serif" }}>
-      <div style={{ width:"100%", maxWidth:"520px" }}>
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"28px" }}>
-          <button onClick={onVolver} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", borderRadius:"12px", padding:"8px 16px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
-            ← Volver
-          </button>
-          <div>
-            <h2 style={{ color:"#fff", fontSize:"20px", fontWeight:900, margin:0 }}>🔐 Usuarios autorizados</h2>
-            <p style={{ color:"rgba(255,255,255,0.55)", fontSize:"12px", margin:0 }}>Solo vos podés ver y editar esta lista</p>
-          </div>
-        </div>
-
-        {/* Mensaje feedback */}
-        {msg && (
-          <div style={{ background: msg.tipo === "ok" ? "#065f46" : "#7f1d1d", color:"#fff", borderRadius:"12px", padding:"10px 16px", marginBottom:"16px", fontSize:"13px", fontWeight:600 }}>
-            {msg.texto}
-          </div>
-        )}
-
-        {/* Agregar nuevo */}
-        <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"16px", padding:"20px", marginBottom:"20px" }}>
-          <p style={{ color:"rgba(255,255,255,0.7)", fontSize:"13px", fontWeight:700, marginBottom:"10px", marginTop:0 }}>AGREGAR USUARIO</p>
-          <div style={{ display:"flex", gap:"8px" }}>
-            <input
-              type="email"
-              value={nuevo}
-              onChange={e => setNuevo(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && agregar()}
-              placeholder="email@ejemplo.com"
-              style={{ flex:1, background:"rgba(255,255,255,0.12)", border:"1.5px solid rgba(255,255,255,0.2)", borderRadius:"10px", padding:"10px 14px", color:"#fff", fontSize:"14px", outline:"none" }}
-            />
-            <button
-              onClick={agregar}
-              disabled={guardando || !nuevo.trim()}
-              style={{ background:"#10b981", border:"none", color:"#fff", borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:800, cursor:"pointer", opacity: (guardando || !nuevo.trim()) ? 0.5 : 1 }}
-            >
-              {guardando ? "..." : "Agregar"}
-            </button>
-          </div>
-        </div>
-
-        {/* Lista actual */}
-        <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"16px", padding:"20px" }}>
-          <p style={{ color:"rgba(255,255,255,0.7)", fontSize:"13px", fontWeight:700, marginBottom:"14px", marginTop:0 }}>
-            USUARIOS HABILITADOS ({cargando ? "..." : lista.length})
-          </p>
-          {cargando ? (
-            <p style={{ color:"rgba(255,255,255,0.4)", fontSize:"13px" }}>Cargando...</p>
-          ) : lista.map(em => (
-            <div key={em} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"rgba(255,255,255,0.07)", borderRadius:"10px", padding:"10px 14px", marginBottom:"8px" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                <span style={{ fontSize:"16px" }}>{em === ADMIN_EMAIL ? "👑" : "👤"}</span>
-                <span style={{ color:"#fff", fontSize:"13px", fontWeight: em === ADMIN_EMAIL ? 800 : 400 }}>{em}</span>
-                {em === ADMIN_EMAIL && <span style={{ background:"#d97706", color:"#fff", fontSize:"10px", fontWeight:800, borderRadius:"6px", padding:"1px 6px" }}>ADMIN</span>}
-              </div>
-              {em !== ADMIN_EMAIL && (
-                <button
-                  onClick={() => quitar(em)}
-                  disabled={guardando}
-                  style={{ background:"rgba(239,68,68,0.2)", border:"1px solid rgba(239,68,68,0.4)", color:"#fca5a5", borderRadius:"8px", padding:"4px 10px", fontSize:"12px", fontWeight:700, cursor:"pointer" }}
-                >
-                  Quitar
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // ESTRATEGIA COMERCIAL
 // ═══════════════════════════════════════════════════════════════════════════
 function EstrategiaComercial({ userEmail, onLogout }) {
@@ -11032,19 +10871,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           campo={campo}
           onNavigate={handleNavigate}
           onLogout={onLogout}
-          onAdmin={userEmail === ADMIN_EMAIL ? () => setVistaActual("admin") : null}
         />
-      </>
-    );
-  }
-
-  // ── Render Panel Admin (solo admin) ─────────────────────────────────────
-  if (vistaActual === "admin" && userEmail === ADMIN_EMAIL) {
-    return (
-      <>
-        <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLE }} />
-        <ToastContainer toasts={toasts} />
-        <PanelAdmin onVolver={() => setVistaActual("inicio")} />
       </>
     );
   }
