@@ -6068,6 +6068,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     const machosPend   = Math.round(pendiente * (criaDatos.pctMachos ?? 50) / 100);
                     const hembrasPend  = pendiente - machosPend;
                     const todoDestetado= pendiente === 0 && yaEnRecria > 0;
+                    const pMes = criaDatos.paricionMes ?? 9;
+                    const pAnio = criaDatos.paricionAnio ?? new Date().getFullYear();
+                    const mDest = criaDatos.mesesDestete ?? 6;
+                    const destMes = (pMes + mDest) % 12;
+                    const destAnio = (pMes + mDest) >= 12 ? pAnio + 1 : pAnio;
+                    const diasParaDest = Math.round((new Date(destAnio, destMes, 1) - new Date()) / 86400000);
+                    const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                    const esFuturo = diasParaDest > 0;
   
                     if (todoDestetado) return (
                       <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-3">
@@ -6086,28 +6094,26 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     );
   
                     return (
-                      <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
+                      <div className={`rounded-2xl border-2 p-4 space-y-3 ${esFuturo ? "border-slate-200 bg-slate-50" : "border-emerald-200 bg-emerald-50"}`}>
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-black uppercase tracking-widest text-emerald-700">🍼 Destetar y pasar a Recría</p>
+                            {esFuturo && (
+                              <span className="text-xs font-black bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">PROYECCIÓN</span>
+                            )}
+                          </div>
                       {(() => {
-                        const pMes = criaDatos.paricionMes ?? 9;
-                        const pAnio = criaDatos.paricionAnio ?? new Date().getFullYear();
-                        const mDest = criaDatos.mesesDestete ?? 6;
-                        const destMes = (pMes + mDest) % 12;
-                        const destAnio = (pMes + mDest) >= 12 ? pAnio + 1 : pAnio;
-                        const diasParaDest = Math.round((new Date(destAnio, destMes, 1) - new Date()) / 86400000);
-                        const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
                         return diasParaDest > 0 ? (
-                          <p className="text-xs text-blue-600 font-semibold">
-                            🗓 Fecha estimada de destete: <b>{MESES_C[destMes]} {destAnio}</b> — faltan {diasParaDest} días
+                          <p className="text-xs text-amber-600 font-semibold">
+                            🗓 Estimado: <b>{MESES_C[destMes]} {destAnio}</b> — faltan {diasParaDest} días
                           </p>
                         ) : (
-                          <p className="text-xs text-emerald-600 font-semibold">✅ Mes de destete alcanzado — podés destetar ahora</p>
+                          <p className="text-xs text-emerald-600 font-semibold">✅ Podés destetar ahora</p>
                         );
                       })()}
                           {yaEnRecria > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">{yaEnRecria} ya en recría</span>}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className={`grid grid-cols-3 gap-2 text-center ${esFuturo ? "opacity-60" : ""}`}>
                           <div className="bg-white rounded-xl border border-emerald-200 py-2">
                             <p className="text-xs text-emerald-600">Pendiente</p>
                             <p className="font-black text-emerald-900 text-lg">{pendiente}</p>
@@ -6121,6 +6127,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             <p className="font-black text-rose-700 text-lg">{hembrasPend}</p>
                           </div>
                         </div>
+                        {esFuturo ? (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center">
+                            <p className="text-xs text-amber-700 font-semibold">📊 Estos números son una proyección — el destete real será en {MESES_C[destMes]} {destAnio}</p>
+                          </div>
+                        ) : (
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             disabled={pendiente === 0}
@@ -6141,7 +6152,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             </button>
                           )}
                         </div>
-                        <p className="text-xs text-emerald-600 text-center">Las vacas quedan libres · Los terneros pasan a Recría como marca líquida</p>
+                        )}
+                        {!esFuturo && <p className="text-xs text-emerald-600 text-center">Las vacas quedan libres · Los terneros pasan a Recría como marca líquida</p>}
                       </div>
                     );
                   })()}
