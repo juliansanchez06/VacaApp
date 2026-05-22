@@ -5879,37 +5879,77 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </div>
                             )}
 
-                            {/* Botón destete */}
+                            {/* Botón destete — aparece mientras queden terneros al pie */}
                             {!isDestetado && (
                               <DesteteParcialBtn
                                 ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
                                 pctMachos={ciclo.pctMachos ?? 50}
-                                onDestetar={(cant, machos, hembras) => {
+                                onDestetar={(cant, machos, hembras, fecha) => {
                                   const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
+                                  const tandaAnterior = ciclo.tandasDestete ?? [];
+                                  const nuevaTanda = { cant, machos, hembras, fecha };
                                   updateCiclo({
                                     ternerosAlPie: restantes,
                                     ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
                                     machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
                                     hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
+                                    tandasDestete: [...tandaAnterior, nuevaTanda],
                                     estado: restantes === 0 ? "destetado" : "al_pie",
-                                    fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
+                                    fechaDesteReal: fecha,
                                   });
-                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes), "success");
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
                                 }}
                               />
                             )}
-                            {isDestetado && (
+                            {/* Si ya destetó pero quedan terneros, mostrar botón de nueva tanda */}
+                            {isDestetado && (ciclo.ternerosAlPie ?? 0) > 0 && (
+                              <DesteteParcialBtn
+                                ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
+                                pctMachos={ciclo.pctMachos ?? 50}
+                                onDestetar={(cant, machos, hembras, fecha) => {
+                                  const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
+                                  const tandaAnterior = ciclo.tandasDestete ?? [];
+                                  const nuevaTanda = { cant, machos, hembras, fecha };
+                                  updateCiclo({
+                                    ternerosAlPie: restantes,
+                                    ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
+                                    machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
+                                    hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
+                                    tandasDestete: [...tandaAnterior, nuevaTanda],
+                                    estado: restantes === 0 ? "destetado" : "al_pie",
+                                    fechaDesteReal: fecha,
+                                  });
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
+                                }}
+                              />
+                            )}
+                            {isDestetado && (ciclo.ternerosAlPie ?? 0) === 0 && (
                               <div className="space-y-2">
-                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
+                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
-                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
+                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados en total</span>
+                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null, tandasDestete: [] })}
                                       className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
                                   </div>
                                   <div className="flex gap-2">
                                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
                                     <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
                                   </div>
+                                  {/* Historial de tandas */}
+                                  {(ciclo.tandasDestete ?? []).length > 1 && (
+                                    <div className="mt-1 space-y-1">
+                                      <p className="text-xs text-emerald-700 font-bold">Tandas:</p>
+                                      {(ciclo.tandasDestete ?? []).map((t, i) => (
+                                        <div key={i} className="flex justify-between text-xs text-emerald-800 bg-white rounded-lg px-2 py-1">
+                                          <span>{t.fecha ?? "—"}</span>
+                                          <span>{t.cant} terneros — ♂{t.machos} ♀{t.hembras}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {(ciclo.tandasDestete ?? []).length === 0 && ciclo.fechaDesteReal && (
+                                    <p className="text-xs text-emerald-700">{ciclo.fechaDesteReal}</p>
+                                  )}
                                 </div>
                                 {/* Estrategia de reposición */}
                                 {(ciclo.hembrasDestetadas ?? 0) > 0 && (() => {
@@ -8672,27 +8712,47 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
   const pctM = pctMachos ?? 50;
   const [machos,  setMachos]  = React.useState(0);
   const [hembras, setHembras] = React.useState(0);
-  const [open, setOpen] = React.useState(false);
+  const [fecha,   setFecha]   = React.useState(new Date().toISOString().slice(0, 10));
+  const [open,    setOpen]    = React.useState(false);
   const total = (parseInt(machos)||0) + (parseInt(hembras)||0);
+  const restarian = Math.max(0, ternerosNoDestetados - total);
 
   const handleOpen = () => {
-    // Pre-fill con la proyección basada en terneros al pie y % machos
     const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
     setMachos(Math.round(tot * pctM / 100));
     setHembras(tot - Math.round(tot * pctM / 100));
+    setFecha(new Date().toISOString().slice(0, 10));
     setOpen(true);
   };
 
   if (!open) return (
     <button onClick={handleOpen}
       className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2">
-      🐄 Registrar destete
+      🐄 {ternerosNoDestetados > 0 ? `Destetar (${ternerosNoDestetados} disponibles)` : "Registrar destete"}
     </button>
   );
 
   return (
     <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-4">
-      <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
+        {ternerosNoDestetados > 0 && (
+          <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">
+            {ternerosNoDestetados} al pie
+          </span>
+        )}
+      </div>
+
+      {/* Fecha de destete */}
+      <div className="bg-white border-2 border-emerald-200 rounded-xl p-3">
+        <p className="text-xs font-black text-emerald-700 mb-1.5">📅 Fecha de destete</p>
+        <input
+          type="date"
+          value={fecha}
+          onChange={e => setFecha(e.target.value)}
+          className="w-full text-sm font-bold text-slate-700 bg-transparent focus:outline-none"
+        />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Machos */}
@@ -8732,11 +8792,19 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
         </div>
       </div>
 
-      {/* Total */}
-      <div className={"rounded-xl px-3 py-2 text-center " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
-        <span className="text-sm font-black text-slate-700">Total: {total} terneros</span>
-        {ternerosNoDestetados > 0 && total !== ternerosNoDestetados && (
-          <span className="text-xs text-amber-600 ml-2">(al pie: {ternerosNoDestetados})</span>
+      {/* Total y restantes */}
+      <div className={"rounded-xl px-3 py-2 space-y-1 " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-black text-slate-700">Esta tanda: {total} terneros</span>
+          {total > ternerosNoDestetados && (
+            <span className="text-xs text-red-600 font-bold">⚠ Superás los disponibles</span>
+          )}
+        </div>
+        {restarian > 0 && total > 0 && total <= ternerosNoDestetados && (
+          <p className="text-xs text-amber-600 font-bold">Quedarán {restarian} al pie para destetar después</p>
+        )}
+        {restarian === 0 && total > 0 && total <= ternerosNoDestetados && (
+          <p className="text-xs text-emerald-700 font-bold">✅ Destete completo del ciclo</p>
         )}
       </div>
 
@@ -8746,10 +8814,11 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
             const m = parseInt(machos)||0;
             const h = parseInt(hembras)||0;
             if (m + h < 1) return;
-            onDestetar(m + h, m, h);
+            if (m + h > ternerosNoDestetados && ternerosNoDestetados > 0) return;
+            onDestetar(m + h, m, h, fecha);
             setOpen(false);
           }}
-          disabled={total < 1}
+          disabled={total < 1 || (total > ternerosNoDestetados && ternerosNoDestetados > 0)}
           className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-black transition-all active:scale-95">
           ✓ Confirmar destete
         </button>
