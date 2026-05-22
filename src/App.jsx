@@ -239,10 +239,7 @@ async function cargarEstado(userEmail, intentos = 3) {
 }
 
 
-// ── Emails autorizados ────────────────────────────────────────────────────────
-const EMAILS_AUTORIZADOS = [
-  "juliansanchez06@gmail.com",
-];
+// ── Acceso controlado desde Firebase Authentication (sin lista en código) ────
 
 // ── DEV BYPASS — DESACTIVADO en producción ───────────────────────────────
 const DEV_BYPASS = false;
@@ -3766,13 +3763,12 @@ function LoginScreen() {
   const handleLogin = async () => {
     const em = email.trim().toLowerCase();
     if (!em || !pass) { setErrorMsg("Completá email y contraseña."); setEstado("error"); return; }
-    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado para acceder."); setEstado("error"); return; }
     setEstado("loading");
     try {
       await signInWithEmailAndPassword(auth, em, pass);
     } catch(err) {
       const msgs = {
-        "auth/user-not-found":    "No existe una cuenta con ese email. Registrate primero.",
+        "auth/user-not-found":    "No existe una cuenta con ese email.",
         "auth/wrong-password":    "Contraseña incorrecta.",
         "auth/invalid-credential":"Email o contraseña incorrectos.",
         "auth/too-many-requests": "Demasiados intentos. Esperá unos minutos.",
@@ -3786,7 +3782,6 @@ function LoginScreen() {
   const handleRegistrar = async () => {
     const em = email.trim().toLowerCase();
     if (!em || !pass || !pass2) { setErrorMsg("Completá todos los campos."); setEstado("error"); return; }
-    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado para registrarse."); setEstado("error"); return; }
     if (pass.length < 6) { setErrorMsg("La contraseña debe tener al menos 6 caracteres."); setEstado("error"); return; }
     if (pass !== pass2) { setErrorMsg("Las contraseñas no coinciden."); setEstado("error"); return; }
     setEstado("loading");
@@ -3806,7 +3801,6 @@ function LoginScreen() {
   const handleReset = async () => {
     const em = email.trim().toLowerCase();
     if (!em) { setErrorMsg("Ingresá tu email."); setEstado("error"); return; }
-    if (!EMAILS_AUTORIZADOS.includes(em)) { setErrorMsg("Este email no está autorizado."); setEstado("error"); return; }
     setEstado("loading");
     try {
       await sendPasswordResetEmail(auth, em);
@@ -3913,7 +3907,7 @@ function LoginScreen() {
           </h2>
           <p className="lsub">
             {modo === "login"    ? "Ingresá tus credenciales para acceder." :
-             modo === "register" ? "Solo emails autorizados pueden registrarse." :
+             modo === "register" ? "Creá tu cuenta con el email que te habilitaron." :
                                    "Te mandamos un email para restablecer tu contraseña."}
           </p>
 
@@ -3995,7 +3989,7 @@ function LoginScreen() {
             </div>
           )}
 
-          <p className="lnote">Solo los emails autorizados pueden ingresar.<br/>SoyPekun · Gestión Ganadera Profesional</p>
+          <p className="lnote">SoyPekun · Gestión Ganadera Profesional</p>
         </div>
         </div>
       </div>
