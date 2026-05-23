@@ -303,7 +303,11 @@ const vacaStore = createStore((set, get) => ({
         paricionMes: 9,
         paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1,
         mesesDestete: 6,
-        pctPreniez: 85,
+        pctPreniez: 85,           // % preñez global (fallback / legacy)
+        // ── Fertilidad diferenciada por categoría ────────────────────────
+        pctPreniezVacas: 88,      // vacas adultas multíparas con ternero destetado
+        pctPreniezVaquillonas: 72,// vaquillonas primer servicio (15 m)
+        pctPreniezVacasConCria: 65,// vacas de segundo entore con cría al pie (caen mucho)
         pctDestete: 75,
         pesoDesteteKg: 187,
         ternerosAlPie: 0,
@@ -366,6 +370,14 @@ const vacaStore = createStore((set, get) => ({
     gdpNovilloInv: 0.5,
     gdpNovilloFaena: 1.1,
     gdpVaquillonaDesc: 0.5,
+    // ── Pesos referencia (configurables, ya no hardcodeados) ─────────────
+    pesoVacaPromedio:   420,    // kg vivo — base para eficiencia de cría
+    pesoDesteteRef:     180,    // kg destete promedio (fallback si ciclo no lo define)
+    pesoRecriaRef:      320,    // kg salida recría → invernada
+    pesoTerminacionRef: 420,    // kg novillo terminado
+    rindeResVacaDescarte: 65,   // % rendimiento res vaca descarte (60-65% normal)
+    rindeResNovillo:    57,     // % rendimiento res novillo gordo
+    receptividadEVha:   1.5,    // EV/ha de referencia para semáforo de carga
     // Impuestos
     pctIIBB: 3.0,           // % sobre ventas (ingresos brutos provincial)
     pctGanancias: 35,       // % sobre utilidad neta (estimado)
@@ -431,33 +443,59 @@ const vacaStore = createStore((set, get) => ({
     const pctRepos   = c.pctReposicion      / 100;
     const pctMachos  = c.pctMachos          / 100;
 
-    const preniadas    = Math.round((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) * c.pctPreniez / 100);
+    // ── Fertilidad diferenciada por categoría (usar ciclo[0] como base) ──
+    const ciclo0 = (c.ciclos && c.ciclos[0]) || {};
+    const pctPVacas = (ciclo0.pctPreniezVacas ?? c.pctPreniez ?? 85) / 100;
+    const pctPVaq   = (ciclo0.pctPreniezVaquillonas ?? c.pctPreniez ?? 72) / 100;
+    const pctPVacasCC = (ciclo0.pctPreniezVacasConCria ?? c.pctPreniez ?? 65) / 100;
+
+    const nVacas = c.vacas || 0;
+    const nVaq1  = c.vaquillonas1 ?? c.vaquillonas ?? 0; // primer servicio
+    const nVaq2  = c.vaquillonas2 ?? 0;                  // ya pasaron de vaquillona a vaca con cría
+
+    // Preñadas por categoría
+    const preniadasVacas = Math.round(nVacas * pctPVacas);
+    const preniadasVaq1  = Math.round(nVaq1  * pctPVaq);
+    const preniadasVaq2  = Math.round(nVaq2  * pctPVacasCC); // vacas de 2do entore (con cría al pie)
+    const preniadas      = preniadasVacas + preniadasVaq1 + preniadasVaq2;
+
     const nacidos      = Math.round(preniadas * (1 - mortCria));
-    const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
+    const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * (ciclo0.pctDestete ?? c.pctDestete ?? 75) / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
-    const vacasMort   = Math.round(c.vacas * mortCria);
-    const nuevasVacas = Math.max(0, c.vacas - c.vacias - vacasMort + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0));
+    const vacasMort   = Math.round(nVacas * mortCria);
+    const nuevasVacas = Math.max(0, nVacas - (c.vacias || 0) - vacasMort + nVaq1 + nVaq2);
     const nuevasVaq   = hembrasRepos;
     const machosSobrev = Math.round((r.ternerosLiquidaMachos + r.ternerosCompraMachos) * (1 - mortRecria));
 
+    // ── Pesos configurables (ya no hardcodeados) ─────────────────────────
+    const pesoDest = ciclo0.pesoDesteteKg ?? cp.pesoDesteteRef ?? 180;
+    const pesoRec  = cp.pesoRecriaRef     ?? 320;
+    const pesoTerm = t.pesoPromedioKg     ?? cp.pesoTerminacionRef ?? 420;
+    const rindeResVD = (cp.rindeResVacaDescarte ?? 65) / 100;
+    const pesoVD   = cp.pesoVacaPromedio  ?? 420;
+
     // Balance economico del ano
     const precioNov = gl.precioNovilloInmag || 1800;
-    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
+    const totalStock = nVacas + nVaq1 + nVaq2 + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
       + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
       + t.novillosCampo + t.novillosFeedlot;
     const hectareas = (cp&&cp.hectareas) || 1000;
-    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
+    const evTotal = nVacas*1.0 + (nVaq1+nVaq2)*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
       + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
       + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
 
-    const kgDestetados = totalDest * 165;
-    const kgRecria = (r.ternerosLiquidaMachos + r.ternerosCompraMachos + r.novillos) * 320;
-    const kgTerm = (t.novillosCampo + t.novillosFeedlot) * (t.pesoPromedioKg || 420);
-    const kgVacasDescarte = Math.round((c.vacias||0) * 0.65 * 420);
-    const kgTotalAnio = kgDestetados + kgRecria + kgTerm + kgVacasDescarte;
-    const kgHaAnio = hectareas > 0 ? Math.round(kgTotalAnio / hectareas) : 0;
+    const kgDestetados   = totalDest * pesoDest;
+    const kgRecria       = (r.ternerosLiquidaMachos + r.ternerosCompraMachos + r.novillos) * pesoRec;
+    const kgTerm         = (t.novillosCampo + t.novillosFeedlot) * pesoTerm;
+    const kgVacasDescarte = Math.round((c.vacias||0) * rindeResVD * pesoVD);
+    const kgTotalAnio    = kgDestetados + kgRecria + kgTerm + kgVacasDescarte;
+    const kgHaAnio       = hectareas > 0 ? Math.round(kgTotalAnio / hectareas) : 0;
+
+    // ── Eficiencia de cría: kg destetado / kg vientre mantenido ──────────
+    const kgVientreTotal = (nVacas + nVaq1 + nVaq2) * pesoVD;
+    const eficienciaCria = kgVientreTotal > 0 ? Math.round((kgDestetados / kgVientreTotal) * 1000) / 10 : 0;
 
     const empleados = (cp&&cp.empleados) || [];
     const sanidadMesSnap = totalStock * ((cp&&cp.sanidadPorCabAnio)||40000) / 12;
@@ -477,19 +515,23 @@ const vacaStore = createStore((set, get) => ({
       ano: anoGanaderoActual,
       cria: { ...c }, recria: { ...r }, terminacion: { ...t },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
-      resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev },
+      resumen: {
+        totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev,
+        preniadasVacas, preniadasVaq1, preniadasVaq2, // fertilidad diferenciada
+      },
       balance: {
         kgTotalAnio, kgHaAnio, ingresoAnio, costoEst, margenAnio,
         costoOpAnio, rendimientoReal,
         evPorHa: Math.round((evTotal / hectareas) * 100) / 100,
-        pctDestete: Math.round(totalDest / ((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) || 1) * 100),
+        pctDestete: Math.round(totalDest / ((nVacas + nVaq1 + nVaq2) || 1) * 100),
+        eficienciaCria,  // nuevo KPI
         totalStock, hectareas,
       },
     };
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
-      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas: nuevasVaq, ternerosNoDestetados: 0, vacias: 0 },
+      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, ternerosNoDestetados: 0, vacias: 0 },
       campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
       campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
@@ -2369,6 +2411,116 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
         </div>
       </div>
 
+      {/* ── Análisis de Sensibilidad — escenarios % destete × precio ternero ── */}
+      <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📊</span>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-violet-700">Análisis de Sensibilidad</p>
+            <p className="text-xs text-violet-500">¿Cómo cambia el VAN si varían el % de destete y el precio del ternero?</p>
+          </div>
+        </div>
+        {(() => {
+          // Calcular VAN para una matriz 3×3
+          const baseDest = inputs.pctDestete;
+          const basePrecio = inputs.precioTerneroKg;
+          const escenariosDest = [
+            { label: "Pesimista", val: Math.max(50, baseDest - 10), desc: "−10 pp" },
+            { label: "Base", val: baseDest, desc: "actual" },
+            { label: "Optimista", val: Math.min(95, baseDest + 5), desc: "+5 pp" },
+          ];
+          const escenariosPrecio = [
+            { label: "Pesimista", val: Math.round(basePrecio * 0.85), desc: "−15%" },
+            { label: "Base", val: basePrecio, desc: "actual" },
+            { label: "Optimista", val: Math.round(basePrecio * 1.15), desc: "+15%" },
+          ];
+
+          // Recalcular VAN con valores nuevos (reusa la lógica del calc)
+          const calcVanEscenario = (pctDest, precioTern) => {
+            const ternerosAnuales = inputs.cantidad * pctDest / 100;
+            const ingresoBrutoAnual = ternerosAnuales * inputs.pesoTerneroDestetado * precioTern;
+            const comVtaPct = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
+            const fleteVta = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
+            const ingresoNetoAnual = ingresoBrutoAnual * (1 - comVtaPct) - fleteVta * ternerosAnuales;
+            const costoPastoreoAnual = inmagVientres * precioNovilloInmag * 12 * inputs.cantidad;
+            const costoIatfAnual     = inputs.kgIatf * precioNovilloInmag * inputs.cantidad;
+            const costoTorosAnualFl  = inputs.kgToros * precioNovilloInmag * inputs.cantidad;
+            const anosSupl = Math.min(inputs.anosSuplementacion ?? 0, inputs.anosVidaUtil);
+            const costoSuplVacasAnual = inputs.cantidad * 12 * (inputs.costoSuplVacasMes ?? 0) * ((inputs.mesesSuplVacas?.length ?? 0) / 12);
+            const costoKreepAnual = inputs.kreepOn ? (inputs.cantidad * (inputs.costoKreepMes ?? 0) * 4) : 0;
+            const flujo0 = -(calc.inversionInicial + calc.costoRecriaPreServicio + calc.costoSuplTerneras);
+            const flujos = [flujo0];
+            for (let t = 1; t <= inputs.anosVidaUtil; t++) {
+              const suplExtra  = t <= anosSupl ? costoSuplVacasAnual : 0;
+              const kreepExtra = inputs.kreepOn ? costoKreepAnual : 0;
+              const flujoAnual = ingresoNetoAnual - costoPastoreoAnual - costoIatfAnual - costoTorosAnualFl - kreepExtra - suplExtra;
+              flujos.push(t === inputs.anosVidaUtil ? flujoAnual + calc.recuperoDescarte : flujoAnual);
+            }
+            const r = tasaDescuento / 100;
+            return flujos.reduce((acc, f, t) => acc + f / Math.pow(1 + r, t), 0);
+          };
+
+          const matrix = escenariosDest.map(d => escenariosPrecio.map(p => calcVanEscenario(d.val, p.val)));
+
+          const formatVan = (v) => {
+            const abs = Math.abs(v);
+            if (abs >= 1e9) return (v/1e9).toFixed(1).replace(".0","") + " B";
+            if (abs >= 1e6) return (v/1e6).toFixed(1).replace(".0","") + " M";
+            if (abs >= 1e3) return (v/1e3).toFixed(0) + " k";
+            return Math.round(v).toString();
+          };
+
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr>
+                    <th className="p-2 text-left bg-white border border-violet-200 font-black text-violet-700 uppercase tracking-wider text-xs">
+                      <div>VAN por escenario</div>
+                      <div className="text-violet-400 text-xs font-normal mt-0.5">↓ % destete · → precio ternero</div>
+                    </th>
+                    {escenariosPrecio.map((p, j) => (
+                      <th key={j} className="p-2 text-center bg-white border border-violet-200 font-black text-violet-700">
+                        <div>{p.label}</div>
+                        <div className="text-xs text-violet-400 font-mono font-normal">${p.val.toLocaleString("es-AR")}/kg <span className="text-violet-300">({p.desc})</span></div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {escenariosDest.map((d, i) => (
+                    <tr key={i}>
+                      <th className="p-2 text-left bg-white border border-violet-200 font-black text-violet-700">
+                        <div>{d.label}</div>
+                        <div className="text-xs text-violet-400 font-mono font-normal">{d.val}% <span className="text-violet-300">({d.desc})</span></div>
+                      </th>
+                      {escenariosPrecio.map((_, j) => {
+                        const v = matrix[i][j];
+                        const isBase = i === 1 && j === 1;
+                        const colorBg = v >= 0 ? "bg-emerald-50" : "bg-red-50";
+                        const colorBorder = isBase ? "border-violet-500 border-2" : "border-violet-200";
+                        const colorText = v >= 0 ? "text-emerald-700" : "text-red-600";
+                        return (
+                          <td key={j} className={`p-3 text-center border ${colorBg} ${colorBorder}`}>
+                            <p className={`font-mono font-black ${colorText} text-base`}>
+                              {v >= 0 ? "+" : ""}${formatVan(v)}
+                            </p>
+                            {isBase && <p className="text-xs text-violet-500 font-bold uppercase tracking-wider mt-0.5">escenario base</p>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-violet-600 mt-2 italic">
+                💡 VAN negativo = el proyecto no supera el costo de oportunidad ({tasaDescuento}% USD). VAN positivo = excede la rentabilidad mínima exigida.
+              </p>
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Asesor IA — Proyecto Vientres */}
       <AsesorIA
         color="emerald"
@@ -2529,6 +2681,8 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     gpvDiaria: 0.6,
     mesesRecria: 8,
     precioVentaKg: 2100,
+    modalidadVenta: "pie",    // "pie" (vivo) | "gancho" (res)
+    rindeRes: 57,             // % rendimiento a res (solo aplica si modalidadVenta = "gancho")
     mesesSuplementActivos: [],
     costoSuplementoMensual: 15000,
   });
@@ -2539,6 +2693,8 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     costoRacionDiaria: 3000,
     costoHoteleriadiaria: 500,
     precioVentaKg: 2250,
+    modalidadVenta: "pie",
+    rindeRes: 58,
   });
 
   const setB = (k) => (v) => setBase((p) => ({ ...p, [k]: v }));
@@ -2574,7 +2730,9 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     const mesesSuplValidos = opA.mesesSuplementActivos.filter((m) => m <= opA.mesesRecria);
     const costoSuplementacionA = mesesSuplValidos.length * opA.costoSuplementoMensual * base.cantidad;
     const costoOperativoA = costoPastoreoA + costoSuplementacionA;
-    const ingresoBrutoA = base.cantidad * pesoSalidaA * opA.precioVentaKg;
+    const ingresoBrutoA = opA.modalidadVenta === "gancho"
+      ? base.cantidad * pesoSalidaA * (opA.rindeRes / 100) * opA.precioVentaKg  // precio $/kg res
+      : base.cantidad * pesoSalidaA * opA.precioVentaKg;                         // precio $/kg vivo
     const comisionVentaPctC = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const fleteVentaC = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const gastoComisionVentaA = ingresoBrutoA * comisionVentaPctC;
@@ -2592,7 +2750,9 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     const costoRacionPorAnimal = opB.costoRacionDiaria * opB.diasEncierre;
     const costoHoteleriaPorAnimal = opB.costoHoteleriadiaria * opB.diasEncierre;
     const costoOperativoB = costoTotalDiario * opB.diasEncierre * base.cantidad;
-    const ingresoBrutoB = base.cantidad * pesoSalidaB * opB.precioVentaKg;
+    const ingresoBrutoB = opB.modalidadVenta === "gancho"
+      ? base.cantidad * pesoSalidaB * (opB.rindeRes / 100) * opB.precioVentaKg
+      : base.cantidad * pesoSalidaB * opB.precioVentaKg;
     const gastoComisionVentaB = ingresoBrutoB * comisionVentaPctC;
     const gastosVentaB = fleteVentaC + gastoComisionVentaB;
     const ingresoNetoB = ingresoBrutoB - gastosVentaB;
@@ -2744,7 +2904,38 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
             <span className="text-xs font-black uppercase tracking-widest text-green-700">Costo Operativo Total A</span>
             <span className="font-mono font-bold text-green-800 text-xl">{fmtMoney(calc.a.costoOperativo)}</span>
           </div>
-          <Field label="Precio de venta estimado" value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
+
+          {/* Modalidad venta — pie vs gancho */}
+          <div className="rounded-xl border-2 border-green-200 bg-white p-3 space-y-2">
+            <p className="text-xs font-black uppercase tracking-widest text-green-700">💵 Modalidad de venta</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setA("modalidadVenta")("pie")}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+                  opA.modalidadVenta === "pie"
+                    ? "bg-green-600 text-white shadow"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}>
+                🐂 En pie (kg vivo)
+              </button>
+              <button
+                onClick={() => setA("modalidadVenta")("gancho")}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+                  opA.modalidadVenta === "gancho"
+                    ? "bg-green-600 text-white shadow"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}>
+                🥩 En gancho (kg res)
+              </button>
+            </div>
+            {opA.modalidadVenta === "gancho" && (
+              <Field label="Rendimiento a res" value={opA.rindeRes} onChange={setA("rindeRes")} unit="%" step={0.5}
+                hint={`Peso res estimado: ${fmtKg(calc.a.pesoSalida * opA.rindeRes / 100)}/cab`} />
+            )}
+          </div>
+
+          <Field label={opA.modalidadVenta === "gancho" ? "Precio venta — $/kg res" : "Precio de venta estimado — $/kg vivo"}
+            value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Ingreso Neto Invernada</p>
@@ -2848,7 +3039,37 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
             </div>
           </div>
 
-          <Field label="Precio de venta gordo" value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
+          {/* Modalidad venta — pie vs gancho */}
+          <div className="rounded-xl border-2 border-indigo-200 bg-white p-3 space-y-2">
+            <p className="text-xs font-black uppercase tracking-widest text-indigo-700">💵 Modalidad de venta</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setO("modalidadVenta")("pie")}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+                  opB.modalidadVenta === "pie"
+                    ? "bg-indigo-600 text-white shadow"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}>
+                🐂 En pie (kg vivo)
+              </button>
+              <button
+                onClick={() => setO("modalidadVenta")("gancho")}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+                  opB.modalidadVenta === "gancho"
+                    ? "bg-indigo-600 text-white shadow"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}>
+                🥩 En gancho (kg res)
+              </button>
+            </div>
+            {opB.modalidadVenta === "gancho" && (
+              <Field label="Rendimiento a res" value={opB.rindeRes} onChange={setO("rindeRes")} unit="%" step={0.5}
+                hint={`Peso res estimado: ${fmtKg(calc.b.pesoSalida * opB.rindeRes / 100)}/cab`} />
+            )}
+          </div>
+
+          <Field label={opB.modalidadVenta === "gancho" ? "Precio venta gordo — $/kg res" : "Precio de venta gordo — $/kg vivo"}
+            value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-indigo-700">📐 Desglose Financiero del Encierre</p>
@@ -5768,6 +5989,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           paricionAnio: new Date().getFullYear(),
                           mesesDestete: 7,
                           pctPreniez: 85,
+                          pctPreniezVacas: 88,
+                          pctPreniezVaquillonas: 72,
+                          pctPreniezVacasConCria: 65,
                           pctDestete: 75,
                           pesoDesteteKg: 187,
                           ternerosAlPie: 0,
@@ -5788,7 +6012,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const anioDest = (ciclo.paricionMes + ciclo.mesesDestete) >= 12 ? ciclo.paricionAnio + 1 : ciclo.paricionAnio;
                       const diasParaDest = Math.round((new Date(anioDest, mesDest, 1) - new Date()) / 86400000);
                       const madresCiclo = criaDatos.vacas + (criaDatos.vaquillonas1??0) + (criaDatos.vaquillonas2??0);
-                      const ternNacidos = Math.round(madresCiclo * (ciclo.pctPreniez / 100));
+                      // ── Fertilidad diferenciada (con fallback a pctPreniez global) ──
+                      const pPVacas    = ciclo.pctPreniezVacas       ?? ciclo.pctPreniez ?? 85;
+                      const pPVaq      = ciclo.pctPreniezVaquillonas ?? ciclo.pctPreniez ?? 72;
+                      const pPVacasCC  = ciclo.pctPreniezVacasConCria?? ciclo.pctPreniez ?? 65;
+                      const preniadasVacasC = Math.round((criaDatos.vacas       ?? 0) * pPVacas    / 100);
+                      const preniadasVaq1C  = Math.round((criaDatos.vaquillonas1?? 0) * pPVaq      / 100);
+                      const preniadasVaq2C  = Math.round((criaDatos.vaquillonas2?? 0) * pPVacasCC  / 100);
+                      const ternNacidos = preniadasVacasC + preniadasVaq1C + preniadasVaq2C;
+                      const pctPreniezPond = madresCiclo > 0 ? Math.round((ternNacidos / madresCiclo) * 100) : 0;
                       const ternDestProyec = Math.round(ternNacidos * (ciclo.pctDestete / 100));
                       const updateCiclo = (patch) => setCriaActiva(p => ({
                         ...p,
@@ -5856,9 +6088,42 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </div>
                             </div>
 
-                            {/* % Preñez y destete */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              <EditField label="% Preñez" value={ciclo.pctPreniez} onChange={v => updateCiclo({ pctPreniez: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternNacidos + " terneros nacidos"} />
+                            {/* Fertilidad diferenciada por categoría */}
+                            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 space-y-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <p className="text-xs font-black uppercase tracking-widest text-amber-700">🤰 Fertilidad por categoría</p>
+                                <span className="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">
+                                  Preñez ponderada: {pctPreniezPond}% · {ternNacidos} nacidos
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <EditField
+                                  label="Vacas adultas"
+                                  value={pPVacas}
+                                  onChange={v => updateCiclo({ pctPreniezVacas: Math.min(100, Math.max(0, v)) })}
+                                  step={1} suffix="%"
+                                  hint={`${preniadasVacasC} preñadas de ${criaDatos.vacas ?? 0}`}
+                                />
+                                <EditField
+                                  label="Vaquillonas 1er servicio"
+                                  value={pPVaq}
+                                  onChange={v => updateCiclo({ pctPreniezVaquillonas: Math.min(100, Math.max(0, v)) })}
+                                  step={1} suffix="%"
+                                  hint={`${preniadasVaq1C} preñadas de ${criaDatos.vaquillonas1 ?? 0}`}
+                                />
+                                <EditField
+                                  label="Vacas con cría al pie"
+                                  value={pPVacasCC}
+                                  onChange={v => updateCiclo({ pctPreniezVacasConCria: Math.min(100, Math.max(0, v)) })}
+                                  step={1} suffix="%"
+                                  hint={`${preniadasVaq2C} preñadas de ${criaDatos.vaquillonas2 ?? 0}`}
+                                />
+                              </div>
+                              <p className="text-xs text-amber-600 italic">💡 Referencia: vacas adultas 85-90%, vaquillonas 70-75%, vacas con cría 60-65% (caen por estrés metabólico)</p>
+                            </div>
+
+                            {/* % Destete, peso y composición */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               <EditField label="% Destete" value={ciclo.pctDestete} onChange={v => updateCiclo({ pctDestete: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternDestProyec + " proyectados"} />
                               <EditField label="Peso destete (kg)" value={ciclo.pesoDesteteKg} onChange={v => updateCiclo({ pesoDesteteKg: Math.max(100, Math.min(300, v)) })} step={5} suffix=" kg" />
                               <EditField label="% Machos" value={ciclo.pctMachos ?? 50} onChange={v => updateCiclo({ pctMachos: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={"Hembras: " + (100 - (ciclo.pctMachos ?? 50)) + "%"} />
@@ -5897,12 +6162,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     estado: restantes === 0 ? "destetado" : "al_pie",
                                     fechaDesteReal: fecha,
                                   });
-                                  // Pasar al stock de Recría
-                                  const pctRep = criaDatos.pctReposicion ?? 30;
-                                  const hRepos = Math.round(hembras * pctRep / 100);
-                                  const hVenta = hembras - hRepos;
-                                  onSincronizar({ _accion: "pasar-destete-recria", machos, hembrasVenta: hVenta, hembrasReposicion: hRepos, _silent: true });
-                                  onToast("✅ " + cant + " destetados — " + machos + "M, " + hembras + "H → stock Recría actualizado" + (restantes > 0 ? " · quedan " + restantes + " al pie" : " · ciclo completo"), "success");
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
                                 }}
                               />
                             )}
@@ -5924,12 +6184,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     estado: restantes === 0 ? "destetado" : "al_pie",
                                     fechaDesteReal: fecha,
                                   });
-                                  // Pasar al stock de Recría
-                                  const pctRep = criaDatos.pctReposicion ?? 30;
-                                  const hRepos = Math.round(hembras * pctRep / 100);
-                                  const hVenta = hembras - hRepos;
-                                  onSincronizar({ _accion: "pasar-destete-recria", machos, hembrasVenta: hVenta, hembrasReposicion: hRepos, _silent: true });
-                                  onToast("✅ " + cant + " destetados — " + machos + "M, " + hembras + "H → stock Recría actualizado" + (restantes > 0 ? " · quedan " + restantes + " al pie" : " · ciclo completo"), "success");
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
                                 }}
                               />
                             )}
@@ -7875,7 +8130,30 @@ function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, camp
     : "Sobrecargada";
   const recepSemaforo = pctCarga === null ? "⚪" : pctCarga <= 90 ? "🟢" : pctCarga <= 100 ? "🟡" : "🔴";
 
-  const hayIndicadores = cabTotalRecria > 0 || tropas.length > 0;
+  // ── Eficiencia de cría (kg destete / kg vientre) ─────────────────────────
+  // Indicador universal: una vaca de 420 kg que desteta un ternero de 180 kg = 43%
+  // Referencia argentina: >45% excelente, 38-45% bueno, <38% bajo
+  const ciclosCampo = campo?.ciclos ?? [];
+  const totalDestetadosCampo = ciclosCampo.reduce((s, c) => s + (c.ternerosDestetados ?? 0), 0);
+  const pesoDestPromCampo = ciclosCampo.length > 0
+    ? Math.round(ciclosCampo.reduce((s, c) => s + (c.pesoDesteteKg ?? 180), 0) / ciclosCampo.length)
+    : (campo?.pesoDesteteRef ?? 180);
+  const nVacasTotal = (campo?.vacas ?? 0) + (campo?.vaquillonas1 ?? 0) + (campo?.vaquillonas2 ?? 0);
+  const pesoVacaProm = campo?.pesoVacaPromedio ?? 420;
+  const kgDestetadoCampo = totalDestetadosCampo * pesoDestPromCampo;
+  const kgVientreCampo = nVacasTotal * pesoVacaProm;
+  const efCria = kgVientreCampo > 0 ? Math.round((kgDestetadoCampo / kgVientreCampo) * 1000) / 10 : null;
+  const efCriaColor = efCria === null ? "text-slate-400"
+    : efCria >= 45 ? "text-emerald-600"
+    : efCria >= 38 ? "text-amber-600"
+    : "text-red-600";
+  const efCriaLabel = efCria === null ? "Sin destetes registrados"
+    : efCria >= 45 ? "Excelente"
+    : efCria >= 38 ? "Aceptable"
+    : "Bajo";
+  const efCriaSemaforo = efCria === null ? "⚪" : efCria >= 45 ? "🟢" : efCria >= 38 ? "🟡" : "🔴";
+
+  const hayIndicadores = cabTotalRecria > 0 || tropas.length > 0 || nVacasTotal > 0;
 
 
   return (
@@ -8049,6 +8327,44 @@ function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, camp
                   </div>
                   <p className="text-xs text-slate-400 mt-1.5">
                     {pctCarga !== null ? `${pctCarga}% de la receptividad` : "Cargá hectáreas en Mi Campo → Costos estructura"}
+                  </p>
+                </button>
+              )}
+
+              {/* Eficiencia de cría — kg destete / kg vientre */}
+              {nVacasTotal > 0 && (
+                <button onClick={() => onNavigate("campo")}
+                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-rose-200 transition-all active:scale-[0.98]">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Eficiencia de cría</p>
+                      <p className="text-xs text-slate-400">kg destete / kg vientre · {fmt(nVacasTotal)} madres</p>
+                    </div>
+                    <span className="text-2xl">{efCriaSemaforo}</span>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <p className={`text-4xl font-black ${efCriaColor}`}>
+                      {efCria !== null ? `${efCria}%` : "—"}
+                    </p>
+                    <div className="mb-1">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        efCria === null ? "bg-slate-100 text-slate-500"
+                        : efCria >= 45 ? "bg-emerald-100 text-emerald-700"
+                        : efCria >= 38 ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-700"
+                      }`}>{efCriaLabel}</span>
+                    </div>
+                  </div>
+                  {/* Barra */}
+                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      efCria >= 45 ? "bg-emerald-400" : efCria >= 38 ? "bg-amber-400" : "bg-red-400"
+                    }`} style={{ width: `${Math.min((efCria ?? 0) * 2, 100)}%` }} />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    {efCria !== null
+                      ? `${fmt(kgDestetadoCampo)} kg destete / ${fmt(kgVientreCampo)} kg vientre`
+                      : "Destetá para ver el indicador"}
                   </p>
                 </button>
               )}
@@ -10895,11 +11211,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
       if (datos.hembrasReposicion > 0) {
         setCampoCria(p => ({ ...p, vaquillonas: p.vaquillonas + datos.hembrasReposicion }));
       }
-      if (!datos._silent) {
-        setCampoCria(p => ({ ...p, ternerosNoDestetados: 0 }));
-        const total = datos.machos + (datos.hembrasVenta||0) + (datos.hembrasReposicion||0);
-        pushToast(`✅ ${total} terneros destetados — ${datos.machos}M · ${datos.hembrasVenta||0}H venta · ${datos.hembrasReposicion||0}H reposición`, "success");
-      }
+      setCampoCria(p => ({ ...p, ternerosNoDestetados: 0 }));
+      const total = datos.machos + (datos.hembrasVenta||0) + (datos.hembrasReposicion||0);
+      pushToast(`✅ ${total} terneros destetados — ${datos.machos}M · ${datos.hembrasVenta||0}H venta · ${datos.hembrasReposicion||0}H reposición`, "success");
       return;
     }
     if (datos._accion === "deshacer-destete") {
