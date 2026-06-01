@@ -1,13 +1,18 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, createContext, useContext } from "react";
-import { createPortal } from "react-dom";
 
 // ─── Micro store (Zustand-like) + localStorage persist ───────────────────────
 const LS_KEY = "soypekun_store_v2";
 
-function loadFromLS() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; }
+function loadFromLS(userEmail) {
+  try {
+    const data = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (!data) return null;
+    // Si el localStorage pertenece a otro usuario, ignorarlo
+    if (userEmail && data.__owner && data.__owner !== userEmail) return null;
+    return data;
+  } catch { return null; }
 }
-function saveToLS(state) {
+function saveToLS(state, userEmail) {
   try {
     // Solo guardar los datos del campo, no UI state
     const toSave = {
@@ -15,6 +20,7 @@ function saveToLS(state) {
       campoCria: state.campoCria, campoRecria: state.campoRecria,
       campoTerminacion: state.campoTerminacion, campoPastaje: state.campoPastaje,
       campo: state.campo, simulaciones: state.simulaciones,
+      __owner: userEmail || state.__userEmail || null,
       savedAt: Date.now(),
     };
     localStorage.setItem(LS_KEY, JSON.stringify(toSave));
@@ -149,7 +155,7 @@ async function guardarEstado(userEmail) {
   };
 
   // Siempre guardar en localStorage (disponible offline)
-  saveToLS(payload);
+  saveToLS(payload, userEmail);
 
   // Si hay internet → guardar en Firestore directo
   if (navigator.onLine) {
@@ -196,35 +202,51 @@ async function cargarEstado(userEmail, intentos = 3) {
     vacaStore.setState({ firestoreCargado: true });
   }
 
-  // Sin internet → usar localStorage
+  // Aplica el estado vacío (campo en cero) — para usuarios nuevos
+  function aplicarVacio() {
+    const v = getEstadoVacio();
+    const s = vacaStore.getState();
+    s.setCampoCria(v.campoCria);
+    s.setCampoRecria(v.campoRecria);
+    s.setCampoTerminacion(v.campoTerminacion);
+    s.setCampoPastaje(v.campoPastaje);
+    s.setCampo(v.campo);
+    vacaStore.setState({ movimientos: [], simulaciones: [], historialAnos: {} });
+    vacaStore.setState({ firestoreCargado: true });
+  }
+
+  // Sin internet → usar localStorage (solo si es del mismo usuario)
   if (!navigator.onLine) {
-    const lsData = loadFromLS();
+    const lsData = loadFromLS(userEmail);
     if (lsData) {
       console.log("📴 Sin conexión — cargando desde localStorage");
       applyData(lsData);
       return true;
     }
-    return false;
+    // Sin internet y sin datos locales propios → arrancar vacío
+    aplicarVacio();
+    return true;
   }
 
   for (let i = 0; i < intentos; i++) {
     try {
       const snap = await getDoc(ref);
       if (!snap.exists()) {
-        // Usuario nuevo — limpiar localStorage para que no vea datos de otro usuario
-        localStorage.removeItem(LS_KEY);
-        vacaStore.setState({ firestoreCargado: true });
-        return false;
+        // Usuario nuevo: no tiene datos en la nube. Arrancar en cero.
+        // (No usar localStorage acá porque podría ser de otro usuario del mismo equipo)
+        console.log("👤 Usuario nuevo — arrancando con campo vacío");
+        aplicarVacio();
+        return true;
       }
       const data = snap.data();
       applyData(data);
-      saveToLS(data);
+      saveToLS(data, userEmail);
       return true;
     } catch (err) {
       if (i < intentos - 1) {
         await new Promise(r => setTimeout(r, 1500 * (i + 1)));
       } else {
-        const lsData = loadFromLS();
+        const lsData = loadFromLS(userEmail);
         if (lsData) {
           console.warn("⚠️ Firestore no disponible, usando localStorage:", err.message);
           applyData(lsData);
@@ -239,7 +261,47 @@ async function cargarEstado(userEmail, intentos = 3) {
 }
 
 
-// ── Acceso controlado desde Firebase Authentication (sin lista en código) ────
+// Estado inicial en CERO para usuarios nuevos (sin datos cargados de tu campo)
+function getEstadoVacio() {
+  return {
+    campoCria: {
+      vacas: 0, vaquillonas1: 0, vaquillonas2: 0, toros: 0, vacias: 0,
+      vacaCut: 0, vaqRechazo: 0,
+      pctMortandadCria: 2, pctMachos: 50, pctReposicion: 70,
+      pesoVacaDescarte: 380, gdpTernero: 1.0,
+      ciclos: [{
+        id: "ciclo_1", servicio: "primavera",
+        paricionMes: 9, paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1,
+        mesesDestete: 6, pctPreniez: 85, pctDestete: 75, pesoDesteteKg: 187,
+        ternerosAlPie: 0, pctMachos: 50, estado: "al_pie",
+        ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null,
+      }],
+    },
+    campoRecria: {
+      ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
+      ternerosCompraMachos: 0, ternerosCompraHembras: 0,
+      novillos: 0, vaquillonaRecria: 0, mej: 0,
+      pctMortandadRecria: 2, gdpNovilloInv: 0.5, gdpVaquillonaDesc: 0.5,
+      precioCompraKgRecria: 0, pesoEntradaRecria: 180, cabCompradasRecria: 0,
+    },
+    campoTerminacion: {
+      novillosCampo: 0, novillosFeedlot: 0,
+      mejTerminacion: 0, vacaEngorde: 0, vaqEngorde: 0,
+      pesoPromedioKg: 420, diasRestantes: 45,
+      costoComidaDia: 4500, costoHoteleriaDia: 800,
+      pctMortandadFeedlot: 2, gdpNovilloFaena: 1.1,
+      novillosHilton: 0, novillosUE481: 0,
+    },
+    campoPastaje: { tropas: [], periodos: [], terceros: [], precios: {}, precioNov: 0 },
+    movimientos: [],
+    simulaciones: [],
+  };
+}
+
+// ── Emails autorizados ────────────────────────────────────────────────────────
+const EMAILS_AUTORIZADOS = [
+  "juliansanchez06@gmail.com",
+];
 
 // ── DEV BYPASS — DESACTIVADO en producción ───────────────────────────────
 const DEV_BYPASS = false;
@@ -303,11 +365,7 @@ const vacaStore = createStore((set, get) => ({
         paricionMes: 9,
         paricionAnio: new Date().getMonth() >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1,
         mesesDestete: 6,
-        pctPreniez: 85,           // % preñez global (fallback / legacy)
-        // ── Fertilidad diferenciada por categoría ────────────────────────
-        pctPreniezVacas: 88,      // vacas adultas multíparas con ternero destetado
-        pctPreniezVaquillonas: 72,// vaquillonas primer servicio (15 m)
-        pctPreniezVacasConCria: 65,// vacas de segundo entore con cría al pie (caen mucho)
+        pctPreniez: 85,
         pctDestete: 75,
         pesoDesteteKg: 187,
         ternerosAlPie: 0,
@@ -370,14 +428,6 @@ const vacaStore = createStore((set, get) => ({
     gdpNovilloInv: 0.5,
     gdpNovilloFaena: 1.1,
     gdpVaquillonaDesc: 0.5,
-    // ── Pesos referencia (configurables, ya no hardcodeados) ─────────────
-    pesoVacaPromedio:   420,    // kg vivo — base para eficiencia de cría
-    pesoDesteteRef:     180,    // kg destete promedio (fallback si ciclo no lo define)
-    pesoRecriaRef:      320,    // kg salida recría → invernada
-    pesoTerminacionRef: 420,    // kg novillo terminado
-    rindeResVacaDescarte: 65,   // % rendimiento res vaca descarte (60-65% normal)
-    rindeResNovillo:    57,     // % rendimiento res novillo gordo
-    receptividadEVha:   1.5,    // EV/ha de referencia para semáforo de carga
     // Impuestos
     pctIIBB: 3.0,           // % sobre ventas (ingresos brutos provincial)
     pctGanancias: 35,       // % sobre utilidad neta (estimado)
@@ -443,59 +493,33 @@ const vacaStore = createStore((set, get) => ({
     const pctRepos   = c.pctReposicion      / 100;
     const pctMachos  = c.pctMachos          / 100;
 
-    // ── Fertilidad diferenciada por categoría (usar ciclo[0] como base) ──
-    const ciclo0 = (c.ciclos && c.ciclos[0]) || {};
-    const pctPVacas = (ciclo0.pctPreniezVacas ?? c.pctPreniez ?? 85) / 100;
-    const pctPVaq   = (ciclo0.pctPreniezVaquillonas ?? c.pctPreniez ?? 72) / 100;
-    const pctPVacasCC = (ciclo0.pctPreniezVacasConCria ?? c.pctPreniez ?? 65) / 100;
-
-    const nVacas = c.vacas || 0;
-    const nVaq1  = c.vaquillonas1 ?? c.vaquillonas ?? 0; // primer servicio
-    const nVaq2  = c.vaquillonas2 ?? 0;                  // ya pasaron de vaquillona a vaca con cría
-
-    // Preñadas por categoría
-    const preniadasVacas = Math.round(nVacas * pctPVacas);
-    const preniadasVaq1  = Math.round(nVaq1  * pctPVaq);
-    const preniadasVaq2  = Math.round(nVaq2  * pctPVacasCC); // vacas de 2do entore (con cría al pie)
-    const preniadas      = preniadasVacas + preniadasVaq1 + preniadasVaq2;
-
+    const preniadas    = Math.round((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) * c.pctPreniez / 100);
     const nacidos      = Math.round(preniadas * (1 - mortCria));
-    const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * (ciclo0.pctDestete ?? c.pctDestete ?? 75) / 100);
+    const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
-    const vacasMort   = Math.round(nVacas * mortCria);
-    const nuevasVacas = Math.max(0, nVacas - (c.vacias || 0) - vacasMort + nVaq1 + nVaq2);
+    const vacasMort   = Math.round(c.vacas * mortCria);
+    const nuevasVacas = Math.max(0, c.vacas - c.vacias - vacasMort + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0));
     const nuevasVaq   = hembrasRepos;
     const machosSobrev = Math.round((r.ternerosLiquidaMachos + r.ternerosCompraMachos) * (1 - mortRecria));
 
-    // ── Pesos configurables (ya no hardcodeados) ─────────────────────────
-    const pesoDest = ciclo0.pesoDesteteKg ?? cp.pesoDesteteRef ?? 180;
-    const pesoRec  = cp.pesoRecriaRef     ?? 320;
-    const pesoTerm = t.pesoPromedioKg     ?? cp.pesoTerminacionRef ?? 420;
-    const rindeResVD = (cp.rindeResVacaDescarte ?? 65) / 100;
-    const pesoVD   = cp.pesoVacaPromedio  ?? 420;
-
     // Balance economico del ano
     const precioNov = gl.precioNovilloInmag || 1800;
-    const totalStock = nVacas + nVaq1 + nVaq2 + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
+    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
       + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
       + t.novillosCampo + t.novillosFeedlot;
     const hectareas = (cp&&cp.hectareas) || 1000;
-    const evTotal = nVacas*1.0 + (nVaq1+nVaq2)*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
+    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
       + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
       + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
 
-    const kgDestetados   = totalDest * pesoDest;
-    const kgRecria       = (r.ternerosLiquidaMachos + r.ternerosCompraMachos + r.novillos) * pesoRec;
-    const kgTerm         = (t.novillosCampo + t.novillosFeedlot) * pesoTerm;
-    const kgVacasDescarte = Math.round((c.vacias||0) * rindeResVD * pesoVD);
-    const kgTotalAnio    = kgDestetados + kgRecria + kgTerm + kgVacasDescarte;
-    const kgHaAnio       = hectareas > 0 ? Math.round(kgTotalAnio / hectareas) : 0;
-
-    // ── Eficiencia de cría: kg destetado / kg vientre mantenido ──────────
-    const kgVientreTotal = (nVacas + nVaq1 + nVaq2) * pesoVD;
-    const eficienciaCria = kgVientreTotal > 0 ? Math.round((kgDestetados / kgVientreTotal) * 1000) / 10 : 0;
+    const kgDestetados = totalDest * 165;
+    const kgRecria = (r.ternerosLiquidaMachos + r.ternerosCompraMachos + r.novillos) * 320;
+    const kgTerm = (t.novillosCampo + t.novillosFeedlot) * (t.pesoPromedioKg || 420);
+    const kgVacasDescarte = Math.round((c.vacias||0) * 0.65 * 420);
+    const kgTotalAnio = kgDestetados + kgRecria + kgTerm + kgVacasDescarte;
+    const kgHaAnio = hectareas > 0 ? Math.round(kgTotalAnio / hectareas) : 0;
 
     const empleados = (cp&&cp.empleados) || [];
     const sanidadMesSnap = totalStock * ((cp&&cp.sanidadPorCabAnio)||40000) / 12;
@@ -515,23 +539,19 @@ const vacaStore = createStore((set, get) => ({
       ano: anoGanaderoActual,
       cria: { ...c }, recria: { ...r }, terminacion: { ...t },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
-      resumen: {
-        totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev,
-        preniadasVacas, preniadasVaq1, preniadasVaq2, // fertilidad diferenciada
-      },
+      resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev },
       balance: {
         kgTotalAnio, kgHaAnio, ingresoAnio, costoEst, margenAnio,
         costoOpAnio, rendimientoReal,
         evPorHa: Math.round((evTotal / hectareas) * 100) / 100,
-        pctDestete: Math.round(totalDest / ((nVacas + nVaq1 + nVaq2) || 1) * 100),
-        eficienciaCria,  // nuevo KPI
+        pctDestete: Math.round(totalDest / ((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) || 1) * 100),
         totalStock, hectareas,
       },
     };
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
-      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, ternerosNoDestetados: 0, vacias: 0 },
+      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas: nuevasVaq, ternerosNoDestetados: 0, vacias: 0 },
       campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
       campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
@@ -572,9 +592,6 @@ function fmtPct(n, dec = 1) {
 
 // ─── Global CSS (slider thumb enlarge + pastel bg) ───────────────────────────
 const GLOBAL_STYLE = `
-  /* ── Viewport fix (por si el index.html no lo tiene) ───────────────── */
-  /* Se inyecta también via JS al montar */
-
   /* ── Background ──────────────────────────────────────────────────── */
   .app-bg { background: #ffffff; min-height: 100vh; }
 
@@ -614,33 +631,37 @@ const GLOBAL_STYLE = `
   }
   /* ── Mobile readability ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    /* Fuente base más grande */
-    html { font-size: 17px; }
-    body { font-size: 17px; }
+    body { font-size: 16px; }
 
-    /* Textos Tailwind escalados */
-    .text-xs   { font-size: 13px !important; line-height: 1.55 !important; }
-    .text-sm   { font-size: 15px !important; line-height: 1.55 !important; }
-    .text-base { font-size: 17px !important; }
-    .text-lg   { font-size: 19px !important; }
-    .text-xl   { font-size: 22px !important; }
-    .text-2xl  { font-size: 26px !important; }
-    .text-3xl  { font-size: 30px !important; }
-    .text-4xl  { font-size: 36px !important; }
+    /* Todos los textos chicos se agrandan */
+    .text-xs  { font-size: 13px !important; line-height: 1.6 !important; }
+    .text-sm  { font-size: 15px !important; line-height: 1.6 !important; }
+    .text-base{ font-size: 16px !important; }
+    .text-lg  { font-size: 18px !important; }
+    .text-xl  { font-size: 20px !important; }
+    .text-2xl { font-size: 24px !important; }
+    .text-3xl { font-size: 28px !important; }
 
-    /* Números mono */
+    /* Números mono siempre grandes */
     .font-mono { font-size: 18px !important; }
     .font-mono.text-2xl, .font-mono.text-3xl { font-size: 26px !important; }
-    .font-mono.text-xl { font-size: 22px !important; }
+    .font-mono.text-xl  { font-size: 22px !important; }
 
-    /* Labels uppercase — más chicos pero legibles */
-    .uppercase.tracking-widest { font-size: 10px !important; letter-spacing: 0.08em !important; }
-    .uppercase.tracking-wider  { font-size: 11px !important; }
+    /* Uppercase labels */
+    .uppercase.tracking-widest { font-size: 11px !important; letter-spacing: 0.05em !important; }
+    .uppercase.tracking-wider  { font-size: 12px !important; }
 
-    /* Inputs — evitar zoom en iOS */
+    /* Inputs, selects — evitar zoom en iOS */
     input, select, textarea { font-size: 16px !important; }
 
-    /* Hints */
+    /* Botones más fáciles de tocar */
+    button { min-height: 44px !important; }
+
+    /* Cards con más padding */
+    .rounded-2xl { padding: 14px !important; }
+    .rounded-3xl { padding: 16px !important; }
+
+    /* Hints y subtextos */
     p.text-xs, span.text-xs { font-size: 13px !important; }
   }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
@@ -2411,116 +2432,6 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
         </div>
       </div>
 
-      {/* ── Análisis de Sensibilidad — escenarios % destete × precio ternero ── */}
-      <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📊</span>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-violet-700">Análisis de Sensibilidad</p>
-            <p className="text-xs text-violet-500">¿Cómo cambia el VAN si varían el % de destete y el precio del ternero?</p>
-          </div>
-        </div>
-        {(() => {
-          // Calcular VAN para una matriz 3×3
-          const baseDest = inputs.pctDestete;
-          const basePrecio = inputs.precioTerneroKg;
-          const escenariosDest = [
-            { label: "Pesimista", val: Math.max(50, baseDest - 10), desc: "−10 pp" },
-            { label: "Base", val: baseDest, desc: "actual" },
-            { label: "Optimista", val: Math.min(95, baseDest + 5), desc: "+5 pp" },
-          ];
-          const escenariosPrecio = [
-            { label: "Pesimista", val: Math.round(basePrecio * 0.85), desc: "−15%" },
-            { label: "Base", val: basePrecio, desc: "actual" },
-            { label: "Optimista", val: Math.round(basePrecio * 1.15), desc: "+15%" },
-          ];
-
-          // Recalcular VAN con valores nuevos (reusa la lógica del calc)
-          const calcVanEscenario = (pctDest, precioTern) => {
-            const ternerosAnuales = inputs.cantidad * pctDest / 100;
-            const ingresoBrutoAnual = ternerosAnuales * inputs.pesoTerneroDestetado * precioTern;
-            const comVtaPct = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
-            const fleteVta = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
-            const ingresoNetoAnual = ingresoBrutoAnual * (1 - comVtaPct) - fleteVta * ternerosAnuales;
-            const costoPastoreoAnual = inmagVientres * precioNovilloInmag * 12 * inputs.cantidad;
-            const costoIatfAnual     = inputs.kgIatf * precioNovilloInmag * inputs.cantidad;
-            const costoTorosAnualFl  = inputs.kgToros * precioNovilloInmag * inputs.cantidad;
-            const anosSupl = Math.min(inputs.anosSuplementacion ?? 0, inputs.anosVidaUtil);
-            const costoSuplVacasAnual = inputs.cantidad * 12 * (inputs.costoSuplVacasMes ?? 0) * ((inputs.mesesSuplVacas?.length ?? 0) / 12);
-            const costoKreepAnual = inputs.kreepOn ? (inputs.cantidad * (inputs.costoKreepMes ?? 0) * 4) : 0;
-            const flujo0 = -(calc.inversionInicial + calc.costoRecriaPreServicio + calc.costoSuplTerneras);
-            const flujos = [flujo0];
-            for (let t = 1; t <= inputs.anosVidaUtil; t++) {
-              const suplExtra  = t <= anosSupl ? costoSuplVacasAnual : 0;
-              const kreepExtra = inputs.kreepOn ? costoKreepAnual : 0;
-              const flujoAnual = ingresoNetoAnual - costoPastoreoAnual - costoIatfAnual - costoTorosAnualFl - kreepExtra - suplExtra;
-              flujos.push(t === inputs.anosVidaUtil ? flujoAnual + calc.recuperoDescarte : flujoAnual);
-            }
-            const r = tasaDescuento / 100;
-            return flujos.reduce((acc, f, t) => acc + f / Math.pow(1 + r, t), 0);
-          };
-
-          const matrix = escenariosDest.map(d => escenariosPrecio.map(p => calcVanEscenario(d.val, p.val)));
-
-          const formatVan = (v) => {
-            const abs = Math.abs(v);
-            if (abs >= 1e9) return (v/1e9).toFixed(1).replace(".0","") + " B";
-            if (abs >= 1e6) return (v/1e6).toFixed(1).replace(".0","") + " M";
-            if (abs >= 1e3) return (v/1e3).toFixed(0) + " k";
-            return Math.round(v).toString();
-          };
-
-          return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr>
-                    <th className="p-2 text-left bg-white border border-violet-200 font-black text-violet-700 uppercase tracking-wider text-xs">
-                      <div>VAN por escenario</div>
-                      <div className="text-violet-400 text-xs font-normal mt-0.5">↓ % destete · → precio ternero</div>
-                    </th>
-                    {escenariosPrecio.map((p, j) => (
-                      <th key={j} className="p-2 text-center bg-white border border-violet-200 font-black text-violet-700">
-                        <div>{p.label}</div>
-                        <div className="text-xs text-violet-400 font-mono font-normal">${p.val.toLocaleString("es-AR")}/kg <span className="text-violet-300">({p.desc})</span></div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {escenariosDest.map((d, i) => (
-                    <tr key={i}>
-                      <th className="p-2 text-left bg-white border border-violet-200 font-black text-violet-700">
-                        <div>{d.label}</div>
-                        <div className="text-xs text-violet-400 font-mono font-normal">{d.val}% <span className="text-violet-300">({d.desc})</span></div>
-                      </th>
-                      {escenariosPrecio.map((_, j) => {
-                        const v = matrix[i][j];
-                        const isBase = i === 1 && j === 1;
-                        const colorBg = v >= 0 ? "bg-emerald-50" : "bg-red-50";
-                        const colorBorder = isBase ? "border-violet-500 border-2" : "border-violet-200";
-                        const colorText = v >= 0 ? "text-emerald-700" : "text-red-600";
-                        return (
-                          <td key={j} className={`p-3 text-center border ${colorBg} ${colorBorder}`}>
-                            <p className={`font-mono font-black ${colorText} text-base`}>
-                              {v >= 0 ? "+" : ""}${formatVan(v)}
-                            </p>
-                            {isBase && <p className="text-xs text-violet-500 font-bold uppercase tracking-wider mt-0.5">escenario base</p>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="text-xs text-violet-600 mt-2 italic">
-                💡 VAN negativo = el proyecto no supera el costo de oportunidad ({tasaDescuento}% USD). VAN positivo = excede la rentabilidad mínima exigida.
-              </p>
-            </div>
-          );
-        })()}
-      </div>
-
       {/* Asesor IA — Proyecto Vientres */}
       <AsesorIA
         color="emerald"
@@ -2681,8 +2592,6 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     gpvDiaria: 0.6,
     mesesRecria: 8,
     precioVentaKg: 2100,
-    modalidadVenta: "pie",    // "pie" (vivo) | "gancho" (res)
-    rindeRes: 57,             // % rendimiento a res (solo aplica si modalidadVenta = "gancho")
     mesesSuplementActivos: [],
     costoSuplementoMensual: 15000,
   });
@@ -2693,8 +2602,6 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     costoRacionDiaria: 3000,
     costoHoteleriadiaria: 500,
     precioVentaKg: 2250,
-    modalidadVenta: "pie",
-    rindeRes: 58,
   });
 
   const setB = (k) => (v) => setBase((p) => ({ ...p, [k]: v }));
@@ -2730,9 +2637,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     const mesesSuplValidos = opA.mesesSuplementActivos.filter((m) => m <= opA.mesesRecria);
     const costoSuplementacionA = mesesSuplValidos.length * opA.costoSuplementoMensual * base.cantidad;
     const costoOperativoA = costoPastoreoA + costoSuplementacionA;
-    const ingresoBrutoA = opA.modalidadVenta === "gancho"
-      ? base.cantidad * pesoSalidaA * (opA.rindeRes / 100) * opA.precioVentaKg  // precio $/kg res
-      : base.cantidad * pesoSalidaA * opA.precioVentaKg;                         // precio $/kg vivo
+    const ingresoBrutoA = base.cantidad * pesoSalidaA * opA.precioVentaKg;
     const comisionVentaPctC = gastos.comisionVentaOn ? gastos.comisionVenta / 100 : 0;
     const fleteVentaC = gastos.fleteVentaOn ? gastos.kmVenta * gastos.precioKmVenta : 0;
     const gastoComisionVentaA = ingresoBrutoA * comisionVentaPctC;
@@ -2750,9 +2655,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     const costoRacionPorAnimal = opB.costoRacionDiaria * opB.diasEncierre;
     const costoHoteleriaPorAnimal = opB.costoHoteleriadiaria * opB.diasEncierre;
     const costoOperativoB = costoTotalDiario * opB.diasEncierre * base.cantidad;
-    const ingresoBrutoB = opB.modalidadVenta === "gancho"
-      ? base.cantidad * pesoSalidaB * (opB.rindeRes / 100) * opB.precioVentaKg
-      : base.cantidad * pesoSalidaB * opB.precioVentaKg;
+    const ingresoBrutoB = base.cantidad * pesoSalidaB * opB.precioVentaKg;
     const gastoComisionVentaB = ingresoBrutoB * comisionVentaPctC;
     const gastosVentaB = fleteVentaC + gastoComisionVentaB;
     const ingresoNetoB = ingresoBrutoB - gastosVentaB;
@@ -2904,38 +2807,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
             <span className="text-xs font-black uppercase tracking-widest text-green-700">Costo Operativo Total A</span>
             <span className="font-mono font-bold text-green-800 text-xl">{fmtMoney(calc.a.costoOperativo)}</span>
           </div>
-
-          {/* Modalidad venta — pie vs gancho */}
-          <div className="rounded-xl border-2 border-green-200 bg-white p-3 space-y-2">
-            <p className="text-xs font-black uppercase tracking-widest text-green-700">💵 Modalidad de venta</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setA("modalidadVenta")("pie")}
-                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                  opA.modalidadVenta === "pie"
-                    ? "bg-green-600 text-white shadow"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}>
-                🐂 En pie (kg vivo)
-              </button>
-              <button
-                onClick={() => setA("modalidadVenta")("gancho")}
-                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                  opA.modalidadVenta === "gancho"
-                    ? "bg-green-600 text-white shadow"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}>
-                🥩 En gancho (kg res)
-              </button>
-            </div>
-            {opA.modalidadVenta === "gancho" && (
-              <Field label="Rendimiento a res" value={opA.rindeRes} onChange={setA("rindeRes")} unit="%" step={0.5}
-                hint={`Peso res estimado: ${fmtKg(calc.a.pesoSalida * opA.rindeRes / 100)}/cab`} />
-            )}
-          </div>
-
-          <Field label={opA.modalidadVenta === "gancho" ? "Precio venta — $/kg res" : "Precio de venta estimado — $/kg vivo"}
-            value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
+          <Field label="Precio de venta estimado" value={opA.precioVentaKg} onChange={setA("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Ingreso Neto Invernada</p>
@@ -3039,37 +2911,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
             </div>
           </div>
 
-          {/* Modalidad venta — pie vs gancho */}
-          <div className="rounded-xl border-2 border-indigo-200 bg-white p-3 space-y-2">
-            <p className="text-xs font-black uppercase tracking-widest text-indigo-700">💵 Modalidad de venta</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setO("modalidadVenta")("pie")}
-                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                  opB.modalidadVenta === "pie"
-                    ? "bg-indigo-600 text-white shadow"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}>
-                🐂 En pie (kg vivo)
-              </button>
-              <button
-                onClick={() => setO("modalidadVenta")("gancho")}
-                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                  opB.modalidadVenta === "gancho"
-                    ? "bg-indigo-600 text-white shadow"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}>
-                🥩 En gancho (kg res)
-              </button>
-            </div>
-            {opB.modalidadVenta === "gancho" && (
-              <Field label="Rendimiento a res" value={opB.rindeRes} onChange={setO("rindeRes")} unit="%" step={0.5}
-                hint={`Peso res estimado: ${fmtKg(calc.b.pesoSalida * opB.rindeRes / 100)}/cab`} />
-            )}
-          </div>
-
-          <Field label={opB.modalidadVenta === "gancho" ? "Precio venta gordo — $/kg res" : "Precio de venta gordo — $/kg vivo"}
-            value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
+          <Field label="Precio de venta gordo" value={opB.precioVentaKg} onChange={setO("precioVentaKg")} unit="$/kg" step={50} sliderMax={10000} />
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-indigo-700">📐 Desglose Financiero del Encierre</p>
@@ -3989,7 +3831,7 @@ function LoginScreen() {
       await signInWithEmailAndPassword(auth, em, pass);
     } catch(err) {
       const msgs = {
-        "auth/user-not-found":    "No existe una cuenta con ese email.",
+        "auth/user-not-found":    "No existe una cuenta con ese email. Registrate primero.",
         "auth/wrong-password":    "Contraseña incorrecta.",
         "auth/invalid-credential":"Email o contraseña incorrectos.",
         "auth/too-many-requests": "Demasiados intentos. Esperá unos minutos.",
@@ -4040,12 +3882,12 @@ function LoginScreen() {
   };
 
   const STYLE = `
-    .lb{min-height:100vh;background:#163d44;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
+    .lb{min-height:100vh;background:#3a7d2c;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
     .lblob{position:absolute;border-radius:50%;pointer-events:none;}
-    .lb1{width:560px;height:560px;background:#0f2e33;opacity:.5;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
-    .lb2{width:360px;height:360px;background:#1e5560;opacity:.5;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
-    .lb3{width:200px;height:200px;background:#1a4a52;opacity:.4;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
-    .lb4{width:110px;height:110px;background:#256b73;opacity:.35;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
+    .lb1{width:560px;height:560px;background:#10b981;opacity:.11;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
+    .lb2{width:360px;height:360px;background:#34d399;opacity:.10;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
+    .lb3{width:200px;height:200px;background:#6ee7b7;opacity:.10;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
+    .lb4{width:110px;height:110px;background:#a7f3d0;opacity:.10;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
     @keyframes lbf1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,-36px) scale(1.06)}}
     @keyframes lbf2{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,24px) scale(1.09)}}
     .ldollar{position:absolute;color:#a7f3d0;font-weight:900;pointer-events:none;user-select:none;line-height:1;}
@@ -4128,7 +3970,7 @@ function LoginScreen() {
           </h2>
           <p className="lsub">
             {modo === "login"    ? "Ingresá tus credenciales para acceder." :
-             modo === "register" ? "Creá tu cuenta con el email que te habilitaron." :
+             modo === "register" ? "Creá tu cuenta para empezar a gestionar tu campo." :
                                    "Te mandamos un email para restablecer tu contraseña."}
           </p>
 
@@ -4445,14 +4287,10 @@ function makeActs(p) {
         { label: "Sanidad y nutricion", valor: cabTerm+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadTerm, positivo: false },
       ],
     },
-    { id: "pastaje", label: "\uD83E\uDD1D Pastaje", cab: cabPastaje, color: "teal",
-      ingreso: ingresoPastaje + (p.devengadoPastajeHoy ?? 0),
-      costo: 0,
-      margen: ingresoPastaje + (p.devengadoPastajeHoy ?? 0),
+    { id: "pastaje", label: "\uD83E\uDD1D Pastaje", cab: cabPastaje, color: "teal", ingreso: ingresoPastaje, costo: 0, margen: ingresoPastaje,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Cobros periodo (efectivo)", valor: fmt(Math.round(kgPastaje))+" kg cobrados", total: ingresoPastaje, positivo: true },
-        { label: "Devengado hasta hoy", valor: fmt(Math.round(p.kgDevengadosPastaje ?? 0))+" kg × precio novillo", total: p.devengadoPastajeHoy ?? 0, positivo: true },
+        { label: "Cobros periodo", valor: fmt(Math.round(kgPastaje))+" kg nov devengados", total: ingresoPastaje, positivo: true },
         { label: "Costos directos", tipo: "header" },
         { label: "Sin costo directo adicional", valor: "Usa infraestructura de estructura", total: 0, positivo: false },
       ],
@@ -5989,9 +5827,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           paricionAnio: new Date().getFullYear(),
                           mesesDestete: 7,
                           pctPreniez: 85,
-                          pctPreniezVacas: 88,
-                          pctPreniezVaquillonas: 72,
-                          pctPreniezVacasConCria: 65,
                           pctDestete: 75,
                           pesoDesteteKg: 187,
                           ternerosAlPie: 0,
@@ -6012,15 +5847,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const anioDest = (ciclo.paricionMes + ciclo.mesesDestete) >= 12 ? ciclo.paricionAnio + 1 : ciclo.paricionAnio;
                       const diasParaDest = Math.round((new Date(anioDest, mesDest, 1) - new Date()) / 86400000);
                       const madresCiclo = criaDatos.vacas + (criaDatos.vaquillonas1??0) + (criaDatos.vaquillonas2??0);
-                      // ── Fertilidad diferenciada (con fallback a pctPreniez global) ──
-                      const pPVacas    = ciclo.pctPreniezVacas       ?? ciclo.pctPreniez ?? 85;
-                      const pPVaq      = ciclo.pctPreniezVaquillonas ?? ciclo.pctPreniez ?? 72;
-                      const pPVacasCC  = ciclo.pctPreniezVacasConCria?? ciclo.pctPreniez ?? 65;
-                      const preniadasVacasC = Math.round((criaDatos.vacas       ?? 0) * pPVacas    / 100);
-                      const preniadasVaq1C  = Math.round((criaDatos.vaquillonas1?? 0) * pPVaq      / 100);
-                      const preniadasVaq2C  = Math.round((criaDatos.vaquillonas2?? 0) * pPVacasCC  / 100);
-                      const ternNacidos = preniadasVacasC + preniadasVaq1C + preniadasVaq2C;
-                      const pctPreniezPond = madresCiclo > 0 ? Math.round((ternNacidos / madresCiclo) * 100) : 0;
+                      const ternNacidos = Math.round(madresCiclo * (ciclo.pctPreniez / 100));
                       const ternDestProyec = Math.round(ternNacidos * (ciclo.pctDestete / 100));
                       const updateCiclo = (patch) => setCriaActiva(p => ({
                         ...p,
@@ -6088,42 +5915,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </div>
                             </div>
 
-                            {/* Fertilidad diferenciada por categoría */}
-                            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 space-y-2">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <p className="text-xs font-black uppercase tracking-widest text-amber-700">🤰 Fertilidad por categoría</p>
-                                <span className="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">
-                                  Preñez ponderada: {pctPreniezPond}% · {ternNacidos} nacidos
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <EditField
-                                  label="Vacas adultas"
-                                  value={pPVacas}
-                                  onChange={v => updateCiclo({ pctPreniezVacas: Math.min(100, Math.max(0, v)) })}
-                                  step={1} suffix="%"
-                                  hint={`${preniadasVacasC} preñadas de ${criaDatos.vacas ?? 0}`}
-                                />
-                                <EditField
-                                  label="Vaquillonas 1er servicio"
-                                  value={pPVaq}
-                                  onChange={v => updateCiclo({ pctPreniezVaquillonas: Math.min(100, Math.max(0, v)) })}
-                                  step={1} suffix="%"
-                                  hint={`${preniadasVaq1C} preñadas de ${criaDatos.vaquillonas1 ?? 0}`}
-                                />
-                                <EditField
-                                  label="Vacas con cría al pie"
-                                  value={pPVacasCC}
-                                  onChange={v => updateCiclo({ pctPreniezVacasConCria: Math.min(100, Math.max(0, v)) })}
-                                  step={1} suffix="%"
-                                  hint={`${preniadasVaq2C} preñadas de ${criaDatos.vaquillonas2 ?? 0}`}
-                                />
-                              </div>
-                              <p className="text-xs text-amber-600 italic">💡 Referencia: vacas adultas 85-90%, vaquillonas 70-75%, vacas con cría 60-65% (caen por estrés metabólico)</p>
-                            </div>
-
-                            {/* % Destete, peso y composición */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {/* % Preñez y destete */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              <EditField label="% Preñez" value={ciclo.pctPreniez} onChange={v => updateCiclo({ pctPreniez: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternNacidos + " terneros nacidos"} />
                               <EditField label="% Destete" value={ciclo.pctDestete} onChange={v => updateCiclo({ pctDestete: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={ternDestProyec + " proyectados"} />
                               <EditField label="Peso destete (kg)" value={ciclo.pesoDesteteKg} onChange={v => updateCiclo({ pesoDesteteKg: Math.max(100, Math.min(300, v)) })} step={5} suffix=" kg" />
                               <EditField label="% Machos" value={ciclo.pctMachos ?? 50} onChange={v => updateCiclo({ pctMachos: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={"Hembras: " + (100 - (ciclo.pctMachos ?? 50)) + "%"} />
@@ -6144,77 +5938,37 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               </div>
                             )}
 
-                            {/* Botón destete — aparece mientras queden terneros al pie */}
+                            {/* Botón destete */}
                             {!isDestetado && (
                               <DesteteParcialBtn
                                 ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
                                 pctMachos={ciclo.pctMachos ?? 50}
-                                onDestetar={(cant, machos, hembras, fecha) => {
+                                onDestetar={(cant, machos, hembras) => {
                                   const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
-                                  const tandaAnterior = ciclo.tandasDestete ?? [];
-                                  const nuevaTanda = { cant, machos, hembras, fecha };
                                   updateCiclo({
                                     ternerosAlPie: restantes,
                                     ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
                                     machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
                                     hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
-                                    tandasDestete: [...tandaAnterior, nuevaTanda],
                                     estado: restantes === 0 ? "destetado" : "al_pie",
-                                    fechaDesteReal: fecha,
+                                    fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
                                   });
-                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
+                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes), "success");
                                 }}
                               />
                             )}
-                            {/* Si ya destetó pero quedan terneros, mostrar botón de nueva tanda */}
-                            {isDestetado && (ciclo.ternerosAlPie ?? 0) > 0 && (
-                              <DesteteParcialBtn
-                                ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
-                                pctMachos={ciclo.pctMachos ?? 50}
-                                onDestetar={(cant, machos, hembras, fecha) => {
-                                  const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
-                                  const tandaAnterior = ciclo.tandasDestete ?? [];
-                                  const nuevaTanda = { cant, machos, hembras, fecha };
-                                  updateCiclo({
-                                    ternerosAlPie: restantes,
-                                    ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
-                                    machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
-                                    hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
-                                    tandasDestete: [...tandaAnterior, nuevaTanda],
-                                    estado: restantes === 0 ? "destetado" : "al_pie",
-                                    fechaDesteReal: fecha,
-                                  });
-                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes + " al pie"), "success");
-                                }}
-                              />
-                            )}
-                            {isDestetado && (ciclo.ternerosAlPie ?? 0) === 0 && (
+                            {isDestetado && (
                               <div className="space-y-2">
-                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-2">
+                                <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados en total</span>
-                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null, tandasDestete: [] })}
+                                    <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
+                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
                                       className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
                                   </div>
                                   <div className="flex gap-2">
                                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">♂ {ciclo.machosDestetados ?? 0} machos</span>
                                     <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">♀ {ciclo.hembrasDestetadas ?? 0} hembras</span>
                                   </div>
-                                  {/* Historial de tandas */}
-                                  {(ciclo.tandasDestete ?? []).length > 1 && (
-                                    <div className="mt-1 space-y-1">
-                                      <p className="text-xs text-emerald-700 font-bold">Tandas:</p>
-                                      {(ciclo.tandasDestete ?? []).map((t, i) => (
-                                        <div key={i} className="flex justify-between text-xs text-emerald-800 bg-white rounded-lg px-2 py-1">
-                                          <span>{t.fecha ?? "—"}</span>
-                                          <span>{t.cant} terneros — ♂{t.machos} ♀{t.hembras}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {(ciclo.tandasDestete ?? []).length === 0 && ciclo.fechaDesteReal && (
-                                    <p className="text-xs text-emerald-700">{ciclo.fechaDesteReal}</p>
-                                  )}
                                 </div>
                                 {/* Estrategia de reposición */}
                                 {(ciclo.hembrasDestetadas ?? 0) > 0 && (() => {
@@ -6900,8 +6654,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ingresoPastaje={ingresoPastaje}
                 kgPastaje={kgPastaje}
                 cabPastaje={cabPastaje}
-                kgDevengadosPastaje={kgDevengadosPastaje}
-                devengadoPastajeHoy={devengadoPastajeHoy}
                 margenExport={margenBrutoExport}
                 ingresoExport={ingresoExport}
                 costoExport={costoExport}
@@ -8081,79 +7833,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   );
 } // end MiCampo
 
-function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, campoRecria, campo, onNavigate, onLogout }) {
+function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
   const primerNombre = userEmail ? userEmail.split("@")[0] : null;
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
-  const fmt = n => Math.round(n).toLocaleString("es-AR");
-
-  // ── Eficiencia de stock (Recría) ──────────────────────────────────────────
-  const cabTotalRecria = (campoRecria?.novillos ?? 0)
-    + (campoRecria?.vaquillonaRecria ?? 0)
-    + (campoRecria?.ternerosCompraMachos ?? 0)
-    + (campoRecria?.ternerosCompraHembras ?? 0)
-    + (campoRecria?.ternerosLiquidaMachos ?? 0)
-    + (campoRecria?.ternerosLiquidaHembras ?? 0);
-  const mortandadPct  = campoRecria?.pctMortandadRecria ?? 2;
-  const cabSobreviven = Math.round(cabTotalRecria * (1 - mortandadPct / 100));
-  const eficienciaStock = cabTotalRecria > 0 ? Math.round((cabSobreviven / cabTotalRecria) * 100) : null;
-  const efColor = eficienciaStock === null ? "text-slate-400"
-    : eficienciaStock >= 95 ? "text-emerald-600"
-    : eficienciaStock >= 88 ? "text-amber-600"
-    : "text-red-600";
-  const efLabel = eficienciaStock === null ? "Sin datos"
-    : eficienciaStock >= 95 ? "Excelente"
-    : eficienciaStock >= 88 ? "Aceptable"
-    : "Bajo";
-
-  // ── Receptividad dinámica (Pastaje) ───────────────────────────────────────
-  // Carga óptima estimada por categoría (EV/cab referencia)
-  const EV_CAT = { terneros: 0.65, terneras: 0.60, recria: 0.85, vacas: 1.0, toros: 1.25 };
-  const tropas = campoPastaje?.tropas ?? [];
-  const hectareas = campo?.hectareas ?? 0;
-  const totalEV = tropas.reduce((s, t) => {
-    const cab = t.cabActual ?? t.cab ?? 0;
-    return s + cab * (EV_CAT[t.cat] ?? 1.0);
-  }, 0);
-  const totalCab = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0);
-  const cargaEV = hectareas > 0 ? totalEV / hectareas : null;
-  // Receptividad promedio referencia: 1.5 EV/ha (editable en el futuro)
-  const receptividadRef = campo?.receptividadEVha ?? 1.5;
-  const pctCarga = cargaEV !== null ? Math.round((cargaEV / receptividadRef) * 100) : null;
-  const recepColor = pctCarga === null ? "text-slate-400"
-    : pctCarga <= 90 ? "text-emerald-600"
-    : pctCarga <= 100 ? "text-amber-500"
-    : "text-red-600";
-  const recepLabel = pctCarga === null ? "Sin datos"
-    : pctCarga <= 90 ? "Subutilizada"
-    : pctCarga <= 100 ? "Al límite"
-    : "Sobrecargada";
-  const recepSemaforo = pctCarga === null ? "⚪" : pctCarga <= 90 ? "🟢" : pctCarga <= 100 ? "🟡" : "🔴";
-
-  // ── Eficiencia de cría (kg destete / kg vientre) ─────────────────────────
-  // Indicador universal: una vaca de 420 kg que desteta un ternero de 180 kg = 43%
-  // Referencia argentina: >45% excelente, 38-45% bueno, <38% bajo
-  const ciclosCampo = campo?.ciclos ?? [];
-  const totalDestetadosCampo = ciclosCampo.reduce((s, c) => s + (c.ternerosDestetados ?? 0), 0);
-  const pesoDestPromCampo = ciclosCampo.length > 0
-    ? Math.round(ciclosCampo.reduce((s, c) => s + (c.pesoDesteteKg ?? 180), 0) / ciclosCampo.length)
-    : (campo?.pesoDesteteRef ?? 180);
-  const nVacasTotal = (campo?.vacas ?? 0) + (campo?.vaquillonas1 ?? 0) + (campo?.vaquillonas2 ?? 0);
-  const pesoVacaProm = campo?.pesoVacaPromedio ?? 420;
-  const kgDestetadoCampo = totalDestetadosCampo * pesoDestPromCampo;
-  const kgVientreCampo = nVacasTotal * pesoVacaProm;
-  const efCria = kgVientreCampo > 0 ? Math.round((kgDestetadoCampo / kgVientreCampo) * 1000) / 10 : null;
-  const efCriaColor = efCria === null ? "text-slate-400"
-    : efCria >= 45 ? "text-emerald-600"
-    : efCria >= 38 ? "text-amber-600"
-    : "text-red-600";
-  const efCriaLabel = efCria === null ? "Sin destetes registrados"
-    : efCria >= 45 ? "Excelente"
-    : efCria >= 38 ? "Aceptable"
-    : "Bajo";
-  const efCriaSemaforo = efCria === null ? "⚪" : efCria >= 45 ? "🟢" : efCria >= 38 ? "🟡" : "🔴";
-
-  const hayIndicadores = cabTotalRecria > 0 || tropas.length > 0 || nVacasTotal > 0;
 
 
   return (
@@ -8252,128 +7935,8 @@ function Dashboard({ userEmail, global, gastos, simulaciones, campoPastaje, camp
           </div>
         </div>
 
-        {/* ── Indicadores de campo ────────────────────────────────────────── */}
-        {hayIndicadores && (
-          <div className="max-w-3xl mx-auto mt-6 space-y-3">
-            <p className="text-center text-slate-400 font-semibold text-xs uppercase tracking-widest mb-3">
-              Indicadores de campo
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-              {/* Eficiencia de stock */}
-              {cabTotalRecria > 0 && (
-                <button onClick={() => onNavigate("campo")}
-                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all active:scale-[0.98]">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Eficiencia de stock</p>
-                      <p className="text-xs text-slate-400">Recría — {fmt(cabTotalRecria)} cab ingresadas</p>
-                    </div>
-                    <span className="text-2xl">{eficienciaStock !== null && eficienciaStock >= 95 ? "🟢" : eficienciaStock !== null && eficienciaStock >= 88 ? "🟡" : "🔴"}</span>
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <p className={`text-4xl font-black ${efColor}`}>
-                      {eficienciaStock !== null ? `${eficienciaStock}%` : "—"}
-                    </p>
-                    <div className="mb-1">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        eficienciaStock === null ? "bg-slate-100 text-slate-500"
-                        : eficienciaStock >= 95 ? "bg-emerald-100 text-emerald-700"
-                        : eficienciaStock >= 88 ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-700"
-                      }`}>{efLabel}</span>
-                    </div>
-                  </div>
-                  {/* Barra */}
-                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      eficienciaStock >= 95 ? "bg-emerald-400" : eficienciaStock >= 88 ? "bg-amber-400" : "bg-red-400"
-                    }`} style={{ width: `${eficienciaStock ?? 0}%` }} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1.5">{fmt(cabSobreviven)} cab llegan · mortandad {mortandadPct}%</p>
-                </button>
-              )}
-
-              {/* Receptividad dinámica */}
-              {tropas.length > 0 && hectareas > 0 && (
-                <button onClick={() => onNavigate("campo")}
-                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-teal-200 transition-all active:scale-[0.98]">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Receptividad pastaje</p>
-                      <p className="text-xs text-slate-400">{fmt(totalCab)} cab · {fmt(hectareas)} ha · ref {receptividadRef} EV/ha</p>
-                    </div>
-                    <span className="text-2xl">{recepSemaforo}</span>
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <p className={`text-4xl font-black ${recepColor}`}>
-                      {cargaEV !== null ? `${(Math.round(cargaEV * 100) / 100).toLocaleString("es-AR")}` : "—"}
-                      <span className="text-lg font-semibold text-slate-400 ml-1">EV/ha</span>
-                    </p>
-                    <div className="mb-1">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        pctCarga === null ? "bg-slate-100 text-slate-500"
-                        : pctCarga <= 90 ? "bg-emerald-100 text-emerald-700"
-                        : pctCarga <= 100 ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-700"
-                      }`}>{recepLabel}</span>
-                    </div>
-                  </div>
-                  {/* Barra */}
-                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      pctCarga <= 90 ? "bg-emerald-400" : pctCarga <= 100 ? "bg-amber-400" : "bg-red-400"
-                    }`} style={{ width: `${Math.min(pctCarga ?? 0, 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1.5">
-                    {pctCarga !== null ? `${pctCarga}% de la receptividad` : "Cargá hectáreas en Mi Campo → Costos estructura"}
-                  </p>
-                </button>
-              )}
-
-              {/* Eficiencia de cría — kg destete / kg vientre */}
-              {nVacasTotal > 0 && (
-                <button onClick={() => onNavigate("campo")}
-                  className="text-left bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-rose-200 transition-all active:scale-[0.98]">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-0.5">Eficiencia de cría</p>
-                      <p className="text-xs text-slate-400">kg destete / kg vientre · {fmt(nVacasTotal)} madres</p>
-                    </div>
-                    <span className="text-2xl">{efCriaSemaforo}</span>
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <p className={`text-4xl font-black ${efCriaColor}`}>
-                      {efCria !== null ? `${efCria}%` : "—"}
-                    </p>
-                    <div className="mb-1">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        efCria === null ? "bg-slate-100 text-slate-500"
-                        : efCria >= 45 ? "bg-emerald-100 text-emerald-700"
-                        : efCria >= 38 ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-700"
-                      }`}>{efCriaLabel}</span>
-                    </div>
-                  </div>
-                  {/* Barra */}
-                  <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      efCria >= 45 ? "bg-emerald-400" : efCria >= 38 ? "bg-amber-400" : "bg-red-400"
-                    }`} style={{ width: `${Math.min((efCria ?? 0) * 2, 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1.5">
-                    {efCria !== null
-                      ? `${fmt(kgDestetadoCampo)} kg destete / ${fmt(kgVientreCampo)} kg vientre`
-                      : "Destetá para ver el indicador"}
-                  </p>
-                </button>
-              )}
-
-            </div>
-          </div>
-        )}
-
         {/* ── Parámetros globales ─────────────────────────────────────────── */}
+
         <p className="text-center text-slate-400 mt-5 text-xs font-medium">
           Los cálculos son estimativos · Consultá con tu asesor antes de invertir
         </p>
@@ -9038,47 +8601,27 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
   const pctM = pctMachos ?? 50;
   const [machos,  setMachos]  = React.useState(0);
   const [hembras, setHembras] = React.useState(0);
-  const [fecha,   setFecha]   = React.useState(new Date().toISOString().slice(0, 10));
-  const [open,    setOpen]    = React.useState(false);
+  const [open, setOpen] = React.useState(false);
   const total = (parseInt(machos)||0) + (parseInt(hembras)||0);
-  const restarian = Math.max(0, ternerosNoDestetados - total);
 
   const handleOpen = () => {
+    // Pre-fill con la proyección basada en terneros al pie y % machos
     const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
     setMachos(Math.round(tot * pctM / 100));
     setHembras(tot - Math.round(tot * pctM / 100));
-    setFecha(new Date().toISOString().slice(0, 10));
     setOpen(true);
   };
 
   if (!open) return (
     <button onClick={handleOpen}
       className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2">
-      🐄 {ternerosNoDestetados > 0 ? `Destetar (${ternerosNoDestetados} disponibles)` : "Registrar destete"}
+      🐄 Registrar destete
     </button>
   );
 
   return (
     <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
-        {ternerosNoDestetados > 0 && (
-          <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">
-            {ternerosNoDestetados} al pie
-          </span>
-        )}
-      </div>
-
-      {/* Fecha de destete */}
-      <div className="bg-white border-2 border-emerald-200 rounded-xl p-3">
-        <p className="text-xs font-black text-emerald-700 mb-1.5">📅 Fecha de destete</p>
-        <input
-          type="date"
-          value={fecha}
-          onChange={e => setFecha(e.target.value)}
-          className="w-full text-sm font-bold text-slate-700 bg-transparent focus:outline-none"
-        />
-      </div>
+      <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Registrar destete</p>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Machos */}
@@ -9118,19 +8661,11 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
         </div>
       </div>
 
-      {/* Total y restantes */}
-      <div className={"rounded-xl px-3 py-2 space-y-1 " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-black text-slate-700">Esta tanda: {total} terneros</span>
-          {total > ternerosNoDestetados && (
-            <span className="text-xs text-red-600 font-bold">⚠ Superás los disponibles</span>
-          )}
-        </div>
-        {restarian > 0 && total > 0 && total <= ternerosNoDestetados && (
-          <p className="text-xs text-amber-600 font-bold">Quedarán {restarian} al pie para destetar después</p>
-        )}
-        {restarian === 0 && total > 0 && total <= ternerosNoDestetados && (
-          <p className="text-xs text-emerald-700 font-bold">✅ Destete completo del ciclo</p>
+      {/* Total */}
+      <div className={"rounded-xl px-3 py-2 text-center " + (total > 0 ? "bg-emerald-100" : "bg-slate-100")}>
+        <span className="text-sm font-black text-slate-700">Total: {total} terneros</span>
+        {ternerosNoDestetados > 0 && total !== ternerosNoDestetados && (
+          <span className="text-xs text-amber-600 ml-2">(al pie: {ternerosNoDestetados})</span>
         )}
       </div>
 
@@ -9140,11 +8675,10 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
             const m = parseInt(machos)||0;
             const h = parseInt(hembras)||0;
             if (m + h < 1) return;
-            if (m + h > ternerosNoDestetados && ternerosNoDestetados > 0) return;
-            onDestetar(m + h, m, h, fecha);
+            onDestetar(m + h, m, h);
             setOpen(false);
           }}
-          disabled={total < 1 || (total > ternerosNoDestetados && ternerosNoDestetados > 0)}
+          disabled={total < 1}
           className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-black transition-all active:scale-95">
           ✓ Confirmar destete
         </button>
@@ -9190,302 +8724,6 @@ function TropaEditorFields({ tropa, onSave }) {
     </div>
   );
 }
-
-// ─── Modales de Pastaje — funciones de módulo (fuera de PastajeCampo) ────────
-
-function PastajeModalWrapper({ titulo, children, onClose, onGuardar }) {
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(15,23,42,0.6)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
-        </div>
-        {children}
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-sm hover:bg-slate-50 transition-all">Cancelar</button>
-          <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function PastajeModalNuevaTropa({ onClose, tropas, terceros, CATS, setTropas, toast }) {
-  const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
-  const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
-  const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
-  const set = (k) => (e) => {
-    const val = e.target ? e.target.value : e;
-    setForm(p => {
-      const next = { ...p, [k]: val };
-      if (k === "cat") { next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200; next.gdpEstimado = GDP_DEFAULTS[val] ?? 0.5; }
-      if (k === "tropaOrigenId") { const madre = tropas.find(t => String(t.id) === String(val)); next.tropaOrigenNombre = madre ? madre.origen : ""; if (madre) next.origen = madre.origen; }
-      return next;
-    });
-  };
-  const guardar = () => {
-    if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
-    if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
-    setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), pesoEntradaKg: parseFloat(form.pesoEntradaKg) || 0, gdpEstimado: parseFloat(form.gdpEstimado) || 0, id: Date.now() }]);
-    toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
-    onClose();
-  };
-  return (
-    <PastajeModalWrapper titulo="Nueva tropa de pastaje" onClose={onClose} onGuardar={guardar}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
-          <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, Marca líquida, Compra…" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Propietario (tercero)</label>
-          <select value={form.terceroId} onChange={set("terceroId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            <option value="">— Seleccioná propietario —</option>
-            {terceros.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-          </select>
-          {terceros.length === 0 && <p className="text-xs text-amber-600 mt-1">⚠ Primero agregá un propietario en la pestaña Tropas</p>}
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
-          <select value={form.cat} onChange={set("cat")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            {CATS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas</label>
-          <input type="number" min="1" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha ingreso</label>
-          <input type="date" value={form.fechaIngreso} onChange={set("fechaIngreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</label>
-          <select value={form.servicio} onChange={set("servicio")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            <option value="ninguno">Sin servicio</option>
-            <option value="verano">Servicio verano</option>
-            <option value="otoño">Servicio otoño</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso entrada (kg/cab)</label>
-          <input type="number" min="50" value={form.pesoEntradaKg} onChange={set("pesoEntradaKg")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          <p className="text-xs text-slate-400 mt-1">Terneros: 180 kg · Recría: 200 kg</p>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GDP estimado (kg/día)</label>
-          <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
-        </div>
-        {tropas.length > 0 && (
-          <div className="sm:col-span-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cría de tropa existente (opcional)</label>
-            <select value={form.tropaOrigenId} onChange={set("tropaOrigenId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-              <option value="">— Sin vínculo (tropa independiente) —</option>
-              {tropas.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
-            </select>
-          </div>
-        )}
-      </div>
-    </PastajeModalWrapper>
-  );
-}
-
-function PastajeModalEgreso({ tropa, onClose, diasEntre, precios, fmtFecha, fmtN, setTropas, setPeriodos, toast }) {
-  const cabActual = tropa.cabActual ?? tropa.cab;
-  const [form, setForm] = useState({ cantidad: cabActual, fechaEgreso: new Date().toISOString().slice(0, 10), motivo: "venta", obs: "" });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
-  const cab = Math.min(Number(form.cantidad) || 0, cabActual);
-  const ultimoCobro = tropa.ultimoCobro || tropa.fechaIngreso;
-  const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
-  const diasTotales = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
-  const kgMes = (precios || {})[tropa.cat] ?? 6;
-  const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
-  const guardar = () => {
-    if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
-    const tramoEgreso = { fecha: form.fechaEgreso, cab, desdeCorte: ultimoCobro, dias: diasDesdeCorte, kgTramo: Math.round(kgTramo * 10) / 10, motivo: form.motivo, obs: form.obs };
-    setTropas(prev => prev.map(t => t.id === tropa.id ? { ...t, cabActual: (t.cabActual ?? t.cab) - cab, tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso] } : t));
-    setPeriodos(prev => [...prev, { id: Date.now(), tipo: "evento", subtipo: "egreso", tropaOrigen: tropa.origen, cat: tropa.cat, cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs, diasEstadia: diasTotales, diasDesdeCorte, kgMes, kgTramoInfo: Math.round(kgTramo * 10) / 10, estado: "registrado" }]);
-    toast(`✅ Egreso: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
-    onClose();
-  };
-  return (
-    <PastajeModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
-      <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
-        ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
-          <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-          <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
-          <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
-          <select value={form.motivo} onChange={set("motivo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            <option value="venta">Venta / terminación</option>
-            <option value="descarte">Descarte</option>
-            <option value="mortandad">Mortandad</option>
-            <option value="retiro">Retiro dueño</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-          <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-      </div>
-      <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
-        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">Días en campo</p><p className="font-black text-slate-800 text-sm">{diasTotales} días</p></div>
-          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">Desde último cobro</p><p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p></div>
-          <div className="bg-white rounded-xl p-2 border border-slate-200"><p className="text-xs text-slate-400">kg del tramo</p><p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p></div>
-        </div>
-        <p className="text-xs text-slate-400 italic">{cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30</p>
-      </div>
-    </PastajeModalWrapper>
-  );
-}
-
-function PastajeModalEvento({ onClose, tropas, setTropas, setPeriodos, toast }) {
-  const [form, setForm] = useState({ tipo: "servicio-verano", tropaId: tropas[0]?.id ?? "", fecha: new Date().toISOString().slice(0, 10), cab: 0, obs: "" });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
-  const tropaSelec = tropas.find(t => String(t.id) === String(form.tropaId));
-  const guardar = () => {
-    const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: "evento", subtipo: form.tipo, estado: "registrado" };
-    setPeriodos(prev => [...prev, evento]);
-    if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
-      setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
-    }
-    toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
-    onClose();
-  };
-  return (
-    <PastajeModalWrapper titulo="Registrar evento" onClose={onClose} onGuardar={guardar}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de evento</label>
-          <select value={form.tipo} onChange={set("tipo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            <option value="servicio-verano">Servicio verano</option>
-            <option value="servicio-otoño">Servicio otoño</option>
-            <option value="destete">Destete</option>
-            <option value="mortandad">Mortandad</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tropa</label>
-          <select value={form.tropaId} onChange={set("tropaId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-            {tropas.filter(t => (t.cabActual ?? t.cab) > 0).map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
-          <input type="date" value={form.fecha} onChange={set("fecha")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{form.tipo === "mortandad" ? "Bajas" : "Cabezas involucradas"}</label>
-          <input type="number" min="0" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
-          <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-        </div>
-      </div>
-    </PastajeModalWrapper>
-  );
-}
-
-const MESES_LABELS_SUP = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-function PastajeModalSuplemento({ tropa, onClose, setTropas, toast }) {
-  const fmtN2 = (n) => Math.round(n).toLocaleString("es-AR");
-  const fmtP2 = (n) => "$" + Math.round(n).toLocaleString("es-AR");
-  const supInicial = tropa.suplemento ?? { activo: false, precioPorKg: 0, kgDiaPorMes: {}, usarFechas: false, fechaDesde: "", fechaHasta: "" };
-  const [sup, setSup] = useState(supInicial);
-  const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
-  const setKgMes = (m, val) => setSup(p => ({ ...p, kgDiaPorMes: { ...p.kgDiaPorMes, [m]: parseFloat(val) || 0 } }));
-  const setRango = (meses, val) => setSup(p => { const n = { ...p.kgDiaPorMes }; meses.forEach(m => { n[m] = val; }); return { ...p, kgDiaPorMes: n }; });
-  const cab = tropa.cabActual ?? tropa.cab;
-  const prev = MESES_LABELS_SUP.map((lbl, i) => { const m = i+1; const kg = sup.kgDiaPorMes?.[m]??0; const d = new Date(2026,m,0).getDate(); return {m,lbl,kg,kgTotal:kg*d*cab,pesos:kg*d*cab*(sup.precioPorKg||0)}; });
-  const kgAnual = prev.reduce((s,x)=>s+x.kgTotal,0);
-  const pesosAnual = prev.reduce((s,x)=>s+x.pesos,0);
-  const guardar = () => {
-    const tieneConsumo = Object.values(sup.kgDiaPorMes??{}).some(v=>v>0);
-    setTropas(p => p.map(t => t.id===tropa.id ? {...t, suplemento:{...sup,activo:tieneConsumo&&sup.precioPorKg>0}} : t));
-    toast(`✅ Suplemento de ${tropa.origen} actualizado`,"success");
-    onClose();
-  };
-  return (
-    <PastajeModalWrapper titulo={`💊 Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
-      <div className="space-y-5">
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio del suplemento ($/kg)</label>
-          <input type="number" step="10" min="0" value={sup.precioPorKg} onChange={e=>setS("precioPorKg")(parseFloat(e.target.value)||0)} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-amber-400" />
-        </div>
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Consumo por mes (kg/animal/día)</p>
-          <p className="text-xs text-slate-400 mb-3">Dejá en 0 los meses que no consume</p>
-          <div className="space-y-1.5">
-            {MESES_LABELS_SUP.map((lbl,i) => {
-              const m=i+1; const kg=sup.kgDiaPorMes?.[m]??0; const activo=kg>0; const kgMT=kg*new Date(2026,m,0).getDate()*cab;
-              return (<div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo?"bg-amber-50 border-amber-200":"bg-slate-50 border-slate-200"}`}>
-                <span className={`text-xs font-black w-8 ${activo?"text-amber-700":"text-slate-400"}`}>{lbl}</span>
-                <input type="number" step="0.1" min="0" value={kg===0?"":kg} placeholder="0" onChange={e=>setKgMes(m,e.target.value)} className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo?"border-amber-300 bg-white text-amber-800 focus:border-amber-500":"border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`} />
-                <span className="text-xs text-slate-400">kg/ani/día</span>
-                {activo&&sup.precioPorKg>0&&<div className="ml-auto text-right"><span className="text-xs text-amber-600 font-bold">{fmtN2(Math.round(kgMT))} kg</span><span className="text-xs text-slate-400 ml-2">{fmtP2(kgMT*sup.precioPorKg)}</span></div>}
-              </div>);
-            })}
-          </div>
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <button onClick={()=>setRango([1,2,3,4,5,6,7,8,9,10,11,12],0)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200">Limpiar todo</button>
-            <button onClick={()=>setRango([4,5,6,7,8,9],sup.kgDiaPorMes?.[4]||2)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100">Otoño-inv</button>
-            <button onClick={()=>setRango([10,11,12,1,2,3],sup.kgDiaPorMes?.[10]||1)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100">Primavera-ver</button>
-          </div>
-        </div>
-        {kgAnual>0&&(<div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5">
-          <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2">Proyección anual · {cab} cab</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center"><p className="text-xs text-amber-500">kg totales/año</p><p className="font-black text-amber-800 text-lg">{fmtN2(Math.round(kgAnual))} kg</p></div>
-            <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center"><p className="text-xs text-amber-500">$ totales/año</p><p className="font-black text-amber-800 text-lg">{fmtP2(pesosAnual)}</p></div>
-          </div>
-          <div className="mt-3 flex items-end gap-1 h-12">
-            {prev.map(x=>{const maxKg=Math.max(...prev.map(p=>p.kgTotal),1);const h=Math.round((x.kgTotal/maxKg)*100);return(<div key={x.m} className="flex-1 flex flex-col items-center gap-0.5"><div className="w-full rounded-t-sm" style={{height:`${h}%`,background:h>0?"#d97706":"#e2e8f0",minHeight:h>0?3:0}}/><span className="text-[9px] text-slate-400">{x.lbl.slice(0,1)}</span></div>);})}
-          </div>
-        </div>)}
-      </div>
-    </PastajeModalWrapper>
-  );
-}
-
-function PastajeModalTercero({ onClose, setTerceros, toast }) {
-  const [nombre, setNombre] = useState("");
-  const guardar = () => {
-    if (!nombre.trim()) return;
-    setTerceros(prev => [...prev, { id: Date.now(), nombre: nombre.trim() }]);
-    toast(`✅ Tercero "${nombre}" agregado`, "success");
-    onClose();
-  };
-  return (
-    <PastajeModalWrapper titulo="Agregar tercero" onClose={onClose} onGuardar={guardar}>
-      <div>
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del tercero</label>
-        <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: García, Estancia Don Juan…"
-          className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
-          autoFocus onKeyDown={e => e.key === "Enter" && guardar()} />
-      </div>
-    </PastajeModalWrapper>
-  );
-}
-
 
 function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
   const [vista, setVista] = useState("tropas");
@@ -9535,7 +8773,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const [modoCobro,    setModoCobro]    = useState("semestral");
   const [fechaHasta,   setFechaHasta]   = useState(hoy);
   const [showLiquidar, setShowLiquidar] = useState(false);
-  const [fechaCobroExterno, setFechaCobroExterno] = useState("");
   const [expandPag,    setExpandPag]    = useState(false);
   const [expandId,     setExpandId]     = useState(null);
   const [propCobro,    setPropCobro]    = useState(null);
@@ -9681,7 +8918,448 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const toast = onToast || ((msg) => console.log(msg));
 
   // ── Modal Wrapper ─────────────────────────────────────────────────────────
-  // ── Modales: ver PastajeModal* definidos antes de PastajeCampo ──
+  const ModalWrapper = ({ titulo, children, onClose, onGuardar }) => (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: "rgba(15,23,42,0.6)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto sim-zoom-enter">
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800 text-base">{titulo}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-black transition-colors">✕</button>
+        </div>
+        {children}
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-sm hover:bg-slate-50 transition-all">Cancelar</button>
+          <button onClick={onGuardar} className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md transition-all active:scale-95">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
+  const ModalNuevaTropa = ({ onClose }) => {
+    const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
+    const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
+    const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
+    const set = (k) => (e) => {
+      const val = e.target ? e.target.value : e;
+      setForm(p => {
+        const next = { ...p, [k]: val };
+        if (k === "cat") {
+          next.pesoEntradaKg = PESO_DEFAULTS[val] ?? 200;
+          next.gdpEstimado   = GDP_DEFAULTS[val]  ?? 0.5;
+        }
+        if (k === "tropaOrigenId") {
+          const madre = tropas.find(t => String(t.id) === String(val));
+          next.tropaOrigenNombre = madre ? madre.origen : "";
+          // Auto-fill origen with mother tropa name
+          if (madre) next.origen = madre.origen;
+        }
+        return next;
+      });
+    };
+    const guardar = () => {
+      if (!form.origen.trim() || form.cab <= 0) { toast("Completá origen y cabezas", "warn"); return; }
+      if (!form.terceroId) { toast("Seleccioná un propietario", "warn"); return; }
+      setTropas(prev => [...prev, { ...form, cab: Number(form.cab), cabActual: Number(form.cab), terceroId: Number(form.terceroId), pesoEntradaKg: parseFloat(form.pesoEntradaKg) || 0, gdpEstimado: parseFloat(form.gdpEstimado) || 0, id: Date.now() }]);
+      toast(`✅ Tropa ${form.origen} (${form.cab} cab) agregada`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Nueva tropa de pastaje" onClose={onClose} onGuardar={guardar}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Origen / descripción</label>
+            <input value={form.origen} onChange={set("origen")} placeholder="Ej: Londero, Marca líquida, Compra…"
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Propietario (tercero)</label>
+            <select value={form.terceroId} onChange={set("terceroId")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="">— Seleccioná propietario —</option>
+              {terceros.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+            </select>
+            {terceros.length === 0 && <p className="text-xs text-amber-600 mt-1">⚠ Primero agregá un propietario en la pestaña Tropas</p>}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
+            <select value={form.cat} onChange={set("cat")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              {CATS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas</label>
+            <input type="number" min="1" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha ingreso</label>
+            <input type="date" value={form.fechaIngreso} onChange={set("fechaIngreso")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</label>
+            <select value={form.servicio} onChange={set("servicio")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="ninguno">Sin servicio</option>
+              <option value="verano">Servicio verano</option>
+              <option value="otoño">Servicio otoño</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso entrada (kg/cab)</label>
+            <input type="number" min="50" value={form.pesoEntradaKg} onChange={set("pesoEntradaKg")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Terneros: 180 kg · Recría: 200 kg</p>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GDP estimado (kg/día)</label>
+            <input type="number" min="0.1" step="0.05" value={form.gdpEstimado} onChange={set("gdpEstimado")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Terneros: 0.6 · Recría: 0.5 · Vacas: 0.3</p>
+          </div>
+          {tropas.length > 0 && (
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cría de tropa existente (opcional)</label>
+              <select value={form.tropaOrigenId} onChange={set("tropaOrigenId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+                <option value="">— Sin vínculo (tropa independiente) —</option>
+                {tropas.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Si estos animales son crías de otra tropa, vinculálos para trazabilidad. Si la tropa madre se vende, esta tropa queda registrada igual.</p>
+            </div>
+          )}
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Egreso — solo movimiento de stock, sin cobro ───────────────────
+  // El cobro se liquida siempre por período (trimestre/semestre/año/fecha).
+  // El egreso registra el cambio de cabezas y el tramo que "cerró" para esa
+  // cantidad, de modo que la liquidación futura lo tome correctamente.
+  const ModalEgreso = ({ tropa, onClose }) => {
+    const cabActual = tropa.cabActual ?? tropa.cab;
+    const [form, setForm] = useState({
+      cantidad: cabActual,
+      fechaEgreso: new Date().toISOString().slice(0, 10),
+      motivo: "venta",
+      obs: "",
+    });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const cab = Math.min(Number(form.cantidad) || 0, cabActual);
+    // Días desde el último corte de cobro (o desde ingreso si nunca se cobró)
+    const ultimoCobro = (tropa.ultimoCobro) || tropa.fechaIngreso;
+    const diasDesdeCorte = diasEntre(ultimoCobro, form.fechaEgreso);
+    const diasTotales    = diasEntre(tropa.fechaIngreso, form.fechaEgreso);
+    const kgMes = precios[tropa.cat] ?? 6;
+    // kg del tramo que se cierra (desde último corte hasta egreso)
+    const kgTramo = cab * kgMes * (diasDesdeCorte / 30);
+
+    const guardar = () => {
+      if (cab <= 0) { toast("Ingresá la cantidad que sale", "warn"); return; }
+      // Registrar el movimiento de stock en la tropa:
+      // - bajamos cabezas
+      // - guardamos el tramo cerrado para que la próxima liquidación no lo duplique
+      const tramoEgreso = {
+        fecha: form.fechaEgreso,
+        cab,
+        desdeCorte: ultimoCobro,
+        dias: diasDesdeCorte,
+        kgTramo: Math.round(kgTramo * 10) / 10,
+        motivo: form.motivo,
+        obs: form.obs,
+      };
+      setTropas(prev => prev.map(t =>
+        t.id === tropa.id
+          ? {
+              ...t,
+              cabActual: (t.cabActual ?? t.cab) - cab,
+              tramosEgreso: [...(t.tramosEgreso || []), tramoEgreso],
+            }
+          : t
+      ));
+      // También lo registramos en periodos como evento visible en la pestaña Eventos
+      setPeriodos(prev => [...prev, {
+        id: Date.now(), tipo: "evento", subtipo: "egreso",
+        tropaOrigen: tropa.origen, cat: tropa.cat,
+        cab, fecha: form.fechaEgreso, motivo: form.motivo, obs: form.obs,
+        diasEstadia: diasTotales,
+        kgTramoInfo: Math.round(kgTramo * 10) / 10,
+        estado: "registrado",
+      }]);
+      toast(`✅ Egreso registrado: ${cab} cab de ${tropa.origen} al ${fmtFecha(form.fechaEgreso)}`, "success");
+      onClose();
+    };
+
+    return (
+      <ModalWrapper titulo={`Egreso de stock — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 px-4 py-3 text-xs text-blue-700 font-semibold mb-1">
+          ℹ️ Esto solo actualiza el stock. El cobro se hace desde la pestaña <b>Cobros</b> al cerrar el período.
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabezas que salen</label>
+            <input type="number" min="1" max={cabActual} value={form.cantidad} onChange={set("cantidad")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+            <p className="text-xs text-slate-400 mt-1">Máx: {cabActual} cab</p>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de salida</label>
+            <input type="date" value={form.fechaEgreso} onChange={set("fechaEgreso")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
+            <select value={form.motivo} onChange={set("motivo")}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="venta">Venta / terminación</option>
+              <option value="descarte">Descarte</option>
+              <option value="mortandad">Mortandad</option>
+              <option value="retiro">Retiro dueño</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional"
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+        {/* Info del tramo que queda descolgado hasta el próximo cobro */}
+        <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4 space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Tramo acumulado por estas cabezas</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Días en campo</p>
+              <p className="font-black text-slate-800 text-sm">{diasTotales} días</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">Desde último cobro</p>
+              <p className="font-black text-slate-700 text-sm">{diasDesdeCorte} días</p>
+            </div>
+            <div className="bg-white rounded-xl p-2 border border-slate-200">
+              <p className="text-xs text-slate-400">kg aprox. del tramo</p>
+              <p className="font-black text-amber-700 text-sm">{fmtN(Math.round(kgTramo))} kg</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 italic">
+            Se liquidará junto con el próximo cobro del período. {cab} cab × {kgMes} kg/mes × {diasDesdeCorte} días ÷ 30
+          </p>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Evento ──────────────────────────────────────────────────────────
+  const ModalEvento = ({ onClose }) => {
+    const [form, setForm] = useState({ tipo: "servicio-verano", tropaId: tropas[0]?.id ?? "", fecha: new Date().toISOString().slice(0, 10), cab: 0, obs: "" });
+    const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target ? e.target.value : e }));
+    const tropaSelec = tropas.find(t => String(t.id) === String(form.tropaId));
+    const guardar = () => {
+      const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: form.tipo, estado: "registrado" };
+      setPeriodos(prev => [...prev, { ...evento, tipo: "evento" }]);
+      if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
+        setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
+      }
+      toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Registrar evento" onClose={onClose} onGuardar={guardar}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de evento</label>
+            <select value={form.tipo} onChange={set("tipo")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              <option value="servicio-verano">Servicio verano</option>
+              <option value="servicio-otoño">Servicio otoño</option>
+              <option value="destete">Destete</option>
+              <option value="mortandad">Mortandad</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tropa</label>
+            <select value={form.tropaId} onChange={set("tropaId")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
+              {tropas.filter(t => (t.cabActual ?? t.cab) > 0).map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+            <input type="date" value={form.fecha} onChange={set("fecha")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{form.tipo === "mortandad" ? "Bajas" : "Cabezas involucradas"}</label>
+            <input type="number" min="0" value={form.cab} onChange={set("cab")} className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+            <input value={form.obs} onChange={set("obs")} placeholder="Opcional" className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Suplemento ─────────────────────────────────────────────────────
+  const MESES_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const ModalSuplemento = ({ tropa, onClose }) => {
+    const supInicial = tropa.suplemento ?? {
+      activo: false, precioPorKg: 0,
+      kgDiaPorMes: {},
+      usarFechas: false, fechaDesde: "", fechaHasta: "",
+    };
+    const [sup, setSup] = useState(supInicial);
+    const setS = (k) => (v) => setSup(p => ({ ...p, [k]: v }));
+
+    // kg/día de un mes en particular
+    const setKgMes = (m, val) => setSup(p => ({
+      ...p,
+      kgDiaPorMes: { ...p.kgDiaPorMes, [m]: parseFloat(val) || 0 },
+    }));
+
+    const cab = tropa.cabActual ?? tropa.cab;
+
+    // Atajos: poner el mismo valor a un rango de meses
+    const setRango = (meses, val) => setSup(p => {
+      const nuevo = { ...p.kgDiaPorMes };
+      meses.forEach(m => { nuevo[m] = val; });
+      return { ...p, kgDiaPorMes: nuevo };
+    });
+
+    // Preview total por mes
+    const previewMeses = MESES_LABELS.map((lbl, i) => {
+      const m   = i + 1;
+      const kg  = sup.kgDiaPorMes?.[m] ?? 0;
+      const diasMes = new Date(2026, m, 0).getDate(); // días en ese mes
+      return { m, lbl, kg, kgTotal: kg * diasMes * cab, pesos: kg * diasMes * cab * (sup.precioPorKg || 0) };
+    });
+    const kgAnual   = previewMeses.reduce((s, x) => s + x.kgTotal, 0);
+    const pesosAnual = previewMeses.reduce((s, x) => s + x.pesos, 0);
+
+    const guardar = () => {
+      const tieneConsumo = Object.values(sup.kgDiaPorMes ?? {}).some(v => v > 0);
+      setTropas(prev => prev.map(t =>
+        t.id === tropa.id
+          ? { ...t, suplemento: { ...sup, activo: tieneConsumo && sup.precioPorKg > 0 } }
+          : t
+      ));
+      toast(`✅ Suplemento de ${tropa.origen} actualizado`, "success");
+      onClose();
+    };
+
+    return (
+      <ModalWrapper titulo={`💊 Suplemento — ${tropa.origen}`} onClose={onClose} onGuardar={guardar}>
+        <div className="space-y-5">
+
+          {/* Precio del suplemento */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precio del suplemento ($/kg)</label>
+            <input type="number" step="10" min="0" value={sup.precioPorKg}
+              onChange={e => setS("precioPorKg")(parseFloat(e.target.value) || 0)}
+              className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-black text-center focus:outline-none focus:border-amber-400" />
+          </div>
+
+          {/* Grilla de consumo por mes */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Consumo por mes (kg/animal/día)</p>
+            </div>
+            <p className="text-xs text-slate-400 mb-3">Dejá en 0 los meses que no consume</p>
+
+            <div className="space-y-1.5">
+              {MESES_LABELS.map((lbl, i) => {
+                const m      = i + 1;
+                const kg     = sup.kgDiaPorMes?.[m] ?? 0;
+                const activo = kg > 0;
+                const kgMesTotal = kg * new Date(2026, m, 0).getDate() * cab;
+                return (
+                  <div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+                    <span className={`text-xs font-black w-8 ${activo ? "text-amber-700" : "text-slate-400"}`}>{lbl}</span>
+                    <input
+                      type="number" step="0.1" min="0" value={kg === 0 ? "" : kg}
+                      placeholder="0"
+                      onChange={e => setKgMes(m, e.target.value)}
+                      className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo ? "border-amber-300 bg-white text-amber-800 focus:border-amber-500" : "border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`}
+                    />
+                    <span className="text-xs text-slate-400">kg/ani/día</span>
+                    {activo && sup.precioPorKg > 0 && (
+                      <div className="ml-auto text-right">
+                        <span className="text-xs text-amber-600 font-bold">{fmtN(Math.round(kgMesTotal))} kg</span>
+                        <span className="text-xs text-slate-400 ml-2">{fmtPesos(kgMesTotal * sup.precioPorKg)}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Atajos */}
+            <div className="flex gap-2 mt-3 flex-wrap">
+              <button onClick={() => setRango([1,2,3,4,5,6,7,8,9,10,11,12], 0)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all">
+                Limpiar todo
+              </button>
+              <button onClick={() => setRango([4,5,6,7,8,9], sup.kgDiaPorMes?.[4] || 2)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all">
+                Otoño-inv (Abr→Sep)
+              </button>
+              <button onClick={() => setRango([10,11,12,1,2,3], sup.kgDiaPorMes?.[10] || 1)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all">
+                Primavera-ver
+              </button>
+            </div>
+          </div>
+
+          {/* Resumen anual */}
+          {kgAnual > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2">Proyección anual · {cab} cab</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
+                  <p className="text-xs text-amber-500">kg totales/año</p>
+                  <p className="font-black text-amber-800 text-lg">{fmtN(Math.round(kgAnual))} kg</p>
+                </div>
+                <div className="bg-white rounded-xl border border-amber-100 p-2.5 text-center">
+                  <p className="text-xs text-amber-500">$ totales/año</p>
+                  <p className="font-black text-amber-800 text-lg">{fmtPesos(pesosAnual)}</p>
+                </div>
+              </div>
+              {/* Barra visual por mes */}
+              <div className="mt-3 flex items-end gap-1 h-12">
+                {previewMeses.map(x => {
+                  const maxKg = Math.max(...previewMeses.map(p => p.kgTotal), 1);
+                  const h = Math.round((x.kgTotal / maxKg) * 100);
+                  return (
+                    <div key={x.m} className="flex-1 flex flex-col items-center gap-0.5" title={`${x.lbl}: ${fmtN(Math.round(x.kgTotal))} kg`}>
+                      <div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, background: h > 0 ? "#d97706" : "#e2e8f0", minHeight: h > 0 ? 3 : 0 }} />
+                      <span className="text-[9px] text-slate-400">{x.lbl.slice(0,1)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </ModalWrapper>
+    );
+  };
+
+  // ── Modal Tercero ─────────────────────────────────────────────────────────
+  const ModalTercero = ({ onClose }) => {
+    const [nombre, setNombre] = useState("");
+    const guardar = () => {
+      if (!nombre.trim()) return;
+      setTerceros(prev => [...prev, { id: Date.now(), nombre: nombre.trim() }]);
+      toast(`✅ Tercero "${nombre}" agregado`, "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Agregar tercero" onClose={onClose} onGuardar={guardar}>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del tercero</label>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: García, Estancia Don Juan…"
+            className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+            autoFocus onKeyDown={e => e.key === "Enter" && guardar()} />
+        </div>
+      </ModalWrapper>
+    );
+  };
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const TABS = [
@@ -9753,19 +9431,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                               <p className="font-black text-slate-800 text-sm">{t.origen}</p>
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-semibold">{cabAct} cab</span>
-                                {/* Fecha de ingreso editable — input visible directo */}
-                                <div className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
-                                  <span>✏️ desde</span>
-                                  <input type="date" value={t.fechaIngreso ?? ""}
-                                    onChange={e => {
-                                      const nueva = e.target.value;
-                                      if (!nueva) return;
-                                      setTropas(prev => prev.map(x => x.id === t.id ? { ...x, fechaIngreso: nueva } : x));
-                                      toast(`✅ Ingreso de ${t.origen} → ${fmtFecha(nueva)}`, "success");
-                                    }}
-                                    className="border-0 bg-transparent text-xs font-semibold text-slate-600 focus:outline-none w-28 cursor-pointer"
-                                  />
-                                </div>
+                                {/* Fecha de ingreso editable */}
+                                <label className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 cursor-pointer hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all flex items-center gap-1" title="Tocá para editar la fecha de ingreso">
+                                  ✏️ desde {fmtFecha(t.fechaIngreso)}
+                                  <input type="date" value={t.fechaIngreso ?? ""} onChange={e => {
+                                    const nueva = e.target.value;
+                                    if (!nueva) return;
+                                    setTropas(prev => prev.map(x => x.id === t.id ? { ...x, fechaIngreso: nueva } : x));
+                                    toast(`✅ Fecha de ${t.origen} actualizada a ${fmtFecha(nueva)}`, "success");
+                                  }} className="sr-only" />
+                                </label>
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
                                 {t.tropaOrigenNombre && (
@@ -9908,14 +9583,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Vista Eventos ─────────────────────────────────────────────────────────
   const VistaEventos = () => {
-    // expandId / setExpandId viven en PastajeCampo para no violar reglas de hooks
     const eventos = periodos
-      .filter(p => p.tipo === "evento" || p.tipo === "evento" || p.subtipo === "egreso" || p.tipo === "cobro-periodo" ? false : true)
-      .concat(periodos.filter(p => p.subtipo === "egreso" || (p.tipo === "evento" && p.subtipo !== "egreso")))
-      .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i) // dedup
-      .filter(p => p.tipo === "evento" || p.subtipo === "egreso")
+      .filter(p => p.tipo === "evento" || p.tipo === "egreso")
       .sort((a, b) => new Date(b.fecha || b.fechaEgreso) - new Date(a.fecha || a.fechaEgreso));
-
     const TIPO_CFG = {
       "servicio-verano": { color: "bg-sky-100 text-sky-700",        dot: "#0ea5e9", label: "Serv. verano" },
       "servicio-otoño":  { color: "bg-amber-100 text-amber-700",    dot: "#f59e0b", label: "Serv. otoño"  },
@@ -9924,30 +9594,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       egreso:            { color: "bg-orange-100 text-orange-700",   dot: "#f97316", label: "Egreso"       },
       otro:              { color: "bg-slate-100 text-slate-600",     dot: "#94a3b8", label: "Evento"       },
     };
-
-    const deshacerEgreso = (ev) => {
-      if (!window.confirm(`¿Deshacer el egreso de ${ev.cab} cab de "${ev.tropaOrigen}"?\nEsto restaurará las cabezas a la tropa y eliminará el registro.`)) return;
-      // 1. Restaurar cabezas en la tropa original
-      setTropas(prev => prev.map(t => {
-        if (t.origen !== ev.tropaOrigen && t.cat !== ev.cat) return t;
-        // Buscar la tropa más probable por origen
-        if (t.origen !== ev.tropaOrigen) return t;
-        const cabRestaurar = ev.cab ?? 0;
-        // Eliminar el tramoEgreso correspondiente por fecha
-        const tramosLimpios = (t.tramosEgreso || []).filter(te =>
-          !(te.fecha === ev.fecha && te.cab === ev.cab)
-        );
-        return {
-          ...t,
-          cabActual: (t.cabActual ?? t.cab) + cabRestaurar,
-          tramosEgreso: tramosLimpios,
-        };
-      }));
-      // 2. Eliminar el evento de periodos
-      setPeriodos(prev => prev.filter(p => p.id !== ev.id));
-      toast(`↩️ Egreso deshecho: ${ev.cab} cab de ${ev.tropaOrigen} restauradas`, "success");
-    };
-
     return (
       <div className="space-y-3">
         <div className="flex justify-end">
@@ -9960,103 +9606,30 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           <div className="text-center py-10 text-slate-400"><p className="text-3xl mb-2">📋</p><p className="text-sm">Sin eventos registrados aún</p></div>
         )}
         {eventos.map(ev => {
-          const cfg = TIPO_CFG[ev.subtipo] ?? TIPO_CFG[ev.tipo] ?? TIPO_CFG.otro;
+          const cfg = TIPO_CFG[ev.tipo] ?? TIPO_CFG.otro;
           const fecha = ev.fecha || ev.fechaEgreso;
-          const esEgreso = ev.subtipo === "egreso";
-          const expanded = expandId === ev.id;
           return (
-            <div key={ev.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              {/* Header — siempre visible, toca para expandir */}
-              <button className="w-full p-3.5 flex gap-3 text-left" onClick={() => setExpandId(expanded ? null : ev.id)}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
-                      <p className="font-black text-slate-800 text-sm mt-1">{ev.tropaOrigen}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-slate-400 whitespace-nowrap">{fmtFecha(fecha)}</span>
-                      <span className="text-slate-300 text-xs">{expanded ? "▲" : "▼"}</span>
-                    </div>
+            <div key={ev.id} className="bg-white rounded-2xl border border-slate-200 p-3.5 flex gap-3 shadow-sm">
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.dot, marginTop: 4, flexShrink: 0 }} />
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
+                    <p className="font-black text-slate-800 text-sm mt-1">{ev.tropaOrigen}</p>
                   </div>
-                  {ev.cab > 0 && <p className="text-xs text-slate-500 mt-0.5">{ev.cab} cab</p>}
+                  <span className="text-xs text-slate-400 whitespace-nowrap">{fmtFecha(fecha)}</span>
                 </div>
-              </button>
-
-              {/* Detalle expandido */}
-              {expanded && (
-                <div className="border-t border-slate-100 px-4 pb-4 pt-3 space-y-3">
-                  {/* Datos del evento */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-slate-50 rounded-xl p-2.5">
-                      <p className="text-slate-400 mb-0.5">Fecha</p>
-                      <p className="font-black text-slate-700">{fmtFecha(fecha)}</p>
-                    </div>
-                    {ev.cab > 0 && (
-                      <div className="bg-slate-50 rounded-xl p-2.5">
-                        <p className="text-slate-400 mb-0.5">Cabezas</p>
-                        <p className="font-black text-slate-700">{ev.cab} cab</p>
-                      </div>
-                    )}
-                    {ev.cat && (
-                      <div className="bg-slate-50 rounded-xl p-2.5">
-                        <p className="text-slate-400 mb-0.5">Categoría</p>
-                        <p className="font-black text-slate-700">{ev.cat}</p>
-                      </div>
-                    )}
-                    {esEgreso && ev.diasEstadia > 0 && (
-                      <div className="bg-slate-50 rounded-xl p-2.5">
-                        <p className="text-slate-400 mb-0.5">Días totales en campo</p>
-                        <p className="font-black text-slate-700">{ev.diasEstadia} días</p>
-                      </div>
-                    )}
-                    {esEgreso && ev.diasDesdeCorte > 0 && (
-                      <div className="bg-slate-50 rounded-xl p-2.5">
-                        <p className="text-slate-400 mb-0.5">Días desde último cobro</p>
-                        <p className="font-black text-slate-700">{ev.diasDesdeCorte} días</p>
-                      </div>
-                    )}
-                    {esEgreso && ev.kgTramoInfo > 0 && (
-                      <div className="bg-amber-50 rounded-xl p-2.5 col-span-2">
-                        <p className="text-amber-600 mb-0.5">Kg del tramo (a liquidar)</p>
-                        <p className="font-black text-amber-800">{fmtN(Math.round(ev.kgTramoInfo))} kg nov</p>
-                        <p className="text-xs text-amber-500 mt-0.5">{ev.cab} cab × {ev.kgMes ?? "—"} kg/mes × {ev.diasDesdeCorte ?? ev.diasEstadia} días ÷ 30</p>
-                      </div>
-                    )}
-                    {ev.motivo && (
-                      <div className="bg-slate-50 rounded-xl p-2.5 col-span-2">
-                        <p className="text-slate-400 mb-0.5">Motivo</p>
-                        <p className="font-black text-slate-700">{ev.motivo}</p>
-                      </div>
-                    )}
-                    {ev.obs && (
-                      <div className="bg-slate-50 rounded-xl p-2.5 col-span-2">
-                        <p className="text-slate-400 mb-0.5">Observaciones</p>
-                        <p className="font-semibold text-slate-600 italic">{ev.obs}</p>
-                      </div>
-                    )}
+                {ev.cab > 0 && <p className="text-xs text-slate-500 mt-1">{ev.cab} cab</p>}
+                {ev.tipo === "egreso" && (
+                  <div className="mt-1.5 flex gap-3 text-xs">
+                    <span className="text-emerald-700 font-bold">{fmtN(ev.kgDevengados)} kg nov</span>
+                    <span className="text-slate-500">${fmtK1(ev.pesosDevengados)} · {ev.diasEstadia} días</span>
                   </div>
-
-                  {/* Acciones */}
-                  <div className="flex gap-2 pt-1">
-                    {esEgreso && (
-                      <button onClick={() => deshacerEgreso(ev)}
-                        className="flex-1 py-2.5 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-700 font-black text-xs hover:bg-blue-100 transition-all active:scale-95 flex items-center justify-center gap-1.5">
-                        ↩️ Deshacer egreso
-                      </button>
-                    )}
-                    <button onClick={() => {
-                      if (!window.confirm("¿Eliminar este evento?")) return;
-                      setPeriodos(prev => prev.filter(p => p.id !== ev.id));
-                      toast("🗑 Evento eliminado", "warn");
-                    }}
-                      className={`${esEgreso ? "" : "flex-1 "}py-2.5 px-4 rounded-xl bg-red-50 border-2 border-red-200 text-red-600 font-black text-xs hover:bg-red-100 transition-all active:scale-95`}>
-                      🗑 Eliminar
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+                {ev.obs && <p className="text-xs text-slate-400 italic mt-1">{ev.obs}</p>}
+              </div>
+              <button onClick={() => { if (!window.confirm("¿Eliminar este evento?")) return; setPeriodos(prev => prev.filter(p => p.id !== ev.id)); }}
+                className="text-xs text-slate-300 hover:text-red-500 font-black transition-colors self-start mt-1">✕</button>
             </div>
           );
         })}
@@ -10084,10 +9657,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
-        // "desde" es lo más reciente entre el último cobro y la fecha de ingreso de esta tropa
-        // Así una tropa que ingresó después del cobro externo no cobra días que no estuvo
-        const ultimoCobroOIngreso = [tropa.ultimoCobro, tropa.fechaIngreso].filter(Boolean).sort().at(-1) || fechaDesdeAuto;
-        const rawDesde = ultimoCobroOIngreso;
+        // Si fechaIngreso es >= fHasta (dato corrupto), usar fechaDesdeAuto
+        const rawDesde = tropa.ultimoCobro || tropa.fechaIngreso || fechaDesdeAuto;
         const desde = rawDesde >= fHasta ? fechaDesdeAuto : rawDesde;
         const kgMes = precios[tropa.cat] ?? 6;
         const cabActual = tropa.cabActual ?? tropa.cab;
@@ -10161,13 +9732,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const confirmarLiquidacion = () => {
       if (preview.length === 0) { toast("No hay kg a liquidar en este período", "warn"); return; }
-
-      // Snapshot del estado anterior de cada tropa involucrada — para poder deshacer
-      const snapshotTropas = preview.map(l => {
-        const t = tropas.find(x => x.id === l.tropaId);
-        return { tropaId: l.tropaId, ultimoCobro: t?.ultimoCobro ?? null, tramosEgreso: t?.tramosEgreso ?? [] };
-      });
-
+      // Crear el registro de cobro
       const nuevoCobro = {
         id: Date.now(), tipo: "cobro-periodo",
         propietarioId: propCobroActivo,
@@ -10179,12 +9744,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         totalPesos: totalPreview,
         estado: "pendiente",
         fechaCreacion: hoy,
-        snapshotTropas, // ← para restaurar al deshacer
       };
       setPeriodos(prev => [...prev, nuevoCobro]);
+      // Actualizar ultimoCobro en cada tropa: guardar el día SIGUIENTE al corte
+      // para que el próximo período arranque desde ahí sin solapar el último día
       const fechaSiguiente = (() => {
         const [y, m, d] = fechaHastaEfectiva.split("-").map(Number);
-        return new Date(y, m - 1, d + 1).toISOString().slice(0, 10);
+        const dt = new Date(y, m - 1, d + 1);
+        return dt.toISOString().slice(0, 10);
       })();
       setTropas(prev => prev.map(t => {
         const linea = preview.find(l => l.tropaId === t.id);
@@ -10209,182 +9776,200 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     // ── Generador de imagen PNG del cobro ─────────────────────────────────────
     const generarImagenCobro = (cobro) => {
-      const SCALE = 2;           // 2× resolución → se ve grande y nítido en celular
-      const W = 900, padding = 48;
+      const canvas = document.createElement("canvas");
+      const W = 800, padding = 40;
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
-      const prop = terceros.find(t => t.id == cobro.propietarioId);
+      const H = 320 + lineas.length * 72 + (tieneSuplemento ? 160 : 120);
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
 
-      // Genera una imagen. conDinero=false → oculta columna monto y total $
-      const generarCanvas = (conDinero, logoImg) => {
-        const H = 340 + lineas.length * 88 + (tieneSuplemento && conDinero ? 180 : 140);
-        const canvas = document.createElement("canvas");
-        canvas.width  = W * SCALE;
-        canvas.height = H * SCALE;
-        const ctx = canvas.getContext("2d");
-        ctx.scale(SCALE, SCALE);   // todo lo que dibujemos usa coords lógicas W×H
+      const doDownload = () => {
+        const link = document.createElement("a");
+        link.download = `pastaje_${cobro.fechaHasta}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        toast("📥 Imagen descargada", "success");
+      };
 
-        // Fondo
+      const dibujar = (logoImg) => {
+        // ── Fondo general ────────────────────────────────────────────────
         ctx.fillStyle = "#f8fafc";
         ctx.fillRect(0, 0, W, H);
 
-        // ── Header blanco (110px) ─────────────────────────────────────────
+        // ── Header blanco con logo (altura 90) ───────────────────────────
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, W, 110);
-        ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(0, 110); ctx.lineTo(W, 110); ctx.stroke();
+        ctx.fillRect(0, 0, W, 90);
 
+        // Línea divisoria sutil
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, 90); ctx.lineTo(W, 90); ctx.stroke();
+
+        // Logo centrado verticalmente en la franja blanca
         if (logoImg) {
-          const logoH = 70, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
-          ctx.drawImage(logoImg, padding, 20, logoW, logoH);
+          const logoH = 58, logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
+          ctx.drawImage(logoImg, padding, 16, logoW, logoH);
         }
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#064e3b"; ctx.font = "bold 16px system-ui, sans-serif";
-        ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 48);
-        ctx.fillStyle = "#94a3b8"; ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText("soypekun.vercel.app", W - padding, 70);
-        ctx.fillStyle = "#475569"; ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 92);
-        ctx.textAlign = "left";
 
-        // ── Banda verde título (86px) ─────────────────────────────────────
+        // Texto derecha del header
+        ctx.textAlign = "right";
         ctx.fillStyle = "#064e3b";
-        ctx.fillRect(0, 110, W, 86);
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 30px system-ui, sans-serif";
-        ctx.fillText(conDinero ? "Liquidación de Pastaje" : "Resumen de Tropas — Pastaje", padding, 156);
-        ctx.fillStyle = "#6ee7b7"; ctx.font = "17px system-ui, sans-serif";
-        ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 182);
-        if (!conDinero) {
-          ctx.fillStyle = "#a7f3d0"; ctx.font = "14px system-ui, sans-serif";
-          ctx.fillText("Solo kg devengados · sin montos", padding + 310, 182);
-        }
-        if (prop) {
-          ctx.fillStyle = "#a7f3d0"; ctx.textAlign = "right"; ctx.font = "bold 17px system-ui, sans-serif";
-          ctx.fillText(`👤 ${prop.nombre}`, W - padding, 156);
-          ctx.textAlign = "left";
-        }
-
-        // ── Info período (44px) ───────────────────────────────────────────
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 196, W, 44);
-        ctx.fillStyle = "#334155"; ctx.font = "15px system-ui, sans-serif";
-        ctx.fillText(`Período: ${fmtFecha(cobro.fechaDesde)} → ${fmtFecha(cobro.fechaHasta)}`, padding, 224);
-        if (conDinero) {
-          ctx.textAlign = "right";
-          ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, W - padding, 224);
-          ctx.textAlign = "left";
-        }
-
-        // ── Tabla header (36px) ───────────────────────────────────────────
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 240, W, 36);
-        ctx.fillStyle = "#94a3b8"; ctx.font = "bold 13px system-ui, sans-serif";
-        ctx.fillText("TROPA / ORIGEN", padding + 10, 264);
-        ctx.textAlign = "right";
-        ctx.fillText("KG NOV", conDinero ? W - padding - 150 : W - padding - 10, 264);
-        if (conDinero) ctx.fillText("MONTO", W - padding - 10, 264);
+        ctx.font = "bold 13px system-ui, sans-serif";
+        ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 40);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText("soypekun.vercel.app", W - padding, 58);
+        ctx.fillStyle = "#475569";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 76);
         ctx.textAlign = "left";
 
-        // ── Filas tropas (88px c/u) ───────────────────────────────────────
-        let y = 276;
-        const ROW_H = 88;
+        // ── Banda verde — título ──────────────────────────────────────────
+        ctx.fillStyle = "#064e3b";
+        ctx.fillRect(0, 90, W, 70);
+
+        // Título
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px system-ui, sans-serif";
+        ctx.fillText("Liquidación de Pastaje", padding, 128);
+
+        // Fecha corte
+        ctx.fillStyle = "#6ee7b7";
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 150);
+
+        // Propietario
+        const prop = terceros.find(t => t.id == cobro.propietarioId);
+        if (prop) {
+          ctx.fillStyle = "#a7f3d0";
+          ctx.textAlign = "right";
+          ctx.font = "bold 14px system-ui, sans-serif";
+          ctx.fillText(`👤 ${prop.nombre}`, W - padding, 128);
+          ctx.textAlign = "left";
+        }
+
+        // ── Info de configuración ─────────────────────────────────────────
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 160, W, 36);
+        ctx.fillStyle = "#334155";
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 183);
+
+        // ── Tabla header ──────────────────────────────────────────────────
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, 196, W, 28);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.fillText("TROPA / ORIGEN", padding + 8, 215);
+        ctx.textAlign = "right";
+        ctx.fillText("KG NOV", W - padding - 120, 215);
+        ctx.fillText("MONTO", W - padding - 8, 215);
+        ctx.textAlign = "left";
+
+        // ── Filas de tropas ───────────────────────────────────────────────
+        let y = 224;
         lineas.forEach((l, i) => {
           ctx.fillStyle = i % 2 === 0 ? "#f8fafc" : "#ffffff";
-          ctx.fillRect(0, y, W, ROW_H);
-          ctx.fillStyle = "#10b981"; ctx.fillRect(0, y, 4, ROW_H);
+          ctx.fillRect(0, y, W, 68);
 
-          // Nombre tropa
-          ctx.fillStyle = "#0f172a"; ctx.font = "bold 18px system-ui, sans-serif";
-          ctx.fillText(l.origen, padding + 10, y + 26);
+          // Borde izquierdo de color
+          ctx.fillStyle = "#10b981";
+          ctx.fillRect(0, y, 3, 68);
 
-          // Detalle cab / días / desde
-          ctx.fillStyle = "#64748b"; ctx.font = "14px system-ui, sans-serif";
-          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 10, y + 48);
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 15px system-ui, sans-serif";
+          ctx.fillText(l.origen, padding + 8, y + 20);
 
-          // Egresos si los hay
+          ctx.fillStyle = "#64748b";
+          ctx.font = "12px system-ui, sans-serif";
+          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 8, y + 38);
+
           if (l.tramosEnPeriodo?.length > 0) {
-            ctx.fillStyle = "#ea580c"; ctx.font = "13px system-ui, sans-serif";
-            ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 10, y + 70);
+            ctx.fillStyle = "#ea580c";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 8, y + 56);
           }
 
-          // Kg
-          ctx.fillStyle = "#065f46"; ctx.font = "bold 17px system-ui, sans-serif";
+          // Columna kg
+          ctx.fillStyle = "#065f46";
+          ctx.font = "bold 14px system-ui, sans-serif";
           ctx.textAlign = "right";
-          ctx.fillText(`${fmtN(l.kgTotal)} kg`, conDinero ? W - padding - 150 : W - padding - 10, y + 28);
+          ctx.fillText(`${fmtN(l.kgTotal)} kg`, W - padding - 120, y + 22);
+
           if (l.supActivo && l.kgSup > 0) {
-            ctx.fillStyle = "#b45309"; ctx.font = "13px system-ui, sans-serif";
-            ctx.fillText(`+${fmtN(l.kgSup)} sup`, conDinero ? W - padding - 150 : W - padding - 10, y + 50);
+            ctx.fillStyle = "#b45309";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText(`+${fmtN(l.kgSup)} sup`, W - padding - 120, y + 40);
           }
 
-          // Monto
-          if (conDinero) {
-            ctx.fillStyle = "#0f172a"; ctx.font = "bold 18px system-ui, sans-serif";
-            ctx.fillText(fmtPesos(l.pesos), W - padding - 10, y + 28);
-            if (l.supActivo && l.kgSup > 0) {
-              ctx.fillStyle = "#b45309"; ctx.font = "13px system-ui, sans-serif";
-              ctx.fillText(fmtPesos(l.pesosSup), W - padding - 10, y + 50);
-            }
+          // Columna monto
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 15px system-ui, sans-serif";
+          ctx.fillText(fmtPesos(l.pesos), W - padding - 8, y + 22);
+
+          if (l.supActivo && l.kgSup > 0) {
+            ctx.fillStyle = "#b45309";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText(fmtPesos(l.pesosSup), W - padding - 8, y + 40);
           }
+
           ctx.textAlign = "left";
-          y += ROW_H;
+          y += 68;
         });
 
         // ── Separador ─────────────────────────────────────────────────────
-        ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         y += 2;
 
-        // ── Total ─────────────────────────────────────────────────────────
-        const totalH = tieneSuplemento && conDinero ? 110 : 90;
+        // ── Total — fondo degradado ───────────────────────────────────────
+        const totalH = tieneSuplemento ? 90 : 72;
         const grad = ctx.createLinearGradient(0, y, W, y);
-        grad.addColorStop(0, "#064e3b"); grad.addColorStop(1, "#065f46");
-        ctx.fillStyle = grad; ctx.fillRect(0, y, W, totalH);
-        ctx.strokeStyle = "#10b981"; ctx.lineWidth = 2.5;
+        grad.addColorStop(0, "#064e3b");
+        grad.addColorStop(1, "#065f46");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y, W, totalH);
+
+        // Borde superior
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
 
-        ctx.fillStyle = "#a7f3d0"; ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText("TOTAL PERÍODO", padding, y + 26);
-        ctx.fillStyle = "#d1fae5"; ctx.font = "19px system-ui, sans-serif";
-        ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 52);
+        ctx.fillStyle = "#a7f3d0";
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillText("TOTAL PERÍODO", padding, y + 22);
 
-        if (conDinero) {
-          if (tieneSuplemento) {
-            ctx.fillStyle = "#fcd34d"; ctx.font = "15px system-ui, sans-serif";
-            ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 78);
-          }
-          ctx.textAlign = "right";
-          ctx.font = "bold 42px system-ui, sans-serif"; ctx.fillStyle = "#6ee7b7";
-          ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 64 : 58));
-          ctx.textAlign = "left";
+        ctx.fillStyle = "#d1fae5";
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 44);
+
+        if (tieneSuplemento) {
+          ctx.fillStyle = "#fcd34d";
+          ctx.font = "13px system-ui, sans-serif";
+          ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 66);
         }
 
+        // Monto total — grande a la derecha
+        ctx.textAlign = "right";
+        ctx.font = "bold 34px system-ui, sans-serif";
+        ctx.fillStyle = "#6ee7b7";
+        ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 52 : 46));
+        ctx.textAlign = "left";
+
         // ── Footer ────────────────────────────────────────────────────────
-        ctx.fillStyle = "#94a3b8"; ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 14);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 12);
 
-        return canvas;
+        doDownload();
       };
 
-      const descargarAmbas = (logoImg) => {
-        // Hoja 1 — solo tropas y kg
-        const c1 = generarCanvas(false, logoImg);
-        const a1 = document.createElement("a");
-        a1.download = `pastaje_tropas_${cobro.fechaHasta}.png`;
-        a1.href = c1.toDataURL("image/png");
-        a1.click();
-
-        // Hoja 2 — con dinero (pequeña pausa para que el browser procese)
-        setTimeout(() => {
-          const c2 = generarCanvas(true, logoImg);
-          const a2 = document.createElement("a");
-          a2.download = `pastaje_liquidacion_${cobro.fechaHasta}.png`;
-          a2.href = c2.toDataURL("image/png");
-          a2.click();
-          toast("📥 2 imágenes descargadas: tropas + liquidación", "success");
-        }, 400);
-      };
-
+      // Cargar logo y dibujar
       const logoImg = new Image();
-      logoImg.onload = () => descargarAmbas(logoImg);
-      logoImg.onerror = () => descargarAmbas(null);
+      logoImg.onload = () => dibujar(logoImg);
+      logoImg.onerror = () => dibujar(null);
       logoImg.src = `data:image/png;base64,${LOGO_B64}`;
     }; // end generarImagenCobro
 
@@ -10429,20 +10014,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 </button>
               )}
               <button onClick={() => {
-                if (!window.confirm("¿Deshacer este cobro?\nSe restaurarán las fechas y tramos de egreso de cada tropa al estado anterior.")) return;
-                // Restaurar snapshot de tropas si existe
-                if (c.snapshotTropas?.length > 0) {
-                  setTropas(prev => prev.map(t => {
-                    const snap = c.snapshotTropas.find(s => s.tropaId === t.id);
-                    if (!snap) return t;
-                    return { ...t, ultimoCobro: snap.ultimoCobro, tramosEgreso: snap.tramosEgreso };
-                  }));
-                }
+                if (!window.confirm("¿Eliminar este cobro? Esta acción no se puede deshacer.")) return;
                 setPeriodos(prev => prev.filter(p => p.id !== c.id));
-                toast("↩️ Cobro deshecho — fechas y tramos restaurados", "success");
+                toast("🗑 Cobro eliminado", "warn");
               }}
                 className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">
-                ↩️
+                ✕
               </button>
             </div>
           </div>
@@ -10589,47 +10166,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           </div>
         </div>
 
-        {/* Botón cobro externo — para sincronizar fecha de último cobro hecho fuera de la app */}
-        <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 space-y-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-0.5">Cobro externo</p>
-            <p className="text-xs text-blue-600">Si ya cobraste un período fuera de la app, registrá la fecha para que el próximo cobro arranque desde ahí.</p>
-          </div>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <p className="text-xs font-bold text-blue-600 mb-1">Fecha del último cobro</p>
-              <input type="date" value={fechaCobroExterno} onChange={e => setFechaCobroExterno(e.target.value)}
-                className="w-full border-2 border-blue-300 rounded-xl px-3 py-2.5 text-sm font-mono font-black text-center focus:outline-none focus:border-blue-500 bg-white" />
-            </div>
-            <button onClick={() => {
-              if (!fechaCobroExterno) { toast("Seleccioná la fecha del cobro externo", "warn"); return; }
-              const fechaSiguiente = (() => {
-                const [y, m, d] = fechaCobroExterno.split("-").map(Number);
-                return new Date(y, m - 1, d + 1).toISOString().slice(0, 10);
-              })();
-              setTropas(prev => prev.map(t => {
-                const esDeLaProp = algunaTieneId
-                  ? (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo
-                  : true;
-                if (!esDeLaProp) return t;
-                // Solo actualizar si el cobro externo es posterior al ingreso de esta tropa
-                // Si la tropa ingresó después del cobro externo, arranca desde su fechaIngreso
-                if (fechaSiguiente <= (t.fechaIngreso || "")) return t;
-                return { ...t, ultimoCobro: fechaSiguiente };
-              }));
-              toast(`✅ Último cobro seteado al ${fmtFecha(fechaCobroExterno)} para todas las tropas de ${terceros.find(x=>x.id===propCobroActivo)?.nombre ?? "este propietario"}`, "success");
-            }}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm transition-all active:scale-95 whitespace-nowrap">
-              ✓ Registrar
-            </button>
-          </div>
-          {tropasDelProp.length > 0 && (
-            <p className="text-xs text-blue-500">
-              Próximo cobro arrancará desde: <span className="font-black">{fmtFecha(fechaCobroExterno ? (() => { const [y,m,d] = fechaCobroExterno.split("-").map(Number); return new Date(y,m-1,d+1).toISOString().slice(0,10); })() : (tropasDelProp[0]?.ultimoCobro || tropasDelProp[0]?.fechaIngreso))}</span>
-            </p>
-          )}
-        </div>
-
         {/* Botón para abrir liquidador */}
         <button onClick={() => setShowLiquidar(p => !p)}
           className="w-full py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
@@ -10771,7 +10307,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         {pendientes.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por cobrar ({pendientes.length})</p>
-            {pendientes.map(c => <div key={c.id}>{CobRow({ c })}</div>)}
+            {pendientes.map(c => <CobRow key={c.id} c={c} />)}
           </div>
         )}
 
@@ -10791,7 +10327,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             </button>
             {expandPag && (
               <div className="mt-3 space-y-2">
-                {pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <div key={c.id}>{CobRow({ c })}</div>)}
+                {pagados.sort((a,b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(c => <CobRow key={c.id} c={c} />)}
                 <button onClick={() => {
                   const prop = terceros.find(t => t.id == propCobroActivo);
                   exportarPDF(
@@ -11035,15 +10571,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           </div>
         )}
         {vista === "tropas"  && VistaTropas()}
-        {vista === "eventos" && VistaEventos()}
-        {vista === "cobros"  && VistaCobros()}
-        {vista === "resumen" && VistaResumen()}
+        {vista === "eventos" && <VistaEventos />}
+        {vista === "cobros"  && <VistaCobros />}
+        {vista === "resumen" && <VistaResumen />}
       </div>
-      {modal === "tropa"   && <PastajeModalNuevaTropa onClose={() => setModal(null)} tropas={tropas} terceros={terceros} CATS={CATS} setTropas={setTropas} toast={toast} />}
-      {modal === "evento"  && <PastajeModalEvento onClose={() => setModal(null)} tropas={tropas} setTropas={setTropas} setPeriodos={setPeriodos} toast={toast} />}
-      {modal === "tercero" && <PastajeModalTercero onClose={() => setModal(null)} setTerceros={setTerceros} toast={toast} />}
-      {tropaEgreso         && <PastajeModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} diasEntre={diasEntre} precios={precios} fmtFecha={fmtFecha} fmtN={fmtN} setTropas={setTropas} setPeriodos={setPeriodos} toast={toast} />}
-      {tropaSuplemento     && <PastajeModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} setTropas={setTropas} toast={toast} />}
+      {modal === "tropa"   && <ModalNuevaTropa   onClose={() => setModal(null)} />}
+      {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
+      {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
+      {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
+      {tropaSuplemento     && <ModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} />}
     </div>
   );
 }
@@ -11060,17 +10596,6 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [guardando,    setGuardando]    = useState(false);
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
-
-  // ── Viewport fix — asegura escala correcta en mobile ─────────────────────
-  useEffect(() => {
-    let vp = document.querySelector("meta[name='viewport']");
-    if (!vp) {
-      vp = document.createElement("meta");
-      vp.name = "viewport";
-      document.head.appendChild(vp);
-    }
-    vp.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no";
-  }, []);
 
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
 
@@ -11121,7 +10646,6 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const campoRecria         = useStore(vacaStore, s => s.campoRecria);
   const campoTerminacion    = useStore(vacaStore, s => s.campoTerminacion);
   const campoPastaje        = useStore(vacaStore, s => s.campoPastaje);
-  const campo               = useStore(vacaStore, s => s.campo);
   const movimientos         = useStore(vacaStore, s => s.movimientos) ?? [];
   const setCampoCria        = (p) => vacaStore.getState().setCampoCria(p);
   const setCampoRecria      = (p) => vacaStore.getState().setCampoRecria(p);
@@ -11261,9 +10785,6 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           global={global}
           gastos={gastos}
           simulaciones={simulaciones}
-          campoPastaje={campoPastaje}
-          campoRecria={campoRecria}
-          campo={campo}
           onNavigate={handleNavigate}
           onLogout={onLogout}
         />
@@ -11455,19 +10976,6 @@ export default function App() {
   const [syncPending,  setSyncPending]  = useState(() => loadQueue().length > 0);
   const [syncing,      setSyncing]      = useState(false);
 
-  // ── Al arrancar online: vaciar cola pendiente automáticamente ────────────
-  useEffect(() => {
-    const autoFlush = async () => {
-      if (navigator.onLine && loadQueue().length > 0) {
-        setSyncing(true);
-        await flushQueue();
-        setSyncPending(loadQueue().length > 0);
-        setSyncing(false);
-      }
-    };
-    autoFlush();
-  }, []);
-
   // ── Detectar cambios de conexión ─────────────────────────────────────────
   useEffect(() => {
     const goOnline = async () => {
@@ -11506,11 +11014,7 @@ export default function App() {
     return unsub;
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem(LS_KEY);
-    localStorage.removeItem(QUEUE_KEY);
-    signOut(auth);
-  };
+  const handleLogout = () => signOut(auth);
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading || (user && !datosListos)) {
@@ -11560,24 +11064,7 @@ export default function App() {
           {syncing ? (
             <><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>🔄</span> Sincronizando datos con el servidor...</>
           ) : syncPending ? (
-            <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap",justifyContent:"center"}}>
-              <span>📤 Tenés cambios pendientes — se subirán cuando haya internet</span>
-              {isOnline && (
-                <button onClick={async () => {
-                  setSyncing(true);
-                  await flushQueue();
-                  // Si sigue habiendo cola y estamos online, la forzamos a vaciar
-                  if (loadQueue().length > 0) {
-                    localStorage.removeItem(QUEUE_KEY);
-                    pendingQueue = [];
-                  }
-                  setSyncPending(false);
-                  setSyncing(false);
-                }} style={{background:"rgba(255,255,255,0.25)",border:"1px solid rgba(255,255,255,0.5)",color:"#fff",borderRadius:"8px",padding:"3px 10px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
-                  ✓ Marcar como sincronizado
-                </button>
-              )}
-            </div>
+            <><span>📤</span> Tenés cambios pendientes — se subirán cuando haya internet</>
           ) : (
             <><span>📴</span> Sin conexión — trabajás en modo offline. Los cambios se guardan localmente.</>
           )}
