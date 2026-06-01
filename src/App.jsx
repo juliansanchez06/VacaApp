@@ -343,21 +343,14 @@ const vacaStore = createStore((set, get) => ({
     comisionCompraOn: true, comisionCompra: 3,
     comisionVentaOn:  true, comisionVenta:  3,
   },
-  // ── Stock del campo ───────────────────────────────────────────────────────
+  // ── Stock del campo (arranca en CERO — datos reales vienen de Firestore por usuario) ──
   campoCria: {
-    // ── Stock permanente ──────────────────────────────────────────────────
-    vacas: 54, vaquillonas1: 21, vaquillonas2: 0, toros: 2, vacias: 8,
+    vacas: 0, vaquillonas1: 0, vaquillonas2: 0, toros: 0, vacias: 0,
     vacaCut: 0, vaqRechazo: 0,
     pctMortandadCria: 2,
     pctMachos: 50, pctReposicion: 70,
     pesoVacaDescarte: 380,
     gdpTernero: 1.0,
-
-    // ── Ciclos de parición (verano y/o otoño) ────────────────────────────
-    // Cada ciclo: { id, servicio, paricionMes, paricionAnio, mesesDestete,
-    //              pctPreniez, pctDestete, pesoDesteteKg,
-    //              ternerosAlPie, estado: "al_pie"|"destetado",
-    //              ternerosDestetados, fechaDesteReal }
     ciclos: [
       {
         id: "ciclo_1",
@@ -379,7 +372,7 @@ const vacaStore = createStore((set, get) => ({
   campoRecria: {
     ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
     ternerosCompraMachos: 0,  ternerosCompraHembras: 0,
-    novillos: 16, vaquillonaRecria: 0, mej: 0,
+    novillos: 0, vaquillonaRecria: 0, mej: 0,
     pctMortandadRecria: 2,
     gdpNovilloInv: 0.5, gdpVaquillonaDesc: 0.5,
     precioCompraKgRecria: 0,
@@ -422,7 +415,7 @@ const vacaStore = createStore((set, get) => ({
   campo: {
     dolar:   1420,
     gasoil:  1100,
-    hectareas: 1000,
+    hectareas: 0,
     sanidadPorCabAnio: 40000,  // $/cabeza/año — vacuna + desparasitación + minerales
     gdpTernero: 1.0,
     gdpNovilloInv: 0.5,
@@ -437,13 +430,10 @@ const vacaStore = createStore((set, get) => ({
     amorMejoras: 0,         // $/año — alambrados, aguadas, corrales (vida útil 20 años)
     amorHaciendaReproductora: 0, // $/año — toros (vida útil 5 años)
     amorMaquinaria: 0,      // $/año — tractores, implementos (vida útil 10 años)
-    empleados: [
-      { rol: "Encargado", cantidad: 1, sueldo: 1500000, aguinaldo: true, cargasSociales: 45, premio: 200000 },
-      { rol: "Peón",      cantidad: 2, sueldo:  900000, aguinaldo: true, cargasSociales: 45, premio:  80000 },
-    ],
-    maquinaria: { tractores: 3, mantenimientoMes: 120000 },
-    rolado: { hectareas: 800, litrosGasoilHa: 80, siembraHa: 200, costoSiembraHa: 25000 },
-    viajes: { viajesAlMes: 4, kmPorViaje: 120, litrosCada100: 12 },
+    empleados: [],
+    maquinaria: { tractores: 0, mantenimientoMes: 0 },
+    rolado: { hectareas: 0, litrosGasoilHa: 80, siembraHa: 0, costoSiembraHa: 25000 },
+    viajes: { viajesAlMes: 0, kmPorViaje: 0, litrosCada100: 12 },
   },
   campoPastaje: {
     tropas:   [],
