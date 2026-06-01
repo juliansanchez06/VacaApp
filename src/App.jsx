@@ -7,8 +7,12 @@ function loadFromLS(userEmail) {
   try {
     const data = JSON.parse(localStorage.getItem(LS_KEY) || "null");
     if (!data) return null;
-    // Si el localStorage pertenece a otro usuario, ignorarlo
-    if (userEmail && data.__owner && data.__owner !== userEmail) return null;
+    // Si pedimos datos de un usuario específico, SOLO devolver si el localStorage
+    // está firmado con ese mismo email. Si no tiene firma (datos viejos) o es de
+    // otro usuario, lo ignoramos para no mezclar campos.
+    if (userEmail) {
+      if (!data.__owner || data.__owner !== userEmail) return null;
+    }
     return data;
   } catch { return null; }
 }
