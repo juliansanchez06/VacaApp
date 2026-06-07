@@ -10655,7 +10655,13 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [activeTab,   setActiveTab]     = useState("vientres");
   const [syncData,    setSyncData]      = useState(null);
   const [descarteData, setDescarteData] = useState(null);
-  const [simulaciones, setSimulaciones] = useState([]);
+  // Simulaciones desde el store (persisten en Firestore vía autosave)
+  const simulaciones = useStore(vacaStore, s => s.simulaciones);
+  const setSimulaciones = (updater) => {
+    const actual = vacaStore.getState().simulaciones;
+    const nuevo = typeof updater === "function" ? updater(actual) : updater;
+    vacaStore.setState({ simulaciones: nuevo });
+  };
   const [guardando,    setGuardando]    = useState(false);
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
