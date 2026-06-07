@@ -625,38 +625,43 @@ const GLOBAL_STYLE = `
   }
   /* ── Mobile readability ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    body { font-size: 22px; }
+    html { font-size: 20px !important; }
+    body { font-size: 20px !important; }
 
-    /* Todos los textos chicos se agrandan */
-    .text-xs  { font-size: 20px !important; line-height: 1.5 !important; }
-    .text-sm  { font-size: 22px !important; line-height: 1.5 !important; }
-    .text-base{ font-size: 23px !important; }
-    .text-lg  { font-size: 27px !important; }
-    .text-xl  { font-size: 31px !important; }
-    .text-2xl { font-size: 37px !important; }
-    .text-3xl { font-size: 44px !important; }
+    /* Forzar tamaño mínimo en TODO elemento de texto */
+    div, p, span, td, th, li, a, label, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
+      font-size: 19px;
+    }
+
+    /* Clases de Tailwind explícitas (mayor prioridad) */
+    .text-xs   { font-size: 18px !important; line-height: 1.5 !important; }
+    .text-sm   { font-size: 20px !important; line-height: 1.5 !important; }
+    .text-base { font-size: 22px !important; }
+    .text-lg   { font-size: 26px !important; }
+    .text-xl   { font-size: 30px !important; }
+    .text-2xl  { font-size: 36px !important; }
+    .text-3xl  { font-size: 42px !important; }
+    .text-4xl  { font-size: 48px !important; }
+    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 17px !important; }
 
     /* Números mono siempre grandes */
-    .font-mono { font-size: 28px !important; }
-    .font-mono.text-2xl, .font-mono.text-3xl { font-size: 42px !important; }
-    .font-mono.text-xl  { font-size: 35px !important; }
+    .font-mono { font-size: 22px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 40px !important; }
+    .font-mono.text-xl { font-size: 32px !important; }
 
     /* Uppercase labels */
-    .uppercase.tracking-widest { font-size: 18px !important; letter-spacing: 0.03em !important; }
-    .uppercase.tracking-wider  { font-size: 19px !important; }
+    .uppercase.tracking-widest { font-size: 16px !important; letter-spacing: 0.03em !important; }
+    .uppercase.tracking-wider  { font-size: 17px !important; }
 
-    /* Inputs, selects — evitar zoom en iOS y más grandes */
-    input, select, textarea { font-size: 22px !important; }
+    /* Inputs y selects */
+    input, select, textarea { font-size: 20px !important; }
 
     /* Botones más fáciles de tocar */
-    button { min-height: 54px !important; }
+    button { min-height: 52px !important; }
 
     /* Cards con más padding */
     .rounded-2xl { padding: 16px !important; }
     .rounded-3xl { padding: 18px !important; }
-
-    /* Hints y subtextos */
-    p.text-xs, span.text-xs { font-size: 20px !important; }
   }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
@@ -898,7 +903,7 @@ const GLOBAL_STYLE = `
 
   /* ── Mobile-first touch sizing ───────────────────────────────────── */
   @media (max-width: 640px) {
-    input[type=number] { font-size: 16px !important; }
+    input[type=number] { font-size: 20px !important; }
   }
 
   /* ── New animations ─────────────────────────────────────────────────── */
@@ -1052,7 +1057,7 @@ const GLOBAL_STYLE = `
 
   /* ── Mobile optimizations ────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    input[type=number] { font-size: 18px !important; min-height: 48px; }
+    input[type=number] { font-size: 20px !important; min-height: 52px; }
   }
 
   /* ── Extra vivid accents ─────────────────────────────────────────────── */
