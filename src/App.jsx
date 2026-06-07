@@ -625,38 +625,38 @@ const GLOBAL_STYLE = `
   }
   /* ── Mobile readability ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
-    body { font-size: 16px; }
+    body { font-size: 17px; }
 
     /* Todos los textos chicos se agrandan */
-    .text-xs  { font-size: 13px !important; line-height: 1.6 !important; }
-    .text-sm  { font-size: 15px !important; line-height: 1.6 !important; }
-    .text-base{ font-size: 16px !important; }
-    .text-lg  { font-size: 18px !important; }
-    .text-xl  { font-size: 20px !important; }
-    .text-2xl { font-size: 24px !important; }
-    .text-3xl { font-size: 28px !important; }
+    .text-xs  { font-size: 15px !important; line-height: 1.6 !important; }
+    .text-sm  { font-size: 17px !important; line-height: 1.6 !important; }
+    .text-base{ font-size: 18px !important; }
+    .text-lg  { font-size: 21px !important; }
+    .text-xl  { font-size: 24px !important; }
+    .text-2xl { font-size: 28px !important; }
+    .text-3xl { font-size: 33px !important; }
 
     /* Números mono siempre grandes */
-    .font-mono { font-size: 18px !important; }
-    .font-mono.text-2xl, .font-mono.text-3xl { font-size: 26px !important; }
-    .font-mono.text-xl  { font-size: 22px !important; }
+    .font-mono { font-size: 21px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl { font-size: 31px !important; }
+    .font-mono.text-xl  { font-size: 26px !important; }
 
     /* Uppercase labels */
-    .uppercase.tracking-widest { font-size: 11px !important; letter-spacing: 0.05em !important; }
-    .uppercase.tracking-wider  { font-size: 12px !important; }
+    .uppercase.tracking-widest { font-size: 13px !important; letter-spacing: 0.05em !important; }
+    .uppercase.tracking-wider  { font-size: 14px !important; }
 
     /* Inputs, selects — evitar zoom en iOS */
-    input, select, textarea { font-size: 16px !important; }
+    input, select, textarea { font-size: 17px !important; }
 
     /* Botones más fáciles de tocar */
-    button { min-height: 44px !important; }
+    button { min-height: 46px !important; }
 
     /* Cards con más padding */
-    .rounded-2xl { padding: 14px !important; }
-    .rounded-3xl { padding: 16px !important; }
+    .rounded-2xl { padding: 15px !important; }
+    .rounded-3xl { padding: 17px !important; }
 
     /* Hints y subtextos */
-    p.text-xs, span.text-xs { font-size: 13px !important; }
+    p.text-xs, span.text-xs { font-size: 15px !important; }
   }
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
