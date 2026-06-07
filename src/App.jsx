@@ -5226,7 +5226,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const feedlotMes = terminacionDatos.novillosFeedlot * (terminacionDatos.costoComidaDia + terminacionDatos.costoHoteleriaDia) * 30;
 
   const datosSync = {
-    cantidad: criaDatos.vacas + criaDatos.vaquillonas,
+    cantidad: (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0),
     pctDestete: Math.round(totalTernerosAlPie / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
     pesoTerneroDestetado: 165,
     anosVidaUtil: 6,
@@ -5264,7 +5264,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // Cabezas por categoría
   // ── Cálculo con preñez, destete y mortandad ──────────────────────────────
-  const madresCria         = criaDatos.vacas + criaDatos.vaquillonas;
+  const madresCria         = (criaDatos.vacas || 0) + (criaDatos.vaquillonas1 ?? criaDatos.vaquillonas ?? 0) + (criaDatos.vaquillonas2 ?? 0);
   const preñadasCalc       = Math.round(madresCria * pctPreniez / 100);
   const ternNacidos        = Math.round(preñadasCalc * 1.0); // 1 ternero por preñada
   const ternNacidosVivos   = Math.round(ternNacidos * (1 - mortCria));
@@ -5599,7 +5599,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐮</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
-                        <p className="text-3xl font-black text-slate-800">{criaDatos.vacas+criaDatos.vaquillonas+totalTernerosAlPie+criaDatos.toros} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{(criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)+totalTernerosAlPie+(criaDatos.toros||0)} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarCria}
@@ -5610,7 +5610,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { label:"Vacas",           val: criaDatos.vacas,                 color:"text-emerald-800" },
-                      { label:"Vaquillonas",     val: criaDatos.vaquillonas,           color:"text-emerald-700" },
+                      { label:"Vaquillonas",     val: (criaDatos.vaquillonas1??criaDatos.vaquillonas??0), color:"text-emerald-700" },
                       { label:"Toros",           val: criaDatos.toros,                 color:"text-slate-700"   },
                       { label:"Vacías (desc.)",  val: criaDatos.vacias||0,             color:"text-rose-600"    },
                       { label:"Tern. no dest.",  val: totalTernerosAlPie,  color:"text-blue-700"    },
@@ -5786,7 +5786,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">% Productivos — sincronizados con Rendimiento</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <EditField label="% Preñez" value={criaDatos.pctPreniez??85} onChange={v=>setCriaActiva(p=>({...p,pctPreniez:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`${Math.round((criaDatos.vacas+criaDatos.vaquillonas)*(criaDatos.pctPreniez??85)/100)} madres preñadas`} />
+                      <EditField label="% Preñez" value={criaDatos.pctPreniez??85} onChange={v=>setCriaActiva(p=>({...p,pctPreniez:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`${Math.round(((criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0))*(criaDatos.pctPreniez??85)/100)} madres preñadas`} />
                       <EditField label="% Destete" value={criaDatos.pctDestete??75} onChange={v=>setCriaActiva(p=>({...p,pctDestete:Math.min(100,Math.max(0,v))}))} step={1} suffix="%" hint={`Valor final para rendimiento`} />
                       <EditField label="Peso al destete (kg)" value={criaDatos.pesoDesteteKg??187} onChange={v=>setCriaActiva(p=>({...p,pesoDesteteKg:Math.max(100,Math.min(300,v))}))} step={5} suffix="kg" hint="175-200 kg típico para Argentina. Impacta en margen de Cría y costo de reposición de Recría." />
                       <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
@@ -5956,7 +5956,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                 <div className="bg-emerald-100 rounded-xl px-3 py-2 space-y-1">
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs font-black text-emerald-800">✅ {ciclo.ternerosDestetados} destetados — {ciclo.fechaDesteReal ?? "—"}</span>
-                                    <button onClick={() => updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null })}
+                                    <button onClick={() => {
+                                        // Si ya se había transferido a recría, revertir esa suma primero
+                                        if (ciclo.transferidoRecria) {
+                                          const machos     = ciclo.machosDestetados ?? 0;
+                                          const hembras    = ciclo.hembrasDestetadas ?? 0;
+                                          const pctRep      = criaDatos.pctReposicion ?? 30;
+                                          const hembrasRep  = Math.round(hembras * pctRep / 100);
+                                          const hembrasVta  = hembras - hembrasRep;
+                                          setRecriaActiva(p => ({
+                                            ...p,
+                                            ternerosLiquidaMachos:  Math.max(0, (p.ternerosLiquidaMachos  ?? 0) - machos),
+                                            vaquillonaRecria:       Math.max(0, (p.vaquillonaRecria       ?? 0) - hembrasRep),
+                                            ternerosLiquidaHembras: Math.max(0, (p.ternerosLiquidaHembras ?? 0) - hembrasVta),
+                                          }));
+                                        }
+                                        updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null, transferidoRecria: false });
+                                      }}
                                       className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
                                   </div>
                                   <div className="flex gap-2">
@@ -6007,6 +6023,59 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     </div>
                                   </div>
                                 )}
+
+                                {/* ── Botón: Pasar destetados a Recría ── */}
+                                {!ciclo.transferidoRecria && (ciclo.ternerosDestetados ?? 0) > 0 && (() => {
+                                  const machos      = ciclo.machosDestetados ?? 0;
+                                  const hembras     = ciclo.hembrasDestetadas ?? 0;
+                                  const pctRep      = criaDatos.pctReposicion ?? 30;
+                                  const hembrasRep  = Math.round(hembras * pctRep / 100);
+                                  const hembrasVta  = hembras - hembrasRep;
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        // Sumar al stock real de recría
+                                        setRecriaActiva(p => ({
+                                          ...p,
+                                          ternerosLiquidaMachos:  (p.ternerosLiquidaMachos  ?? 0) + machos,
+                                          vaquillonaRecria:       (p.vaquillonaRecria       ?? 0) + hembrasRep,
+                                          ternerosLiquidaHembras: (p.ternerosLiquidaHembras ?? 0) + hembrasVta,
+                                          pesoEntradaRecria:      ciclo.pesoDesteteKg ?? p.pesoEntradaRecria ?? 187,
+                                        }));
+                                        // Marcar el ciclo como transferido
+                                        updateCiclo({ transferidoRecria: true });
+                                        onToast(`✅ Pasados a Recría: ${machos} machos → novillos, ${hembrasRep} hembras → reposición, ${hembrasVta} hembras → venta`, "success");
+                                      }}
+                                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-black text-sm shadow-md transition-all active:scale-95"
+                                    >
+                                      🐂 Pasar {ciclo.ternerosDestetados} terneros a Recría →
+                                    </button>
+                                  );
+                                })()}
+
+                                {ciclo.transferidoRecria && (
+                                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-between">
+                                    <span className="text-xs font-black text-emerald-700">✅ Ya transferido a Recría</span>
+                                    <button
+                                      onClick={() => {
+                                        // Revertir: restar del stock de recría
+                                        const machos      = ciclo.machosDestetados ?? 0;
+                                        const hembras     = ciclo.hembrasDestetadas ?? 0;
+                                        const pctRep      = criaDatos.pctReposicion ?? 30;
+                                        const hembrasRep  = Math.round(hembras * pctRep / 100);
+                                        const hembrasVta  = hembras - hembrasRep;
+                                        setRecriaActiva(p => ({
+                                          ...p,
+                                          ternerosLiquidaMachos:  Math.max(0, (p.ternerosLiquidaMachos  ?? 0) - machos),
+                                          vaquillonaRecria:       Math.max(0, (p.vaquillonaRecria       ?? 0) - hembrasRep),
+                                          ternerosLiquidaHembras: Math.max(0, (p.ternerosLiquidaHembras ?? 0) - hembrasVta),
+                                        }));
+                                        updateCiclo({ transferidoRecria: false });
+                                        onToast("↩ Transferencia a Recría revertida", "warn");
+                                      }}
+                                      className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -6050,7 +6119,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   
                   {/* Resumen calculado */}
                   {(() => {
-                    const madres = criaDatos.vacas + criaDatos.vaquillonas;
+                    const madres = (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0);
                     const pren   = Math.round(madres * (criaDatos.pctPreniez??85) / 100);
                     const nacidos= Math.round(pren * (1 - (criaDatos.pctMortandadCria??2)/100));
                     const dest   = Math.round(nacidos * (criaDatos.pctDestete??75) / 100);
@@ -6069,7 +6138,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   })()}
                   {/* ── Botón Destetar ── */}
                   {(() => {
-                    const madres       = criaDatos.vacas + criaDatos.vaquillonas;
+                    const madres       = (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0);
                     const pren         = Math.round(madres * (criaDatos.pctPreniez ?? 85) / 100);
                     const nacidos      = Math.round(pren * (1 - (criaDatos.pctMortandadCria ?? 2) / 100));
                     const destTotal    = Math.round(nacidos * (criaDatos.pctDestete ?? 75) / 100);
@@ -6162,9 +6231,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <button
                     onClick={() => onSincronizar({
                       target: "vientres",
-                      descripcion: `${criaDatos.vacas+criaDatos.vaquillonas} madres · ${Math.round(totalTernerosAlPie/(criaDatos.vacas+criaDatos.vaquillonas)*100)}% destete · datos reales de cría`,
+                      descripcion: `${(criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)} madres · ${(criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0) > 0 ? Math.round(totalTernerosAlPie/((criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0))*100) : 0}% destete · datos reales de cría`,
                       inputs: {
-                        cantidad: criaDatos.vacas + criaDatos.vaquillonas,
+                        cantidad: (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0),
                         pesoCompra: 380,
                         precioKgCompra: 1800,
                         precioBulto: 350000,
@@ -7212,7 +7281,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
               {/* Proyeccion de stock 3 anos */}
               {(() => {
-                let vac = criaDatos.vacas, vaq = criaDatos.vaquillonas;
+                let vac = criaDatos.vacas||0, vaq = (criaDatos.vaquillonas1??criaDatos.vaquillonas??0);
                 const proyeccion = [1,2,3].map(n => {
                   const madres = vac + vaq;
                   const preniadas = Math.round(madres * criaDatos.pctPreniez / 100);
@@ -7250,7 +7319,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             <tr className="border-b border-slate-100 bg-slate-50">
                               <td className="py-2 pr-3 font-black text-slate-500 text-xs">{anoGanadero} <span className="text-slate-400 font-normal">actual</span></td>
                               <td className="text-right py-2 pr-2 font-mono font-bold text-slate-700">{criaDatos.vacas}</td>
-                              <td className="text-right py-2 pr-2 font-mono text-slate-600">{criaDatos.vaquillonas}</td>
+                              <td className="text-right py-2 pr-2 font-mono text-slate-600">{criaDatos.vaquillonas1??criaDatos.vaquillonas??0}</td>
                               <td className="text-right py-2 pr-2 font-mono text-sky-700">{totalTernerosAlPie}</td>
                               <td className="text-right py-2 pr-2 font-mono text-violet-700">{reciaDatos.novillos}</td>
                               <td className="text-right py-2 font-mono font-bold text-emerald-700">{evPorHa.toFixed(2)}</td>
