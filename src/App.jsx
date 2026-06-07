@@ -1655,10 +1655,192 @@ function GastosComerciales({ gastos, setGastos }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// COMPONENTE REUTILIZABLE: PLAN DE PAGO (financiamiento diferido)
+// ═══════════════════════════════════════════════════════════════════════════
+// Divide un monto total en plazos (contado / 30 / 60 / 90 días) y analiza el
+// beneficio de pagar diferido: ahorro por inflación + rendimiento de invertir.
+function PlanPago({ montoTotal, inflacionMensual = 4, color = "emerald" }) {
+  const [abierto, setAbierto] = React.useState(false);
+  // % en cada plazo. Default: todo contado.
+  const [reparto, setReparto] = React.useState({ contado: 100, d30: 0, d60: 0, d90: 0 });
+  const [tasaInversion, setTasaInversion] = React.useState(0); // % mensual que rinde el dinero si lo invertís (ej: plazo fijo)
+
+  const COLORS = {
+    emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", btn: "bg-emerald-600 hover:bg-emerald-700", accent: "accent-emerald-500" },
+    amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   btn: "bg-amber-500 hover:bg-amber-600",   accent: "accent-amber-500" },
+    blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    btn: "bg-blue-600 hover:bg-blue-700",     accent: "accent-blue-500" },
+    violet:  { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-700",  btn: "bg-violet-600 hover:bg-violet-700",  accent: "accent-violet-500" },
+    sky:     { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-700",     btn: "bg-sky-600 hover:bg-sky-700",       accent: "accent-sky-500" },
+  };
+  const c = COLORS[color] || COLORS.emerald;
+
+  const sumaPct = reparto.contado + reparto.d30 + reparto.d60 + reparto.d90;
+  const fmtP = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+
+  // Plazos en meses para descuento
+  const plazos = [
+    { key: "contado", label: "Contado",   meses: 0 },
+    { key: "d30",     label: "30 días",   meses: 1 },
+    { key: "d60",     label: "60 días",   meses: 2 },
+    { key: "d90",     label: "90 días",   meses: 3 },
+  ];
+
+  // Cálculo: para cada cuota, su valor presente (descontado por inflación)
+  // y cuánto generaría si invierto ese dinero hasta la fecha de pago.
+  const infl = inflacionMensual / 100;
+  const tasa = tasaInversion / 100;
+
+  let valorPresenteTotal = 0;   // lo que realmente "cuesta" hoy pagar diferido
+  let rendimientoInversion = 0; // lo que ganás invirtiendo el dinero no desembolsado
+  const detalle = plazos.map(p => {
+    const monto = montoTotal * (reparto[p.key] || 0) / 100;
+    // Valor presente: cuánto vale hoy esa cuota futura (inflación la licúa)
+    const vp = monto / Math.pow(1 + infl, p.meses);
+    valorPresenteTotal += vp;
+    // Si invierto el monto de la cuota durante los meses hasta pagarla
+    const rinde = tasa > 0 ? monto * (Math.pow(1 + tasa, p.meses) - 1) : 0;
+    rendimientoInversion += rinde;
+    return { ...p, monto, vp, ahorroInflacion: monto - vp, rinde };
+  });
+
+  const ahorroInflacionTotal = montoTotal - valorPresenteTotal;
+  const costoRealHoy = valorPresenteTotal - rendimientoInversion; // lo más cercano al costo económico real
+  const beneficioTotal = ahorroInflacionTotal + rendimientoInversion;
+  const pctBeneficio = montoTotal > 0 ? (beneficioTotal / montoTotal) * 100 : 0;
+
+  const setPct = (key, val) => {
+    setReparto(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, Number(val) || 0)) }));
+  };
+
+  if (!abierto) return (
+    <button onClick={() => setAbierto(true)}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 ${c.border} ${c.bg} ${c.text} font-black text-sm transition-all active:scale-95`}>
+      💳 Analizar plan de pago (contado / 30 / 60 / 90 días)
+    </button>
+  );
+
+  return (
+    <div className={`border-2 ${c.border} rounded-3xl overflow-hidden`}>
+      <div className={`px-4 py-3 ${c.bg} flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">💳</span>
+          <div>
+            <p className={`text-xs font-black uppercase tracking-widest ${c.text}`}>Plan de pago diferido</p>
+            <p className="text-xs text-slate-500">Total a financiar: {fmtP(montoTotal)}</p>
+          </div>
+        </div>
+        <button onClick={() => setAbierto(false)} className="text-slate-400 hover:text-slate-600 font-black text-sm px-2">✕</button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Reparto por plazo */}
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">¿Cómo dividís el pago?</p>
+          <div className="space-y-3">
+            {plazos.map(p => (
+              <div key={p.key} className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-600 w-16">{p.label}</span>
+                <input type="range" min="0" max="100" step="5" value={reparto[p.key]}
+                  onChange={e => setPct(p.key, e.target.value)}
+                  className={`flex-1 ${c.accent}`} />
+                <div className="flex items-center gap-1 w-20">
+                  <input type="number" value={reparto[p.key]} onChange={e => setPct(p.key, e.target.value)}
+                    className={`w-14 border-2 ${c.border} rounded-lg px-2 py-1 text-sm text-right font-mono`} />
+                  <span className="text-xs text-slate-400">%</span>
+                </div>
+                <span className="text-xs font-mono text-slate-500 w-24 text-right">{fmtP(montoTotal * (reparto[p.key]||0) / 100)}</span>
+              </div>
+            ))}
+          </div>
+          {sumaPct !== 100 && (
+            <p className={`text-xs font-bold mt-2 ${sumaPct > 100 ? "text-red-500" : "text-amber-600"}`}>
+              ⚠️ La suma de los plazos es {sumaPct}% — tiene que dar 100%
+            </p>
+          )}
+        </div>
+
+        {/* Tasa de inversión */}
+        <div className={`${c.bg} rounded-xl p-3`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-slate-600">¿Cuánto rinde tu plata si la invertís?</p>
+              <p className="text-xs text-slate-400">Plazo fijo, dólar, etc. — % mensual</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <input type="number" value={tasaInversion} onChange={e => setTasaInversion(Math.max(0, Number(e.target.value) || 0))}
+                step="0.5" className={`w-16 border-2 ${c.border} rounded-lg px-2 py-1.5 text-sm text-right font-mono`} />
+              <span className="text-xs text-slate-400">%/mes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Resultados (solo si reparto válido) */}
+        {sumaPct === 100 && (
+          <div className="space-y-3">
+            {/* Cronograma */}
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className={`${c.bg}`}>
+                  <tr className="text-slate-500">
+                    <th className="text-left py-2 px-3 font-black">Plazo</th>
+                    <th className="text-right py-2 px-2 font-black">Pagás</th>
+                    <th className="text-right py-2 px-2 font-black">Vale hoy</th>
+                    <th className="text-right py-2 px-3 font-black">Ahorrás</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detalle.filter(d => d.monto > 0).map(d => (
+                    <tr key={d.key} className="border-t border-slate-100">
+                      <td className="py-2 px-3 font-bold text-slate-700">{d.label}</td>
+                      <td className="py-2 px-2 text-right font-mono text-slate-600">{fmtP(d.monto)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-slate-500">{fmtP(d.vp)}</td>
+                      <td className={`py-2 px-3 text-right font-mono font-bold ${c.text}`}>{d.ahorroInflacion > 0 ? fmtP(d.ahorroInflacion) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Beneficios */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className={`${c.bg} rounded-xl p-3 text-center border ${c.border}`}>
+                <p className="text-xs text-slate-500">Ahorro por inflación</p>
+                <p className={`text-xl font-black ${c.text} font-mono`}>{fmtP(ahorroInflacionTotal)}</p>
+                <p className="text-xs text-slate-400">las cuotas futuras valen menos</p>
+              </div>
+              <div className={`${c.bg} rounded-xl p-3 text-center border ${c.border}`}>
+                <p className="text-xs text-slate-500">Rinde si lo invertís</p>
+                <p className={`text-xl font-black ${c.text} font-mono`}>{tasaInversion > 0 ? fmtP(rendimientoInversion) : "—"}</p>
+                <p className="text-xs text-slate-400">{tasaInversion > 0 ? `a ${tasaInversion}%/mes` : "cargá una tasa arriba"}</p>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className={`rounded-2xl p-4 text-white text-center ${c.btn.split(" ")[0]}`}>
+              <p className="text-xs uppercase tracking-widest opacity-80 font-black">Beneficio total de pagar diferido</p>
+              <p className="text-3xl font-black font-mono mt-1">{fmtP(beneficioTotal)}</p>
+              <p className="text-xs opacity-80 mt-1">
+                Equivale a un {pctBeneficio.toFixed(1)}% de descuento real sobre el precio de lista
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-400 text-center leading-relaxed">
+              💡 Pagar a plazo, con inflación de {inflacionMensual}%/mes, te conviene mientras el vendedor
+              no te recargue más que ese {pctBeneficio.toFixed(1)}% por financiarte.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO: PODER DE COMPRA
 // ═══════════════════════════════════════════════════════════════════════════
 function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
   const gastos = useGastos(); // lee del store global — reactivo
+  const inflacionMensual = useStore(vacaStore, s => s.global?.inflacionMensual ?? 4);
   const [venta, setVenta] = useState(initialVenta || { cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
   const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: 1800 });
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
@@ -1680,7 +1862,7 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
     const costoRealTotal = cabezasComprables * costoUnitarioBruto + fleteCompraCalc;
     const sobrante = ingresoNetoVenta - costoRealTotal;
     const relacionVentaCompra = venta.cantidad > 0 ? cabezasComprables / venta.cantidad : 0;
-    return { ingresoBrutoVenta, ingresoNetoVenta, costoUnitarioBruto, cabezasComprables, sobrante, relacionVentaCompra };
+    return { ingresoBrutoVenta, ingresoNetoVenta, costoUnitarioBruto, cabezasComprables, costoRealTotal, sobrante, relacionVentaCompra };
   }, [venta, compra, gastos]);
 
   const ratio = calc.relacionVentaCompra;
@@ -1757,6 +1939,9 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
           </div>
         </div>
       </div>
+
+      {/* Plan de pago diferido */}
+      <PlanPago montoTotal={calc.costoRealTotal} inflacionMensual={inflacionMensual} color="sky" />
 
       {/* Asesor IA — Poder de Compra */}
       <AsesorIA
@@ -2425,6 +2610,9 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
           </button>
         </div>
       </div>
+
+      {/* Plan de pago diferido — sobre la inversión inicial (compra de vientres) */}
+      <PlanPago montoTotal={calc.inversionInicial} inflacionMensual={inflacionMensual} color="violet" />
 
       {/* Asesor IA — Proyecto Vientres */}
       <AsesorIA
@@ -3129,6 +3317,9 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
           ]}
         />
       </div>
+
+      {/* Plan de pago diferido — sobre la inversión de compra */}
+      <PlanPago montoTotal={calc.inversionBase} inflacionMensual={inflacionMensual} color="emerald" />
 
       {/* Asesor IA — Comparador Invernada */}
       <AsesorIA
@@ -8515,6 +8706,9 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
             </div>
           )}
         </div>
+
+      {/* Plan de pago diferido — sobre la compra de los terneros */}
+      <PlanPago montoTotal={calc.costoCompra} inflacionMensual={inflacion} color="amber" />
 
       {/* Asesor IA — Compra Recría */}
       <AsesorIA
