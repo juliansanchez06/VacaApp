@@ -1961,16 +1961,32 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
 
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-        <BotonExportarPDF color="slate"
-          titulo="Poder de Compra — Triangulación"
+        <BotonExportarPDF color="sky"
+          titulo="Poder de Compra — Triangulación Venta / Compra"
+          subtitulo={`Vendo ${fmt(venta.cantidad)} cab para comprar ${fmt(calc.cabezasComprables)} cab`}
           secciones={[
-            { label: "Vendidos", value: `${fmt(venta.cantidad)} cab × ${fmt(venta.pesoPromedio)} kg` },
+            { grupo: "Venta (lo que liquidás)" },
+            { label: "Cantidad", value: `${fmt(venta.cantidad)} cab` },
+            { label: "Peso promedio", value: `${fmt(venta.pesoPromedio)} kg/cab` },
             { label: "Precio venta", value: `$${fmt(venta.precioKg)}/kg` },
+            { label: "Kg totales vendidos", value: `${fmt(venta.cantidad * venta.pesoPromedio)} kg` },
             { label: "Ingreso bruto", value: fmtMoney(calc.ingresoBrutoVenta) },
-            { label: "Ingreso neto", value: fmtMoney(calc.ingresoNetoVenta) },
-            { label: "Terneros comprables", value: fmt(calc.cabezasComprables) },
-            { label: "Relación", value: `${fmt(calc.relacionVentaCompra, 2)}:1` },
-            { label: "Sobrante", value: fmtMoney(calc.sobrante) },
+            { label: "Comisión venta", value: gastos.comisionVentaOn ? `${gastos.comisionVenta}%` : "—" },
+            { label: "Flete venta", value: gastos.fleteVentaOn ? `${gastos.kmVenta} km × $${gastos.precioKmVenta}` : "—" },
+            { label: "Ingreso neto", value: fmtMoney(calc.ingresoNetoVenta), destacado: true, color: "#0369a1" },
+
+            { grupo: "Compra (lo que adquirís)" },
+            { label: "Peso animal", value: `${fmt(compra.pesoAnimal)} kg/cab` },
+            { label: "Precio compra", value: `$${fmt(compra.precioKg)}/kg` },
+            { label: "Comisión compra", value: gastos.comisionCompraOn ? `${gastos.comisionCompra}%` : "—" },
+            { label: "Costo real por cabeza", value: fmtMoney(calc.costoUnitarioBruto) },
+            { label: "Flete compra", value: gastos.fleteCompraOn ? `${gastos.kmCompra} km × $${gastos.precioKmCompra}` : "—" },
+            { label: "Inversión total compra", value: fmtMoney(calc.costoRealTotal), destacado: true, color: "#0369a1" },
+
+            { grupo: "Resultado" },
+            { label: "Terneros comprables", value: `${fmt(calc.cabezasComprables)} cab`, destacado: true, color: "#065f46" },
+            { label: "Relación venta/compra", value: `${fmt(calc.relacionVentaCompra, 2)}:1` },
+            { label: "Dinero sobrante", value: fmtMoney(calc.sobrante), color: calc.sobrante >= 0 ? "#065f46" : "#dc2626" },
           ]}
         />
         {onAgregarAlCampo && calc.cabezasComprables > 0 && (
@@ -2637,14 +2653,41 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
         <BotonExportarPDF color="violet"
           titulo={`Proyecto Vientres — ${fmt(inputs.cantidad)} cab × ${fmt(inputs.anosVidaUtil)} años`}
+          subtitulo={`Inversión de ${fmtMoney(calc.inversionInicial)} · ${tipoCompra === "vacas" ? "Vacas preñadas" : "Terneras"}`}
           secciones={[
-            { label: "Cantidad", value: `${fmt(inputs.cantidad)} cab` },
-            { label: "Inversión inicial", value: fmtMoney(calc.inversionInicial) },
-            { label: "Costo total", value: fmtMoney(calc.costoTotalProyecto) },
-            { label: "Ingreso total", value: fmtMoney(calc.ingresoTotalProyecto) },
-            { label: "Margen neto", value: fmtMoney(calc.margenNeto) },
+            { grupo: "Datos del proyecto" },
+            { label: "Cantidad de vientres", value: `${fmt(inputs.cantidad)} cab` },
+            { label: "Tipo de compra", value: tipoCompra === "vacas" ? "Vacas preñadas" : "Terneras" },
+            { label: "Años de vida útil", value: `${fmt(inputs.anosVidaUtil)} años` },
+            { label: "Peso entrada", value: `${fmt(inputs.pesoEntradaKg)} kg` },
+            { label: "Precio compra", value: `$${fmt(inputs.precioCompraKg)}/kg` },
+            { label: "% Preñez", value: `${fmt(inputs.pctPreniez)}%` },
+            { label: "% Destete", value: `${fmt(inputs.pctDestete)}%` },
+
+            { grupo: "Inversión y costos" },
+            { label: "Inversión inicial (compra)", value: fmtMoney(calc.inversionInicial), destacado: true, color: "#6d28d9" },
+            { label: "Costo recría pre-servicio", value: fmtMoney(calc.costoRecriaPreServicio) },
+            { label: "Costo pastoreo (vida útil)", value: fmtMoney(calc.costoPastoreoVida) },
+            { label: "Costo IATF total", value: fmtMoney(calc.costoIatfTotal) },
+            { label: "Costo toros total", value: fmtMoney(calc.costoTorosTotal) },
+            { label: "Costo suplementación", value: fmtMoney(calc.costoSuplVacasTotal + calc.costoSuplTerneras) },
+            { label: "Costo total proyecto", value: fmtMoney(calc.costoTotalProyecto), destacado: true, color: "#dc2626" },
+            { label: "Costo por vientre", value: fmtMoney(calc.costoTotalPorVientre) },
+
+            { grupo: "Ingresos" },
+            { label: "Terneros/año", value: `${fmt(calc.ternerosAnuales)} cab` },
+            { label: "Ingreso bruto anual", value: fmtMoney(calc.ingresoBrutoAnual) },
+            { label: "Ingreso neto anual", value: fmtMoney(calc.ingresoNetoAnual) },
+            { label: "Recupero por descarte", value: fmtMoney(calc.recuperoDescarte) },
+            { label: "Ingreso total proyecto", value: fmtMoney(calc.ingresoTotalProyecto), destacado: true, color: "#065f46" },
+
+            { grupo: "Rentabilidad" },
+            { label: "Margen neto", value: fmtMoney(calc.margenNeto), destacado: true, color: calc.margenNeto >= 0 ? "#065f46" : "#dc2626" },
             { label: "Margen/vientre/año", value: fmtMoney(calc.margenPorVientrePorAno) },
             { label: "ROI", value: `${fmt(calc.roiPct, 1)}%` },
+            { label: "TIR", value: calc.tir ? `${fmt(calc.tir, 1)}%` : "n/d" },
+            { label: "VAN", value: fmtMoney(calc.van) },
+            { label: "Payback", value: calc.payback ? `${calc.payback} años` : "no recupera" },
           ]}
         />
         {onAgregarAlCampo && (
@@ -3343,14 +3386,41 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
         <BotonExportarPDF color="emerald"
           titulo={`Comparador Invernada — ${fmt(base.cantidad)} cab`}
+          subtitulo={`Pasto vs Feedlot · Ganador: ${calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot"}`}
           secciones={[
+            { grupo: "Compra inicial" },
             { label: "Cantidad", value: `${fmt(base.cantidad)} cab` },
             { label: "Peso ingreso", value: `${fmt(base.pesoIngreso)} kg` },
             { label: "Precio compra", value: `$${fmt(base.precioCompraKg)}/kg` },
-            { label: "Margen Invernada (A)", value: fmtMoney(calc.a.margen) },
-            { label: "Margen Feedlot (B)", value: fmtMoney(calc.b.margen) },
-            { label: "Ganador", value: calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot" },
-            { label: "Diferencia", value: fmtMoney(Math.abs(calc.a.margen - calc.b.margen)) },
+            { label: "Inversión base", value: fmtMoney(calc.inversionBase), destacado: true, color: "#065f46" },
+
+            { grupo: "Opción A — Invernada a campo (pasto)" },
+            { label: "Meses recría", value: `${fmt(opA.mesesRecria)} meses` },
+            { label: "GPV total", value: `${fmt(calc.a.gpvTotal, 0)} kg` },
+            { label: "Peso salida", value: `${fmt(calc.a.pesoSalida, 0)} kg` },
+            { label: "Precio venta", value: `$${fmt(opA.precioVentaKg)}/kg` },
+            { label: "Costo pastoreo", value: fmtMoney(calc.a.costoPastoreo) },
+            { label: "Costo suplementación", value: fmtMoney(calc.a.costoSuplementacion) },
+            { label: "Ingreso neto", value: fmtMoney(calc.a.ingresoNeto) },
+            { label: "Margen A", value: fmtMoney(calc.a.margen), destacado: true, color: calc.ganadorA ? "#065f46" : "#64748b" },
+            { label: "Margen/cabeza A", value: fmtMoney(calc.a.margenPorCab) },
+
+            { grupo: "Opción B — Terminación en feedlot" },
+            { label: "Días encierre", value: `${fmt(opB.diasEncierre)} días` },
+            { label: "GPV total", value: `${fmt(calc.b.gpvTotal, 0)} kg` },
+            { label: "Peso salida", value: `${fmt(calc.b.pesoSalida, 0)} kg` },
+            { label: "Precio venta", value: `$${fmt(opB.precioVentaKg)}/kg` },
+            { label: "Costo ración/animal", value: fmtMoney(calc.b.costoRacionPorAnimal) },
+            { label: "Costo hotelería/animal", value: fmtMoney(calc.b.costoHoteleriaPorAnimal) },
+            { label: "Costo kg ganado", value: `$${fmt(calc.b.costoKgGanado, 0)}/kg` },
+            { label: "Ingreso neto", value: fmtMoney(calc.b.ingresoNeto) },
+            { label: "Margen B", value: fmtMoney(calc.b.margen), destacado: true, color: !calc.ganadorA ? "#065f46" : "#64748b" },
+            { label: "Margen/cabeza B", value: fmtMoney(calc.b.margenPorCab) },
+
+            { grupo: "Veredicto" },
+            { label: "Ganador", value: calc.ganadorA ? "Invernada a Campo" : "Terminación en Feedlot", destacado: true, color: "#065f46" },
+            { label: "Diferencia de margen", value: fmtMoney(Math.abs(calc.a.margen - calc.b.margen)) },
+            { label: "Inflación aplicada", value: `${inflacionMensual}%/mes` },
           ]}
         />
         {onAgregarAlCampo && (
@@ -3782,43 +3852,56 @@ function useToast() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PDF / PRINT EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
-function exportarPDF(titulo, secciones) {
+function exportarPDF(titulo, secciones, subtitulo = "") {
   const fecha = new Date().toLocaleDateString("es-AR", { dateStyle: "long" });
-  const rows = secciones.map(({ label, value }) =>
-    `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9">${label}</td>
-         <td style="padding:6px 12px;font-weight:700;font-family:monospace;text-align:right;border-bottom:1px solid #f1f5f9">${value}</td></tr>`
-  ).join("");
+  const hora = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+
+  const rows = secciones.map((item) => {
+    // Encabezado de grupo
+    if (item.grupo) {
+      return `<tr><td colspan="2" style="padding:14px 12px 6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#10b981;border-bottom:2px solid #d1fae5">${item.grupo}</td></tr>`;
+    }
+    // Fila destacada (total, resultado)
+    if (item.destacado) {
+      return `<tr><td style="padding:10px 12px;color:#0f172a;font-size:14px;font-weight:800;border-bottom:1px solid #e2e8f0;background:#f0fdf4">${item.label}</td>
+              <td style="padding:10px 12px;font-weight:800;font-family:monospace;text-align:right;font-size:15px;border-bottom:1px solid #e2e8f0;background:#f0fdf4;color:${item.color || '#065f46'}">${item.value}</td></tr>`;
+    }
+    // Fila normal
+    return `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9">${item.label}</td>
+            <td style="padding:6px 12px;font-weight:700;font-family:monospace;text-align:right;border-bottom:1px solid #f1f5f9;color:${item.color || '#1e293b'}">${item.value}</td></tr>`;
+  }).join("");
 
   const html = `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8">
 <title>${titulo} — SoyPekun</title>
 <style>
   body { font-family: 'Segoe UI', sans-serif; color: #1e293b; max-width: 720px; margin: 0 auto; padding: 40px 32px; }
-  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #10b981; padding-bottom:16px; margin-bottom:24px; }
-  .titulo { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #10b981; padding-bottom:16px; margin-bottom:20px; }
+  .titulo { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+  .subtitulo { color:#64748b; font-size:14px; margin:0 0 4px; }
   .fecha { color: #94a3b8; font-size: 13px; }
   .badge { background:#ecfdf5; color:#065f46; font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:4px 10px; border-radius:20px; border:1px solid #6ee7b7; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border-radius:8px; overflow:hidden; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
   th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
-  tr:nth-child(even) td { background:#f8fafc; }
-  .footer { margin-top: 32px; border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; display:flex; justify-content:space-between; }
-  @media print { body { padding: 20px; } }
+  .footer { margin-top: 24px; border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; display:flex; justify-content:space-between; }
+  @media print { body { padding: 20px; } @page { margin: 1.5cm; } }
 </style></head>
 <body>
   <div class="header">
-    <img src="data:image/png;base64,${LOGO_B64}" style="height:80px;object-fit:contain" alt="SoyPekun"/>
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:72px;object-fit:contain" alt="SoyPekun"/>
     <span class="badge">Simulador Económico Ganadero</span>
   </div>
   <div class="titulo">${titulo}</div>
-  <div class="fecha">Generado el ${fecha}</div>
+  ${subtitulo ? `<div class="subtitulo">${subtitulo}</div>` : ""}
+  <div class="fecha">Generado el ${fecha} · ${hora} hs</div>
   <br/>
   <table>
-    <thead><tr><th>Parámetro</th><th style="text-align:right">Valor</th></tr></thead>
+    <thead><tr><th>Concepto</th><th style="text-align:right">Valor</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="footer">
     <span>Los cálculos son estimativos. Consultá con tu asesor antes de invertir.</span>
-    <span>SoyPekun — Estrategia Comercial</span>
+    <span>SoyPekun — Gestión Ganadera</span>
   </div>
   <script>window.onload=()=>{ window.print(); }<\/script>
 </body></html>`;
@@ -3829,14 +3912,16 @@ function exportarPDF(titulo, secciones) {
   if (w) { setTimeout(() => URL.revokeObjectURL(url), 60000); }
 }
 
-function BotonExportarPDF({ titulo, secciones, color = "slate" }) {
+function BotonExportarPDF({ titulo, secciones, color = "slate", subtitulo = "" }) {
   const colores = {
     slate:   "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200",
     violet:  "bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200",
     emerald: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200",
+    sky:     "bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200",
+    amber:   "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200",
   };
   return (
-    <button onClick={() => exportarPDF(titulo, secciones)}
+    <button onClick={() => exportarPDF(titulo, secciones, subtitulo)}
       title="Exportar / Imprimir reporte"
       className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs transition-all shadow-sm select-none card-hover ${colores[color]}`}>
       🖨️ Exportar PDF
@@ -8734,23 +8819,56 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
 
       {/* Guardar simulación */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-        <BotonExportarPDF color="slate"
-          titulo="Simulador Compra Recría"
-          secciones={[
-            { label: "Lotes simulados", value: lotes.length + " lote(s)" },
-            { label: "Total cabezas", value: totales.cabezas + " cab" },
-            { label: "Inversión total", value: fmtM(totales.costoTotal) },
-            { label: "USD", value: usd(totales.costoTotal) },
-            { label: "─────────────", value: "─────────────" },
-            ...lotes.map(l => {
-              const c = calcLote(l);
-              return { label: (l.categoria==="machos"?"♂":"♀") + " " + l.nombre + " (" + l.cabezas + " cab)", value: fmtM(c.costoTotal) };
-            }),
-            { label: "─────────────", value: "─────────────" },
-            { label: "Lote activo — Margen estimado", value: fmtM(calcLote(lotes[loteActivo]).margen) },
-            { label: "Precio venta invernada mín.", value: "$" + fmt(calcLote(lotes[loteActivo]).precioMinInvernada) + "/kg" },
-            { label: "Precio venta gordo mín.", value: "$" + fmt(calcLote(lotes[loteActivo]).precioMinGordo) + "/kg" },
-          ]}
+        <BotonExportarPDF color="amber"
+          titulo="Compra de Recría — Análisis de Inversión"
+          subtitulo={`${lotes.length} lote(s) · ${totales.cabezas} cab · Inversión ${fmtM(totales.costoTotal)}`}
+          secciones={(() => {
+            const c = calcLote(lotes[loteActivo]);
+            const l = lotes[loteActivo];
+            return [
+              { grupo: "Resumen de todos los lotes" },
+              { label: "Lotes simulados", value: `${lotes.length} lote(s)` },
+              { label: "Total cabezas", value: `${totales.cabezas} cab` },
+              { label: "Inversión total", value: fmtM(totales.costoTotal), destacado: true, color: "#b45309" },
+              { label: "Inversión total (USD)", value: usd(totales.costoTotal) },
+
+              { grupo: "Detalle por lote" },
+              ...lotes.map(lt => {
+                const cl = calcLote(lt);
+                return { label: `${lt.categoria==="machos"?"♂":"♀"} ${lt.nombre} (${lt.cabezas} cab)`, value: fmtM(cl.costoTotal) };
+              }),
+
+              { grupo: `Lote activo: ${l.nombre}` },
+              { label: "Categoría", value: l.categoria === "machos" ? "Machos ♂" : "Hembras ♀" },
+              { label: "Cabezas", value: `${fmt(l.cabezas)} cab` },
+              { label: "Peso ingreso", value: `${fmt(l.pesoIngreso)} kg/cab` },
+              { label: "Precio compra", value: `$${fmt(l.precioCompraKg)}/kg` },
+              { label: "Peso salida estimado", value: `${fmt(c.pesoSalida, 0)} kg` },
+              { label: "Kg ganados/cab", value: `${fmt(c.kgGanados, 0)} kg` },
+
+              { grupo: "Desglose de costos (lote activo)" },
+              { label: "Compra terneros", value: fmtM(c.costoCompra) },
+              { label: "Flete entrada", value: fmtM(c.costoFleteEntrada) },
+              { label: "Comisión compra", value: fmtM(c.costoComisionC) },
+              { label: "Sanidad", value: fmtM(c.costoSanidad) },
+              { label: "Suplemento", value: fmtM(c.costoSuplemento) },
+              { label: "Pastaje", value: fmtM(c.costoPastaje) },
+              { label: "Feedlot", value: fmtM(c.costoFeedlot) },
+              { label: "Flete salida", value: fmtM(c.costoFleteSalida) },
+              { label: "Comisión venta", value: fmtM(c.costoComisionV) },
+              { label: "Costo total", value: fmtM(c.costoTotal), destacado: true, color: "#b45309" },
+
+              { grupo: "Resultado (lote activo)" },
+              { label: "Ingreso por venta", value: fmtM(c.ingresoVenta) },
+              { label: "Margen estimado", value: fmtM(c.margen), destacado: true, color: c.margen >= 0 ? "#065f46" : "#dc2626" },
+              { label: "Margen/cabeza", value: fmtM(c.margenPorCab) },
+              { label: "ROI", value: `${fmt(c.roi, 1)}%` },
+              { label: "Precio venta de equilibrio", value: `$${fmt(c.peqKg)}/kg` },
+              { label: "Precio mín. invernada", value: `$${fmt(c.precioMinInvernada)}/kg` },
+              { label: "Precio mín. gordo", value: `$${fmt(c.precioMinGordo)}/kg` },
+              { label: "Inflación acumulada", value: `${fmt(c.inflAcumPct, 1)}%` },
+            ];
+          })()}
         />
         <BotonGuardarSim color="amber"
           onGuardar={() => onGuardar && onGuardar({
