@@ -3,39 +3,39 @@
 @tailwind utilities;
 
 /* ════════════════════════════════════════════════════════════════════ */
-/*  MOBILE — TEXTO GRANDE                                                 */
+/*  MOBILE — TEXTO GRANDE (x2)                                            */
 /*  Va al final, después de @tailwind utilities, para ganar prioridad.    */
 /* ════════════════════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
-  html { font-size: 23px !important; }
-  body { font-size: 23px !important; }
+  html { font-size: 46px !important; }
+  body { font-size: 46px !important; }
 
   /* Tamaño mínimo para TODO el texto */
   div, p, span, td, th, li, a, label, h1, h2, h3, h4, h5, h6 {
-    font-size: 22px;
+    font-size: 44px;
   }
 
   /* Clases de Tailwind — con !important para ganarle a las utilidades */
-  .text-\[10px\], .text-\[11px\], .text-\[12px\], .text-\[13px\] { font-size: 20px !important; }
-  .text-xs   { font-size: 21px !important; line-height: 1.5 !important; }
-  .text-sm   { font-size: 23px !important; line-height: 1.5 !important; }
-  .text-base { font-size: 25px !important; }
-  .text-lg   { font-size: 29px !important; }
-  .text-xl   { font-size: 34px !important; }
-  .text-2xl  { font-size: 41px !important; }
-  .text-3xl  { font-size: 48px !important; }
-  .text-4xl  { font-size: 55px !important; }
+  .text-\[10px\], .text-\[11px\], .text-\[12px\], .text-\[13px\] { font-size: 40px !important; }
+  .text-xs   { font-size: 42px !important; line-height: 1.5 !important; }
+  .text-sm   { font-size: 46px !important; line-height: 1.5 !important; }
+  .text-base { font-size: 50px !important; }
+  .text-lg   { font-size: 58px !important; }
+  .text-xl   { font-size: 68px !important; }
+  .text-2xl  { font-size: 82px !important; }
+  .text-3xl  { font-size: 96px !important; }
+  .text-4xl  { font-size: 110px !important; }
 
   /* Números mono */
-  .font-mono { font-size: 25px !important; }
-  .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 46px !important; }
-  .font-mono.text-xl { font-size: 36px !important; }
+  .font-mono { font-size: 50px !important; }
+  .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 92px !important; }
+  .font-mono.text-xl { font-size: 72px !important; }
 
   /* Labels en mayúscula */
-  .uppercase { font-size: 18px !important; }
+  .uppercase { font-size: 36px !important; }
   .uppercase.tracking-widest { letter-spacing: 0.03em !important; }
 
   /* Inputs */
-  input, select, textarea, button { font-size: 23px !important; }
-  button { min-height: 56px !important; }
+  input, select, textarea, button { font-size: 46px !important; }
+  button { min-height: 100px !important; }
 }
