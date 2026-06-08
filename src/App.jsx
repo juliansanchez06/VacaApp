@@ -623,41 +623,45 @@ const GLOBAL_STYLE = `
     position: relative;
     overflow: hidden;
   }
-  /* ── Mobile readability ─────────────────────────────────────────────── */
+  /* ════════════════════════════════════════════════════════════════ */
+  /*  TAMAÑO DE TEXTO MOBILE — EDITAR ACÁ (este bloque es el que manda) */
+  /*  index_2.css NO tiene efecto: estos !important lo pisan siempre.   */
+  /*  Subí/bajá los px de abajo para agrandar o achicar.                */
+  /* ════════════════════════════════════════════════════════════════ */
   @media (max-width: 640px) {
-    html { font-size: 20px !important; }
-    body { font-size: 20px !important; }
+    html { font-size: 28px !important; }
+    body { font-size: 28px !important; }
 
     /* Forzar tamaño mínimo en TODO elemento de texto */
     div, p, span, td, th, li, a, label, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
-      font-size: 19px;
+      font-size: 26px;
     }
 
     /* Clases de Tailwind explícitas (mayor prioridad) */
-    .text-xs   { font-size: 18px !important; line-height: 1.5 !important; }
-    .text-sm   { font-size: 20px !important; line-height: 1.5 !important; }
-    .text-base { font-size: 22px !important; }
-    .text-lg   { font-size: 26px !important; }
-    .text-xl   { font-size: 30px !important; }
-    .text-2xl  { font-size: 36px !important; }
-    .text-3xl  { font-size: 42px !important; }
-    .text-4xl  { font-size: 48px !important; }
-    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 17px !important; }
+    .text-xs   { font-size: 24px !important; line-height: 1.5 !important; }
+    .text-sm   { font-size: 27px !important; line-height: 1.5 !important; }
+    .text-base { font-size: 30px !important; }
+    .text-lg   { font-size: 35px !important; }
+    .text-xl   { font-size: 40px !important; }
+    .text-2xl  { font-size: 48px !important; }
+    .text-3xl  { font-size: 56px !important; }
+    .text-4xl  { font-size: 64px !important; }
+    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 23px !important; }
 
     /* Números mono siempre grandes */
-    .font-mono { font-size: 22px !important; }
-    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 40px !important; }
-    .font-mono.text-xl { font-size: 32px !important; }
+    .font-mono { font-size: 30px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 54px !important; }
+    .font-mono.text-xl { font-size: 42px !important; }
 
     /* Uppercase labels */
-    .uppercase.tracking-widest { font-size: 16px !important; letter-spacing: 0.03em !important; }
-    .uppercase.tracking-wider  { font-size: 17px !important; }
+    .uppercase.tracking-widest { font-size: 22px !important; letter-spacing: 0.03em !important; }
+    .uppercase.tracking-wider  { font-size: 23px !important; }
 
     /* Inputs y selects */
-    input, select, textarea { font-size: 20px !important; }
+    input, select, textarea { font-size: 28px !important; }
 
     /* Botones más fáciles de tocar */
-    button { min-height: 52px !important; }
+    button { min-height: 60px !important; }
 
     /* Cards con más padding */
     .rounded-2xl { padding: 16px !important; }
