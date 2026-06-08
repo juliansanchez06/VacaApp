@@ -629,74 +629,103 @@ const GLOBAL_STYLE = `
   /*  Subí/bajá los px de abajo para agrandar o achicar.                */
   /* ════════════════════════════════════════════════════════════════ */
   @media (max-width: 640px) {
-    html { font-size: 17px !important; }
-    body { font-size: 17px !important; }
+    html { font-size: 28px !important; }
+    body { font-size: 28px !important; }
 
-    .text-xs   { font-size: 16px !important; line-height: 1.45 !important; }
-    .text-sm   { font-size: 18px !important; line-height: 1.45 !important; }
-    .text-base { font-size: 20px !important; }
-    .text-lg   { font-size: 22px !important; }
-    .text-xl   { font-size: 25px !important; }
-    .text-2xl  { font-size: 29px !important; }
-    .text-3xl  { font-size: 33px !important; }
-    .text-4xl  { font-size: 38px !important; }
-    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 15px !important; }
+    /* Forzar tamaño mínimo en TODO elemento de texto */
+    div, p, span, td, th, li, a, label, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
+      font-size: 26px;
+    }
 
-    .font-mono { font-size: 18px !important; }
-    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 30px !important; }
-    .font-mono.text-xl { font-size: 24px !important; }
+    /* Clases de Tailwind explícitas (mayor prioridad) */
+    .text-xs   { font-size: 24px !important; line-height: 1.5 !important; }
+    .text-sm   { font-size: 27px !important; line-height: 1.5 !important; }
+    .text-base { font-size: 30px !important; }
+    .text-lg   { font-size: 35px !important; }
+    .text-xl   { font-size: 40px !important; }
+    .text-2xl  { font-size: 48px !important; }
+    .text-3xl  { font-size: 56px !important; }
+    .text-4xl  { font-size: 64px !important; }
+    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 23px !important; }
 
-    .uppercase.tracking-widest { font-size: 14px !important; letter-spacing: 0.02em !important; }
-    .uppercase.tracking-wider  { font-size: 15px !important; }
+    /* Números mono siempre grandes */
+    .font-mono { font-size: 30px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 54px !important; }
+    .font-mono.text-xl { font-size: 42px !important; }
 
-    input, select, textarea { font-size: 19px !important; min-height: 46px !important; }
-    button { min-height: 48px !important; }
+    /* Uppercase labels */
+    .uppercase.tracking-widest { font-size: 22px !important; letter-spacing: 0.03em !important; }
+    .uppercase.tracking-wider  { font-size: 23px !important; }
+
+    /* Inputs y selects */
+    input, select, textarea { font-size: 28px !important; }
+
+    /* Botones más fáciles de tocar */
+    button { min-height: 60px !important; }
+
+    /* Cards con más padding */
+    .rounded-2xl { padding: 16px !important; }
+    .rounded-3xl { padding: 18px !important; }
   }
 
   /* ════════════════════════════════════════════════════════════════════ */
   /*  MOBILE ROBUSTO — se aplica por clase .is-mobile (dispositivo táctil), */
-  /*  NO por ancho de pantalla. Funciona aunque el navegador del celular    */
+  /*  NO por ancho de pantalla. Así funciona aunque el navegador del cel    */
   /*  esté en "modo escritorio" o reporte un ancho raro.                    */
-  /*  Valores moderados: agrandan el texto SIN zoomear el layout (para que  */
-  /*  no se amontone ni se corten los números).                             */
-  /*  Para agrandar/achicar TODO el texto: cambiá los px de acá.            */
+  /*  La especificidad (html.is-mobile .clase) le gana a Tailwind.          */
+  /*  Para agrandar/achicar TODO: cambiá los px de acá.                     */
   /* ════════════════════════════════════════════════════════════════════ */
-  html.is-mobile { font-size: 17px !important; }
-  html.is-mobile body { font-size: 17px !important; }
+  html.is-mobile { font-size: 30px !important; }
+  html.is-mobile body { font-size: 30px !important; }
 
-  html.is-mobile .text-xs   { font-size: 16px !important; line-height: 1.45 !important; }
-  html.is-mobile .text-sm   { font-size: 18px !important; line-height: 1.45 !important; }
-  html.is-mobile .text-base { font-size: 20px !important; }
-  html.is-mobile .text-lg   { font-size: 22px !important; }
-  html.is-mobile .text-xl   { font-size: 25px !important; }
-  html.is-mobile .text-2xl  { font-size: 29px !important; }
-  html.is-mobile .text-3xl  { font-size: 33px !important; }
-  html.is-mobile .text-4xl  { font-size: 38px !important; }
+  html.is-mobile div, html.is-mobile p, html.is-mobile span,
+  html.is-mobile td, html.is-mobile th, html.is-mobile li,
+  html.is-mobile a, html.is-mobile label,
+  html.is-mobile h1, html.is-mobile h2, html.is-mobile h3,
+  html.is-mobile h4, html.is-mobile h5, html.is-mobile h6 { font-size: 28px; }
+
+  html.is-mobile .text-xs   { font-size: 25px !important; line-height: 1.5 !important; }
+  html.is-mobile .text-sm   { font-size: 28px !important; line-height: 1.5 !important; }
+  html.is-mobile .text-base { font-size: 31px !important; }
+  html.is-mobile .text-lg   { font-size: 36px !important; }
+  html.is-mobile .text-xl   { font-size: 42px !important; }
+  html.is-mobile .text-2xl  { font-size: 50px !important; }
+  html.is-mobile .text-3xl  { font-size: 58px !important; }
+  html.is-mobile .text-4xl  { font-size: 66px !important; }
   html.is-mobile .text-\\[10px\\], html.is-mobile .text-\\[11px\\],
-  html.is-mobile .text-\\[12px\\] { font-size: 15px !important; }
+  html.is-mobile .text-\\[12px\\] { font-size: 24px !important; }
 
-  html.is-mobile .font-mono { font-size: 18px !important; }
+  html.is-mobile .font-mono { font-size: 31px !important; }
   html.is-mobile .font-mono.text-2xl, html.is-mobile .font-mono.text-3xl,
-  html.is-mobile .font-mono.text-4xl { font-size: 30px !important; }
-  html.is-mobile .font-mono.text-xl { font-size: 24px !important; }
+  html.is-mobile .font-mono.text-4xl { font-size: 56px !important; }
+  html.is-mobile .font-mono.text-xl { font-size: 44px !important; }
 
-  html.is-mobile .uppercase.tracking-widest { font-size: 14px !important; letter-spacing: 0.02em !important; }
-  html.is-mobile .uppercase.tracking-wider  { font-size: 15px !important; }
+  html.is-mobile .uppercase.tracking-widest { font-size: 23px !important; letter-spacing: 0.03em !important; }
+  html.is-mobile .uppercase.tracking-wider  { font-size: 24px !important; }
 
-  /* Inputs cómodos para tocar, sin tapar el número */
+  /* Inputs y selects más grandes y cómodos */
   html.is-mobile input, html.is-mobile select, html.is-mobile textarea {
-    font-size: 19px !important;
-    min-height: 46px !important;
+    font-size: 30px !important;
+    min-height: 70px !important;
+    padding: 12px 16px !important;
   }
 
-  /* Botones fáciles de tocar (sin agrandar de más para que no se monten) */
-  html.is-mobile button { min-height: 48px !important; }
-  /* Botones chicos de +/- (steppers): cuadrados */
+  /* Botones grandes y fáciles de tocar */
+  html.is-mobile button {
+    font-size: 30px !important;
+    min-height: 72px !important;
+    padding: 14px 20px !important;
+  }
+  /* Botones chicos de +/- (steppers): cuadrados y grandes */
   html.is-mobile button.w-9, html.is-mobile button.w-10,
   html.is-mobile button.w-11, html.is-mobile button.w-12 {
-    min-width: 46px !important;
-    min-height: 46px !important;
+    min-width: 72px !important;
+    min-height: 72px !important;
   }
+
+  /* Más aire en las tarjetas */
+  html.is-mobile .rounded-2xl { padding: 18px !important; }
+  html.is-mobile .rounded-3xl { padding: 20px !important; }
 
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
@@ -4378,6 +4407,309 @@ function LoginScreen() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SIMULADOR MENU — Submenú con los 3 simuladores
 // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB — CHACRA: ALIMENTO PROPIO vs COMPRAR vs RENTA  (sistema mixto · engorde)
+// Decisión: ¿produzco mi forraje y lo doy, lo compro, o hago renta y compro?
+// Modelado en toneladas de materia seca (MS) reales. Sincronizado con la
+// config global (precios, INMAG de referencia).
+// ═══════════════════════════════════════════════════════════════════════════
+const CULTIVOS_FORRAJE = {
+  maiz_grano:   { label: "Maíz grano",        rinde: 8,  costoHa: 800000,  unidad: "t/ha"    },
+  maiz_silaje:  { label: "Maíz picado fino",  rinde: 13, costoHa: 1000000, unidad: "t MS/ha" },
+  sorgo_silaje: { label: "Sorgo picado fino", rinde: 14, costoHa: 850000,  unidad: "t MS/ha" },
+};
+const CULTIVOS_RENTA = {
+  soja:       { label: "Soja",       rinde: 3, precio: 455000, costoHa: 450000 },
+  maiz_grano: { label: "Maíz grano", rinde: 8, precio: 255500, costoHa: 800000 },
+  sorgo:      { label: "Sorgo",      rinde: 5, precio: 275000, costoHa: 500000 },
+};
+
+function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
+  const global = useGlobal();
+  const gastos = useGastos();
+
+  const [inp, setInp] = useState({
+    // ── Requerimiento del engorde (auto-estimado, editable) ──
+    cabezas: 100,
+    mesesCiclo: 6,
+    consumoKgMSdia: 9,
+    precioAlimentoComprado: 250000,
+    // ── Forraje propio ──
+    cultivoForraje: "maiz_silaje",
+    rindeForraje: CULTIVOS_FORRAJE.maiz_silaje.rinde,
+    costoForrajeHa: CULTIVOS_FORRAJE.maiz_silaje.costoHa,
+    perdidasPct: 12,
+    // ── Cultivo de renta ──
+    cultivoRenta: "soja",
+    rindeRenta: CULTIVOS_RENTA.soja.rinde,
+    precioRenta: CULTIVOS_RENTA.soja.precio,
+    costoRentaHa: CULTIVOS_RENTA.soja.costoHa,
+    gastosComercPct: 12,
+    // ── Referencias ──
+    precioNovilloGordo: 4350,
+  });
+  const set = (k) => (v) => setInp((p) => ({ ...p, [k]: v }));
+  const elegirForraje = (id) => setInp((p) => ({ ...p, cultivoForraje: id,
+    rindeForraje: CULTIVOS_FORRAJE[id].rinde, costoForrajeHa: CULTIVOS_FORRAJE[id].costoHa }));
+  const elegirRenta = (id) => setInp((p) => ({ ...p, cultivoRenta: id,
+    rindeRenta: CULTIVOS_RENTA[id].rinde, precioRenta: CULTIVOS_RENTA[id].precio, costoRentaHa: CULTIVOS_RENTA[id].costoHa }));
+
+  const calc = useMemo(() => {
+    const dias = inp.mesesCiclo * 30;
+    const tonMS = inp.cabezas * inp.consumoKgMSdia * dias / 1000;
+    const costoComprar = tonMS * inp.precioAlimentoComprado;
+    const tonACosechar = inp.perdidasPct < 100 ? tonMS / (1 - inp.perdidasPct / 100) : tonMS;
+    const haForraje = inp.rindeForraje > 0 ? tonACosechar / inp.rindeForraje : 0;
+    const costoProduccion = haForraje * inp.costoForrajeHa;
+    const costoPropioPorTon = tonMS > 0 ? costoProduccion / tonMS : 0;
+    const precioNetoRenta = inp.precioRenta * (1 - inp.gastosComercPct / 100);
+    const ingresoRenta = haForraje * inp.rindeRenta * precioNetoRenta;
+    const costoRentaTotal = haForraje * inp.costoRentaHa;
+    const margenRenta = ingresoRenta - costoRentaTotal;
+    const netoA = -costoProduccion;
+    const netoB = -costoComprar;
+    const netoC = margenRenta - costoComprar;
+    const ahorro = costoComprar - costoProduccion;
+    const oportunidadTierra = margenRenta;
+    const convieneProducir = ahorro > margenRenta;
+    const ahorroPorCab = inp.cabezas > 0 ? ahorro / inp.cabezas : 0;
+    const precioMaizKg = CULTIVOS_RENTA.maiz_grano.precio / 1000;
+    const relacionMaizNovillo = precioMaizKg > 0 ? inp.precioNovilloGordo / precioMaizKg : 0;
+    const rindeForrajeBE = costoComprar > 0 ? (tonACosechar * inp.costoForrajeHa) / costoComprar : 0;
+    const precioCompraBE = costoPropioPorTon;
+    const costoInmagRef = inp.cabezas * inp.mesesCiclo * (global.inmagInvernada || 0) * (global.precioNovilloInmag || 0);
+    const opciones = [
+      { id: "A", nombre: "Forraje propio",  neto: netoA, color: "#16a34a" },
+      { id: "B", nombre: "Comprar todo",    neto: netoB, color: "#0891b2" },
+      { id: "C", nombre: "Renta + comprar", neto: netoC, color: "#9333ea" },
+    ].sort((a, b) => b.neto - a.neto);
+    const ganador = opciones[0];
+    const segundo = opciones[1];
+    const ventaja = ganador.neto - segundo.neto;
+    const escenario = (dRinde, dPrecio) => {
+      const r  = inp.rindeForraje * (1 + dRinde);
+      const ha = r > 0 ? tonACosechar / r : 0;
+      const cp = ha * inp.costoForrajeHa;
+      const pN = inp.precioRenta * (1 + dPrecio) * (1 - inp.gastosComercPct / 100);
+      const mr = ha * inp.rindeRenta * pN - ha * inp.costoRentaHa;
+      const nA = -cp, nB = -costoComprar, nC = mr - costoComprar;
+      const best = [{ id: "A", n: nA }, { id: "B", n: nB }, { id: "C", n: nC }].sort((a, b) => b.n - a.n)[0];
+      return { nA, nB, nC, best: best.id };
+    };
+    return {
+      dias, tonMS, costoComprar, tonACosechar, haForraje, costoProduccion, costoPropioPorTon,
+      precioNetoRenta, ingresoRenta, costoRentaTotal, margenRenta,
+      netoA, netoB, netoC, ahorro, oportunidadTierra, convieneProducir, ahorroPorCab,
+      relacionMaizNovillo, rindeForrajeBE, precioCompraBE, costoInmagRef,
+      opciones, ganador, segundo, ventaja, escenario,
+    };
+  }, [inp, global.inmagInvernada, global.precioNovilloInmag]);
+
+  const fLabel = CULTIVOS_FORRAJE[inp.cultivoForraje].label;
+  const rLabel = CULTIVOS_RENTA[inp.cultivoRenta].label;
+  const nombreCamino = (id) => id === "A" ? "Forraje propio" : id === "B" ? "Comprar todo" : "Renta + comprar";
+
+  const Pill = ({ active, onClick, children }) => (
+    <button onClick={onClick}
+      className={`px-3 py-2 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${
+        active ? "bg-lime-600 text-white border-lime-600 shadow" : "bg-white text-slate-500 border-slate-200 hover:border-lime-300"}`}>
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl p-5 bg-gradient-to-br from-lime-50 to-emerald-50 border-2 border-lime-100">
+        <p className="text-lg font-black text-lime-800 tracking-tight">🌽 Chacra — Alimento propio vs. comprar vs. renta</p>
+        <p className="text-xs text-lime-600 mt-1">Para el alimento que necesita tu engorde: ¿conviene producir tu forraje y dárselo, comprarlo, o hacer un cultivo de renta y con eso comprar?</p>
+      </div>
+
+      <div className="rounded-3xl p-5 bg-white border-2 border-slate-100 shadow-sm space-y-3">
+        <SectionTitle icon="🐂" color="text-emerald-600">Requerimiento de alimento (engorde)</SectionTitle>
+        <p className="text-xs text-slate-400 -mt-1">Se estima con el consumo diario; ajustá cabezas, meses y consumo a tu planteo.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Cabezas en engorde" value={inp.cabezas} onChange={set("cabezas")} unit="cab" sliderMax={2000} />
+          <Field label="Meses del ciclo" value={inp.mesesCiclo} onChange={set("mesesCiclo")} unit="meses" sliderMax={24} />
+          <Field label="Consumo diario" value={inp.consumoKgMSdia} onChange={set("consumoKgMSdia")} unit="kg MS/día/cab" step={0.5} sliderMax={20}
+            hint="Ración engorde ≈ 8-11 kg MS/día" />
+          <Field label="Precio alimento comprado" value={inp.precioAlimentoComprado} onChange={set("precioAlimentoComprado")} unit="$/t MS" step={10000} sliderMax={800000} highlight
+            hint={`Comprar todo ≈ ${fmtMoney(calc.costoComprar)}`} />
+        </div>
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-3 flex flex-wrap gap-x-6 gap-y-1">
+          <span className="text-xs text-emerald-700">Alimento del ciclo: <b>{fmt(calc.tonMS, 1)} t MS</b></span>
+          <span className="text-xs text-emerald-700">A cosechar (con mermas): <b>{fmt(calc.tonACosechar, 1)} t</b></span>
+        </div>
+      </div>
+
+      <div className="rounded-3xl p-5 bg-white border-2 border-slate-100 shadow-sm space-y-3">
+        <SectionTitle icon="🌾" color="text-lime-600">Camino A — Producir forraje y darlo</SectionTitle>
+        <div className="flex flex-wrap gap-2">
+          {Object.keys(CULTIVOS_FORRAJE).map((id) => (
+            <Pill key={id} active={inp.cultivoForraje === id} onClick={() => elegirForraje(id)}>{CULTIVOS_FORRAJE[id].label}</Pill>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Rinde del cultivo" value={inp.rindeForraje} onChange={set("rindeForraje")} unit={CULTIVOS_FORRAJE[inp.cultivoForraje].unidad} step={0.5} sliderMax={50} />
+          <Field label="Costo de producción" value={inp.costoForrajeHa} onChange={set("costoForrajeHa")} unit="$/ha" step={50000} sliderMax={3000000}
+            hint="Implantación + labores + cosecha/picado" />
+          <Field label="Pérdidas / mermas" value={inp.perdidasPct} onChange={set("perdidasPct")} unit="%" sliderMax={30}
+            hint="Confección, almacenaje y suministro" />
+        </div>
+        <div className="rounded-2xl bg-lime-50 border border-lime-100 p-3 grid grid-cols-2 gap-2">
+          <span className="text-xs text-lime-700">Hectáreas necesarias: <b>{fmt(calc.haForraje, 1)} ha</b></span>
+          <span className="text-xs text-lime-700">Costo total producción: <b>{fmtMoney(calc.costoProduccion)}</b></span>
+          <span className="text-xs text-lime-700 col-span-2">Costo propio: <b>{fmtMoney(calc.costoPropioPorTon)}/t MS</b> · comprar = {fmtMoney(inp.precioAlimentoComprado)}/t</span>
+        </div>
+      </div>
+
+      <div className="rounded-3xl p-5 bg-white border-2 border-slate-100 shadow-sm space-y-3">
+        <SectionTitle icon="💵" color="text-purple-600">Camino C — Cultivo de renta y comprar el alimento</SectionTitle>
+        <p className="text-xs text-slate-400 -mt-1">Usás esas mismas {fmt(calc.haForraje, 1)} ha para un cultivo de venta y con esa plata comprás el alimento.</p>
+        <div className="flex flex-wrap gap-2">
+          {Object.keys(CULTIVOS_RENTA).map((id) => (
+            <Pill key={id} active={inp.cultivoRenta === id} onClick={() => elegirRenta(id)}>{CULTIVOS_RENTA[id].label}</Pill>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Rinde de renta" value={inp.rindeRenta} onChange={set("rindeRenta")} unit="t/ha" step={0.5} sliderMax={15} />
+          <Field label="Precio de venta" value={inp.precioRenta} onChange={set("precioRenta")} unit="$/t" step={5000} sliderMax={1000000}
+            hint="Pizarra Rosario (bruto)" />
+          <Field label="Gastos comercialización" value={inp.gastosComercPct} onChange={set("gastosComercPct")} unit="%" sliderMax={30}
+            hint={`Neto puerta tranquera ≈ ${fmtMoney(calc.precioNetoRenta)}/t`} />
+          <Field label="Costo de renta" value={inp.costoRentaHa} onChange={set("costoRentaHa")} unit="$/ha" step={50000} sliderMax={3000000} />
+        </div>
+        <div className="rounded-2xl bg-purple-50 border border-purple-100 p-3 grid grid-cols-2 gap-2">
+          <span className="text-xs text-purple-700">Ingreso por venta: <b>{fmtMoney(calc.ingresoRenta)}</b></span>
+          <span className="text-xs text-purple-700">Margen agrícola: <b>{fmtMoney(calc.margenRenta)}</b></span>
+        </div>
+      </div>
+
+      <div className="rounded-3xl p-5 bg-white border-2 border-slate-100 shadow-sm space-y-3">
+        <SectionTitle icon="📊" color="text-sky-600">Referencias de mercado</SectionTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Precio novillo gordo" value={inp.precioNovilloGordo} onChange={set("precioNovilloGordo")} unit="$/kg" sliderMax={10000}
+            hint={`Relación maíz/novillo: ${fmt(calc.relacionMaizNovillo, 1)}`} />
+        </div>
+        <p className="text-[11px] text-slate-400 leading-snug">
+          Precios sembrados al 6-7 jun 2026 (Rosario): maíz $255.500/t · sorgo $275.000/t · soja $455.000/t. Rindes y costos son supuestos editables —
+          validá con los números de tu lote. Tu config de engorde (INMAG) valúa el pasto/mantenimiento aparte (≈ {fmtMoney(calc.costoInmagRef)}); este módulo modela la ración que les agregás.
+        </p>
+      </div>
+
+      <div className="rounded-3xl p-5 bg-gradient-to-br from-slate-50 to-white border-2 border-slate-100 shadow space-y-4">
+        <SectionTitle icon="🏁" color="text-emerald-700">Resultado — ¿qué conviene?</SectionTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {calc.opciones.map((o, i) => (
+            <div key={o.id} className={`rounded-2xl p-4 border-2 ${i === 0 ? "border-emerald-400 bg-emerald-50" : "border-slate-100 bg-white"}`}>
+              <p className="text-[11px] uppercase tracking-widest font-black" style={{ color: o.color }}>{i === 0 ? "★ Mejor" : `${i + 1}º`}</p>
+              <p className="text-sm font-black text-slate-700 mt-0.5">{o.nombre}</p>
+              <p className="text-xl font-mono font-black mt-1" style={{ color: o.neto >= 0 ? "#16a34a" : "#dc2626" }}>{fmtMoney(o.neto)}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">resultado de caja del ciclo</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-2xl bg-emerald-600 text-white p-4">
+          <p className="text-xs uppercase tracking-widest font-black opacity-80">Recomendación</p>
+          <p className="text-base font-black mt-1">
+            Conviene <span className="underline">{calc.ganador.nombre}</span>
+            {calc.ganador.id === "A" ? ` (${fLabel.toLowerCase()})` : calc.ganador.id === "C" ? ` con ${rLabel.toLowerCase()}` : ""}.
+          </p>
+          <p className="text-xs mt-1 opacity-90">
+            Le saca <b>{fmtMoney(calc.ventaja)}</b> al segundo ({calc.segundo.nombre}) en el ciclo.
+            {" "}Producir forraje {calc.convieneProducir ? "le gana" : "pierde contra"} hacer renta y comprar.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white border-2 border-slate-100 p-4">
+            <p className="text-[11px] uppercase tracking-widest font-black text-emerald-600">Impacto en el margen del engorde</p>
+            <p className="text-sm text-slate-600 mt-1">Producir en vez de comprar {calc.ahorro >= 0 ? "ahorra" : "cuesta"}:</p>
+            <p className="text-lg font-mono font-black mt-0.5" style={{ color: calc.ahorro >= 0 ? "#16a34a" : "#dc2626" }}>{fmtMoney(calc.ahorro)}</p>
+            <p className="text-xs text-slate-400">≈ {fmtMoney(calc.ahorroPorCab)}/cabeza de mejor margen</p>
+          </div>
+          <div className="rounded-2xl bg-white border-2 border-slate-100 p-4">
+            <p className="text-[11px] uppercase tracking-widest font-black text-amber-600">Break-even (punto de equilibrio)</p>
+            <p className="text-xs text-slate-600 mt-1">Producir empata con comprar a un rinde de <b>{fmt(calc.rindeForrajeBE, 1)} {CULTIVOS_FORRAJE[inp.cultivoForraje].unidad}</b>.</p>
+            <p className="text-xs text-slate-600 mt-1">Si el alimento comprado cuesta más de <b>{fmtMoney(calc.precioCompraBE)}/t</b>, conviene producirlo.</p>
+            <p className="text-xs text-slate-600 mt-1">Costo de oportunidad de la tierra (renta resignada): <b>{fmtMoney(calc.oportunidadTierra)}</b>.</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white border-2 border-slate-100 p-4 overflow-x-auto">
+          <p className="text-[11px] uppercase tracking-widest font-black text-slate-500 mb-2">Sensibilidad ±15% (rinde forraje · precio renta)</p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-slate-400 text-left">
+                <th className="py-1 pr-2">Escenario</th>
+                <th className="py-1 px-2 text-right">A · Propio</th>
+                <th className="py-1 px-2 text-right">C · Renta+compra</th>
+                <th className="py-1 pl-2">Gana</th>
+              </tr>
+            </thead>
+            <tbody className="font-mono">
+              {[
+                { l: "Rinde −15%", d: [-0.15, 0] },
+                { l: "Base",       d: [0, 0] },
+                { l: "Rinde +15%", d: [0.15, 0] },
+                { l: "Renta +15%", d: [0, 0.15] },
+                { l: "Renta −15%", d: [0, -0.15] },
+              ].map((e, i) => {
+                const s = calc.escenario(e.d[0], e.d[1]);
+                return (
+                  <tr key={i} className="border-t border-slate-100">
+                    <td className="py-1.5 pr-2 font-sans text-slate-500">{e.l}</td>
+                    <td className="py-1.5 px-2 text-right" style={{ color: s.nA >= s.nC ? "#16a34a" : "#64748b" }}>{fmtMoney(s.nA)}</td>
+                    <td className="py-1.5 px-2 text-right" style={{ color: s.nC > s.nA ? "#9333ea" : "#64748b" }}>{fmtMoney(s.nC)}</td>
+                    <td className="py-1.5 pl-2 font-sans font-black">{nombreCamino(s.best)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {onAgregarAlCampo && (
+        <button onClick={() => onAgregarAlCampo({ categoria: "novillos", cantidad: inp.cabezas })}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm px-3 py-3 rounded-2xl transition-all active:scale-95">
+          + Agregar {fmt(inp.cabezas)} cab de engorde a Mi Campo
+        </button>
+      )}
+
+      <BotonGuardarSim color="lime" onToast={onToast} onGuardar={() => onGuardar({
+        tab: "chacra",
+        nombre: `Chacra: ${calc.ganador.nombre} · ${fmt(calc.haForraje, 1)} ha · ${fmt(inp.cabezas)} cab`,
+        kpiLabel: "Mejor opción",
+        kpiValue: calc.ganador.nombre,
+        params: [
+          { label: "Cabezas engorde", value: `${fmt(inp.cabezas)} cab` },
+          { label: "Meses ciclo", value: `${fmt(inp.mesesCiclo)} meses` },
+          { label: "Consumo", value: `${fmt(inp.consumoKgMSdia, 1)} kg MS/día/cab` },
+          { label: "Precio alimento comprado", value: `$${fmt(inp.precioAlimentoComprado)}/t MS` },
+          { label: "Forraje", value: `${fLabel} · ${fmt(inp.rindeForraje, 1)} ${CULTIVOS_FORRAJE[inp.cultivoForraje].unidad}` },
+          { label: "Costo forraje", value: `$${fmt(inp.costoForrajeHa)}/ha` },
+          { label: "Cultivo de renta", value: `${rLabel} · ${fmt(inp.rindeRenta, 1)} t/ha @ $${fmt(inp.precioRenta)}/t` },
+          { label: "Costo renta", value: `$${fmt(inp.costoRentaHa)}/ha` },
+        ],
+        detalle: [
+          { label: "Alimento del ciclo", value: `${fmt(calc.tonMS, 1)} t MS` },
+          { label: "Hectáreas necesarias", value: `${fmt(calc.haForraje, 1)} ha` },
+          { label: "A · Costo producir forraje", value: fmtMoney(calc.costoProduccion) },
+          { label: "B · Costo comprar todo", value: fmtMoney(calc.costoComprar) },
+          { label: "C · Margen renta − compra", value: fmtMoney(calc.netoC) },
+          { label: "Ahorro producir vs comprar", value: fmtMoney(calc.ahorro) },
+          { label: "Costo oportunidad tierra", value: fmtMoney(calc.oportunidadTierra) },
+          { label: "Mejor camino", value: `${calc.ganador.nombre} (${fmtMoney(calc.ganador.neto)})` },
+          { label: "Ventaja sobre el 2º", value: fmtMoney(calc.ventaja) },
+          { label: "Costo propio del alimento", value: `${fmtMoney(calc.costoPropioPorTon)}/t MS` },
+          { label: "Relación maíz/novillo", value: fmt(calc.relacionMaizNovillo, 1) },
+        ],
+      })} />
+    </div>
+  );
+}
+
 function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
   return (
     <div className="min-h-screen bg-white font-sans">
@@ -4470,6 +4802,17 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
               color="blue"
               stats={["Por lotes", "Todos los costos", "Margen + ROI"]}
               onClick={() => onNavigate("recria-compra")}
+            />
+          </div>
+          <div className="dash-card">
+            <MenuCard
+              title="Chacra Alimento"
+              desc="¿Producís tu forraje, lo comprás, o hacés renta y comprás? Impacto económico en el engorde."
+              icon={<Wheat size={38} className="text-white" />}
+              iconAnim="float"
+              color="green"
+              stats={["Propio vs comprar", "Cultivo de renta", "Break-even"]}
+              onClick={() => onNavigate("chacra")}
             />
           </div>
         </div>
@@ -8330,6 +8673,7 @@ const TABS = [
   { id: "poder",     label: "Poder de Compra",  icon: "⇄",  sub: "Triangulación" },
   { id: "vientres",  label: "Proyecto Vientres", icon: "🐄", sub: "Cría & rentabilidad" },
   { id: "invernada", label: "Comparador",         icon: "⚖️", sub: "Invernada vs Feedlot" },
+  { id: "chacra",    label: "Chacra Alimento",  icon: "🌽", sub: "Producir vs comprar" },
 ];
 
 // ── Año ganadero helpers ─────────────────────────────────────────────────────
@@ -11283,6 +11627,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     poder:     { label: "Poder de Compra",   icon: "⇄",  color: "from-sky-500 to-cyan-500",     badge: "bg-sky-500" },
     vientres:  { label: "Proyecto Vientres", icon: "🐄", color: "from-violet-500 to-purple-600", badge: "bg-violet-500" },
     invernada: { label: "Comp. Invernada",   icon: "⚖️", color: "from-emerald-500 to-teal-500",  badge: "bg-emerald-600" },
+    chacra:    { label: "Chacra Alimento",  icon: "🌽", color: "from-lime-500 to-green-600",   badge: "bg-lime-600" },
   };
   const current = tabInfo[activeTab] || tabInfo.poder;
 
@@ -11390,6 +11735,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
                   onAgregarAlCampo={handleAgregarAlCampo} />
               : activeTab === "recria-compra"
               ? <CompraRecria onGuardar={agregarSimulacion} onToast={pushToast}
+                  onAgregarAlCampo={handleAgregarAlCampo} />
+              : activeTab === "chacra"
+              ? <ChacraAlimento onGuardar={agregarSimulacion} onToast={pushToast}
                   onAgregarAlCampo={handleAgregarAlCampo} />
               : <ComparadorInvernada descarteData={descarteData} onGuardar={agregarSimulacion} onToast={pushToast}
                   initialBase={syncData?.target === "invernada" ? syncData.base : undefined}
