@@ -629,103 +629,74 @@ const GLOBAL_STYLE = `
   /*  Subí/bajá los px de abajo para agrandar o achicar.                */
   /* ════════════════════════════════════════════════════════════════ */
   @media (max-width: 640px) {
-    html { font-size: 28px !important; }
-    body { font-size: 28px !important; }
+    html { font-size: 17px !important; }
+    body { font-size: 17px !important; }
 
-    /* Forzar tamaño mínimo en TODO elemento de texto */
-    div, p, span, td, th, li, a, label, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
-      font-size: 26px;
-    }
+    .text-xs   { font-size: 16px !important; line-height: 1.45 !important; }
+    .text-sm   { font-size: 18px !important; line-height: 1.45 !important; }
+    .text-base { font-size: 20px !important; }
+    .text-lg   { font-size: 22px !important; }
+    .text-xl   { font-size: 25px !important; }
+    .text-2xl  { font-size: 29px !important; }
+    .text-3xl  { font-size: 33px !important; }
+    .text-4xl  { font-size: 38px !important; }
+    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 15px !important; }
 
-    /* Clases de Tailwind explícitas (mayor prioridad) */
-    .text-xs   { font-size: 24px !important; line-height: 1.5 !important; }
-    .text-sm   { font-size: 27px !important; line-height: 1.5 !important; }
-    .text-base { font-size: 30px !important; }
-    .text-lg   { font-size: 35px !important; }
-    .text-xl   { font-size: 40px !important; }
-    .text-2xl  { font-size: 48px !important; }
-    .text-3xl  { font-size: 56px !important; }
-    .text-4xl  { font-size: 64px !important; }
-    .text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: 23px !important; }
+    .font-mono { font-size: 18px !important; }
+    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 30px !important; }
+    .font-mono.text-xl { font-size: 24px !important; }
 
-    /* Números mono siempre grandes */
-    .font-mono { font-size: 30px !important; }
-    .font-mono.text-2xl, .font-mono.text-3xl, .font-mono.text-4xl { font-size: 54px !important; }
-    .font-mono.text-xl { font-size: 42px !important; }
+    .uppercase.tracking-widest { font-size: 14px !important; letter-spacing: 0.02em !important; }
+    .uppercase.tracking-wider  { font-size: 15px !important; }
 
-    /* Uppercase labels */
-    .uppercase.tracking-widest { font-size: 22px !important; letter-spacing: 0.03em !important; }
-    .uppercase.tracking-wider  { font-size: 23px !important; }
-
-    /* Inputs y selects */
-    input, select, textarea { font-size: 28px !important; }
-
-    /* Botones más fáciles de tocar */
-    button { min-height: 60px !important; }
-
-    /* Cards con más padding */
-    .rounded-2xl { padding: 16px !important; }
-    .rounded-3xl { padding: 18px !important; }
+    input, select, textarea { font-size: 19px !important; min-height: 46px !important; }
+    button { min-height: 48px !important; }
   }
 
   /* ════════════════════════════════════════════════════════════════════ */
   /*  MOBILE ROBUSTO — se aplica por clase .is-mobile (dispositivo táctil), */
-  /*  NO por ancho de pantalla. Así funciona aunque el navegador del cel    */
+  /*  NO por ancho de pantalla. Funciona aunque el navegador del celular    */
   /*  esté en "modo escritorio" o reporte un ancho raro.                    */
-  /*  La especificidad (html.is-mobile .clase) le gana a Tailwind.          */
-  /*  Para agrandar/achicar TODO: cambiá los px de acá.                     */
+  /*  Valores moderados: agrandan el texto SIN zoomear el layout (para que  */
+  /*  no se amontone ni se corten los números).                             */
+  /*  Para agrandar/achicar TODO el texto: cambiá los px de acá.            */
   /* ════════════════════════════════════════════════════════════════════ */
-  html.is-mobile { font-size: 30px !important; }
-  html.is-mobile body { font-size: 30px !important; }
+  html.is-mobile { font-size: 17px !important; }
+  html.is-mobile body { font-size: 17px !important; }
 
-  html.is-mobile div, html.is-mobile p, html.is-mobile span,
-  html.is-mobile td, html.is-mobile th, html.is-mobile li,
-  html.is-mobile a, html.is-mobile label,
-  html.is-mobile h1, html.is-mobile h2, html.is-mobile h3,
-  html.is-mobile h4, html.is-mobile h5, html.is-mobile h6 { font-size: 28px; }
-
-  html.is-mobile .text-xs   { font-size: 25px !important; line-height: 1.5 !important; }
-  html.is-mobile .text-sm   { font-size: 28px !important; line-height: 1.5 !important; }
-  html.is-mobile .text-base { font-size: 31px !important; }
-  html.is-mobile .text-lg   { font-size: 36px !important; }
-  html.is-mobile .text-xl   { font-size: 42px !important; }
-  html.is-mobile .text-2xl  { font-size: 50px !important; }
-  html.is-mobile .text-3xl  { font-size: 58px !important; }
-  html.is-mobile .text-4xl  { font-size: 66px !important; }
+  html.is-mobile .text-xs   { font-size: 16px !important; line-height: 1.45 !important; }
+  html.is-mobile .text-sm   { font-size: 18px !important; line-height: 1.45 !important; }
+  html.is-mobile .text-base { font-size: 20px !important; }
+  html.is-mobile .text-lg   { font-size: 22px !important; }
+  html.is-mobile .text-xl   { font-size: 25px !important; }
+  html.is-mobile .text-2xl  { font-size: 29px !important; }
+  html.is-mobile .text-3xl  { font-size: 33px !important; }
+  html.is-mobile .text-4xl  { font-size: 38px !important; }
   html.is-mobile .text-\\[10px\\], html.is-mobile .text-\\[11px\\],
-  html.is-mobile .text-\\[12px\\] { font-size: 24px !important; }
+  html.is-mobile .text-\\[12px\\] { font-size: 15px !important; }
 
-  html.is-mobile .font-mono { font-size: 31px !important; }
+  html.is-mobile .font-mono { font-size: 18px !important; }
   html.is-mobile .font-mono.text-2xl, html.is-mobile .font-mono.text-3xl,
-  html.is-mobile .font-mono.text-4xl { font-size: 56px !important; }
-  html.is-mobile .font-mono.text-xl { font-size: 44px !important; }
+  html.is-mobile .font-mono.text-4xl { font-size: 30px !important; }
+  html.is-mobile .font-mono.text-xl { font-size: 24px !important; }
 
-  html.is-mobile .uppercase.tracking-widest { font-size: 23px !important; letter-spacing: 0.03em !important; }
-  html.is-mobile .uppercase.tracking-wider  { font-size: 24px !important; }
+  html.is-mobile .uppercase.tracking-widest { font-size: 14px !important; letter-spacing: 0.02em !important; }
+  html.is-mobile .uppercase.tracking-wider  { font-size: 15px !important; }
 
-  /* Inputs y selects más grandes y cómodos */
+  /* Inputs cómodos para tocar, sin tapar el número */
   html.is-mobile input, html.is-mobile select, html.is-mobile textarea {
-    font-size: 30px !important;
-    min-height: 70px !important;
-    padding: 12px 16px !important;
+    font-size: 19px !important;
+    min-height: 46px !important;
   }
 
-  /* Botones grandes y fáciles de tocar */
-  html.is-mobile button {
-    font-size: 30px !important;
-    min-height: 72px !important;
-    padding: 14px 20px !important;
-  }
-  /* Botones chicos de +/- (steppers): cuadrados y grandes */
+  /* Botones fáciles de tocar (sin agrandar de más para que no se monten) */
+  html.is-mobile button { min-height: 48px !important; }
+  /* Botones chicos de +/- (steppers): cuadrados */
   html.is-mobile button.w-9, html.is-mobile button.w-10,
   html.is-mobile button.w-11, html.is-mobile button.w-12 {
-    min-width: 72px !important;
-    min-height: 72px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
   }
-
-  /* Más aire en las tarjetas */
-  html.is-mobile .rounded-2xl { padding: 18px !important; }
-  html.is-mobile .rounded-3xl { padding: 20px !important; }
 
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
