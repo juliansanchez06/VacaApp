@@ -4409,62 +4409,171 @@ function LoginScreen() {
 // ═══════════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB — CHACRA: ALIMENTO PROPIO vs COMPRAR vs RENTA  (sistema mixto · engorde)
-// Decisión: ¿produzco mi forraje y lo doy, lo compro, o hago renta y compro?
-// Modelado en toneladas de materia seca (MS) reales. Sincronizado con la
-// config global (precios, INMAG de referencia).
+// Con estructura de costos de producción COMPLETA y editable por cultivo
+// (semilla, fertilizantes, agroquímicos, labores, cosecha/picado, etc.).
+// Modelado en toneladas de materia seca (MS). Sincronizado con la config global.
 // ═══════════════════════════════════════════════════════════════════════════
 const CULTIVOS_FORRAJE = {
-  maiz_grano:   { label: "Maíz grano",        rinde: 8,  costoHa: 800000,  unidad: "t/ha"    },
-  maiz_silaje:  { label: "Maíz picado fino",  rinde: 13, costoHa: 1000000, unidad: "t MS/ha" },
-  sorgo_silaje: { label: "Sorgo picado fino", rinde: 14, costoHa: 850000,  unidad: "t MS/ha" },
+  maiz_grano:   { label: "Maíz grano",        rinde: 8,  unidad: "t/ha"    },
+  maiz_silaje:  { label: "Maíz picado fino",  rinde: 13, unidad: "t MS/ha" },
+  sorgo_silaje: { label: "Sorgo picado fino", rinde: 14, unidad: "t MS/ha" },
 };
 const CULTIVOS_RENTA = {
-  soja:       { label: "Soja",       rinde: 3, precio: 455000, costoHa: 450000 },
-  maiz_grano: { label: "Maíz grano", rinde: 8, precio: 255500, costoHa: 800000 },
-  sorgo:      { label: "Sorgo",      rinde: 5, precio: 275000, costoHa: 500000 },
+  soja:       { label: "Soja",       rinde: 3, precio: 455000 },
+  maiz_grano: { label: "Maíz grano", rinde: 8, precio: 255500 },
+  sorgo:      { label: "Sorgo",      rinde: 5, precio: 275000 },
 };
+
+// Plantillas de costos directos por hectárea (cantidad × precio). Todo editable.
+// Valores de referencia jun-2026; ajustá a tu zona y a tus proveedores.
+const COSTOS_DEF = {
+  maiz_grano: [
+    { nombre: "Semilla",                       cant: 1,   unidad: "/ha", precio: 180000 },
+    { nombre: "Fosfato diamónico (MAP)",       cant: 90,  unidad: "kg",  precio: 1100 },
+    { nombre: "Urea",                          cant: 180, unidad: "kg",  precio: 850 },
+    { nombre: "Herbicidas (barbecho+pre+post)",cant: 1,   unidad: "/ha", precio: 95000 },
+    { nombre: "Insecticida + curasemilla",     cant: 1,   unidad: "/ha", precio: 28000 },
+    { nombre: "Labor de siembra",              cant: 1,   unidad: "/ha", precio: 70000 },
+    { nombre: "Pulverizaciones",               cant: 3,   unidad: "aplic", precio: 13000 },
+    { nombre: "Cosecha",                       cant: 1,   unidad: "/ha", precio: 115000 },
+    { nombre: "Seguro + otros",                cant: 1,   unidad: "/ha", precio: 30000 },
+  ],
+  maiz_silaje: [
+    { nombre: "Semilla",                       cant: 1,   unidad: "/ha", precio: 180000 },
+    { nombre: "Fosfato diamónico (MAP)",       cant: 90,  unidad: "kg",  precio: 1100 },
+    { nombre: "Urea",                          cant: 180, unidad: "kg",  precio: 850 },
+    { nombre: "Herbicidas (barbecho+pre+post)",cant: 1,   unidad: "/ha", precio: 95000 },
+    { nombre: "Insecticida + curasemilla",     cant: 1,   unidad: "/ha", precio: 28000 },
+    { nombre: "Labor de siembra",              cant: 1,   unidad: "/ha", precio: 70000 },
+    { nombre: "Pulverizaciones",               cant: 3,   unidad: "aplic", precio: 13000 },
+    { nombre: "Picado + confección",           cant: 1,   unidad: "/ha", precio: 300000 },
+    { nombre: "Bolsa/silo + lona",             cant: 1,   unidad: "/ha", precio: 40000 },
+  ],
+  sorgo_silaje: [
+    { nombre: "Semilla",                       cant: 1,   unidad: "/ha", precio: 65000 },
+    { nombre: "Fosfato diamónico (MAP)",       cant: 60,  unidad: "kg",  precio: 1100 },
+    { nombre: "Urea",                          cant: 120, unidad: "kg",  precio: 850 },
+    { nombre: "Herbicidas",                    cant: 1,   unidad: "/ha", precio: 75000 },
+    { nombre: "Insecticida",                   cant: 1,   unidad: "/ha", precio: 20000 },
+    { nombre: "Labor de siembra",              cant: 1,   unidad: "/ha", precio: 60000 },
+    { nombre: "Pulverizaciones",               cant: 2,   unidad: "aplic", precio: 13000 },
+    { nombre: "Picado + confección",           cant: 1,   unidad: "/ha", precio: 280000 },
+    { nombre: "Bolsa/silo",                    cant: 1,   unidad: "/ha", precio: 35000 },
+    { nombre: "Otros",                         cant: 1,   unidad: "/ha", precio: 120000 },
+  ],
+  soja: [
+    { nombre: "Semilla + inoculante",          cant: 1,   unidad: "/ha", precio: 90000 },
+    { nombre: "Fertilizante arrancador",       cant: 1,   unidad: "/ha", precio: 55000 },
+    { nombre: "Herbicidas (glifo+pre+post)",   cant: 1,   unidad: "/ha", precio: 120000 },
+    { nombre: "Insecticida + fungicida",       cant: 1,   unidad: "/ha", precio: 42000 },
+    { nombre: "Labor de siembra",              cant: 1,   unidad: "/ha", precio: 55000 },
+    { nombre: "Pulverizaciones",               cant: 3,   unidad: "aplic", precio: 13000 },
+    { nombre: "Cosecha",                       cant: 1,   unidad: "/ha", precio: 52000 },
+  ],
+  sorgo: [
+    { nombre: "Semilla",                       cant: 1,   unidad: "/ha", precio: 65000 },
+    { nombre: "Fertilizante",                  cant: 1,   unidad: "/ha", precio: 120000 },
+    { nombre: "Herbicidas",                    cant: 1,   unidad: "/ha", precio: 80000 },
+    { nombre: "Insecticida",                   cant: 1,   unidad: "/ha", precio: 20000 },
+    { nombre: "Labor de siembra",              cant: 1,   unidad: "/ha", precio: 60000 },
+    { nombre: "Pulverizaciones",               cant: 2,   unidad: "aplic", precio: 13000 },
+    { nombre: "Cosecha",                       cant: 1,   unidad: "/ha", precio: 80000 },
+    { nombre: "Otros",                         cant: 1,   unidad: "/ha", precio: 49000 },
+  ],
+};
+const tmplCostos = (id) => (COSTOS_DEF[id] || []).map((l, i) => ({ ...l, id: id + "_" + i + "_" + Math.random().toString(36).slice(2, 7) }));
+const sumCostos  = (ls) => ls.reduce((s, l) => s + (Number(l.cant) || 0) * (Number(l.precio) || 0), 0);
+
+// Editor de costos por línea — colapsable, suma sola
+function CostEditor({ titulo, lineas, onChange, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const total = sumCostos(lineas);
+  const upd = (i, k, v) => onChange(lineas.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
+  const del = (i) => onChange(lineas.filter((_, j) => j !== i));
+  const add = () => onChange([...lineas, { id: "c_" + Math.random().toString(36).slice(2, 8), nombre: "Nuevo costo", cant: 1, unidad: "/ha", precio: 0 }]);
+  const numCls = "w-full px-2 py-1.5 rounded-lg border-2 border-slate-200 text-right font-mono text-slate-700 outline-none bg-white";
+  return (
+    <div className="rounded-2xl border-2 border-slate-100 bg-white">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between p-3 active:scale-[0.99] transition-transform">
+        <span className="text-sm font-black text-slate-700">{titulo}</span>
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-black text-emerald-700">{fmtMoney(total)}/ha</span>
+          <span className="text-slate-400 text-xs">{open ? "▲" : "▼"}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          {lineas.map((l, i) => (
+            <div key={l.id} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <input value={l.nombre} onChange={(e) => upd(i, "nombre", e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent font-bold text-sm text-slate-700 outline-none border-b border-slate-200 focus:border-emerald-400 pb-0.5" />
+                <button onClick={() => del(i)} className="text-slate-300 hover:text-red-500 font-black px-1 shrink-0">✕</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-slate-400 font-bold block mb-0.5">Cantidad ({l.unidad})</label>
+                  <input type="number" inputMode="decimal" value={l.cant}
+                    onChange={(e) => upd(i, "cant", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    className={numCls} />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 font-bold block mb-0.5">Precio $/{l.unidad === "/ha" ? "ha" : l.unidad}</label>
+                  <input type="number" inputMode="decimal" value={l.precio}
+                    onChange={(e) => upd(i, "precio", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    className={numCls} />
+                </div>
+              </div>
+              <p className="text-right text-xs text-slate-500">= <b className="text-slate-700">{fmtMoney((Number(l.cant) || 0) * (Number(l.precio) || 0))}</b>/ha</p>
+            </div>
+          ))}
+          <div className="flex items-center justify-between pt-1">
+            <button onClick={add} className="text-xs font-black text-emerald-600 hover:text-emerald-700 px-2 py-2 rounded-lg border-2 border-dashed border-emerald-200">+ Agregar costo</button>
+            <p className="text-sm font-black text-slate-700">Total: <span className="font-mono text-emerald-700">{fmtMoney(total)}</span>/ha</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
   const global = useGlobal();
   const gastos = useGastos();
 
   const [inp, setInp] = useState({
-    // ── Requerimiento del engorde (auto-estimado, editable) ──
     cabezas: 100,
     mesesCiclo: 6,
     consumoKgMSdia: 9,
     precioAlimentoComprado: 250000,
-    // ── Forraje propio ──
     cultivoForraje: "maiz_silaje",
     rindeForraje: CULTIVOS_FORRAJE.maiz_silaje.rinde,
-    costoForrajeHa: CULTIVOS_FORRAJE.maiz_silaje.costoHa,
     perdidasPct: 12,
-    // ── Cultivo de renta ──
+    costosForraje: tmplCostos("maiz_silaje"),
     cultivoRenta: "soja",
     rindeRenta: CULTIVOS_RENTA.soja.rinde,
     precioRenta: CULTIVOS_RENTA.soja.precio,
-    costoRentaHa: CULTIVOS_RENTA.soja.costoHa,
     gastosComercPct: 12,
-    // ── Referencias ──
+    costosRenta: tmplCostos("soja"),
     precioNovilloGordo: 4350,
   });
   const set = (k) => (v) => setInp((p) => ({ ...p, [k]: v }));
-  const elegirForraje = (id) => setInp((p) => ({ ...p, cultivoForraje: id,
-    rindeForraje: CULTIVOS_FORRAJE[id].rinde, costoForrajeHa: CULTIVOS_FORRAJE[id].costoHa }));
-  const elegirRenta = (id) => setInp((p) => ({ ...p, cultivoRenta: id,
-    rindeRenta: CULTIVOS_RENTA[id].rinde, precioRenta: CULTIVOS_RENTA[id].precio, costoRentaHa: CULTIVOS_RENTA[id].costoHa }));
+  const elegirForraje = (id) => setInp((p) => ({ ...p, cultivoForraje: id, rindeForraje: CULTIVOS_FORRAJE[id].rinde, costosForraje: tmplCostos(id) }));
+  const elegirRenta = (id) => setInp((p) => ({ ...p, cultivoRenta: id, rindeRenta: CULTIVOS_RENTA[id].rinde, precioRenta: CULTIVOS_RENTA[id].precio, costosRenta: tmplCostos(id) }));
 
   const calc = useMemo(() => {
     const dias = inp.mesesCiclo * 30;
     const tonMS = inp.cabezas * inp.consumoKgMSdia * dias / 1000;
     const costoComprar = tonMS * inp.precioAlimentoComprado;
+    const costoForrajeHa = sumCostos(inp.costosForraje);
+    const costoRentaHa = sumCostos(inp.costosRenta);
     const tonACosechar = inp.perdidasPct < 100 ? tonMS / (1 - inp.perdidasPct / 100) : tonMS;
     const haForraje = inp.rindeForraje > 0 ? tonACosechar / inp.rindeForraje : 0;
-    const costoProduccion = haForraje * inp.costoForrajeHa;
+    const costoProduccion = haForraje * costoForrajeHa;
     const costoPropioPorTon = tonMS > 0 ? costoProduccion / tonMS : 0;
     const precioNetoRenta = inp.precioRenta * (1 - inp.gastosComercPct / 100);
     const ingresoRenta = haForraje * inp.rindeRenta * precioNetoRenta;
-    const costoRentaTotal = haForraje * inp.costoRentaHa;
+    const costoRentaTotal = haForraje * costoRentaHa;
     const margenRenta = ingresoRenta - costoRentaTotal;
     const netoA = -costoProduccion;
     const netoB = -costoComprar;
@@ -4475,7 +4584,7 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
     const ahorroPorCab = inp.cabezas > 0 ? ahorro / inp.cabezas : 0;
     const precioMaizKg = CULTIVOS_RENTA.maiz_grano.precio / 1000;
     const relacionMaizNovillo = precioMaizKg > 0 ? inp.precioNovilloGordo / precioMaizKg : 0;
-    const rindeForrajeBE = costoComprar > 0 ? (tonACosechar * inp.costoForrajeHa) / costoComprar : 0;
+    const rindeForrajeBE = costoComprar > 0 ? (tonACosechar * costoForrajeHa) / costoComprar : 0;
     const precioCompraBE = costoPropioPorTon;
     const costoInmagRef = inp.cabezas * inp.mesesCiclo * (global.inmagInvernada || 0) * (global.precioNovilloInmag || 0);
     const opciones = [
@@ -4489,15 +4598,15 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
     const escenario = (dRinde, dPrecio) => {
       const r  = inp.rindeForraje * (1 + dRinde);
       const ha = r > 0 ? tonACosechar / r : 0;
-      const cp = ha * inp.costoForrajeHa;
+      const cp = ha * costoForrajeHa;
       const pN = inp.precioRenta * (1 + dPrecio) * (1 - inp.gastosComercPct / 100);
-      const mr = ha * inp.rindeRenta * pN - ha * inp.costoRentaHa;
+      const mr = ha * inp.rindeRenta * pN - ha * costoRentaHa;
       const nA = -cp, nB = -costoComprar, nC = mr - costoComprar;
       const best = [{ id: "A", n: nA }, { id: "B", n: nB }, { id: "C", n: nC }].sort((a, b) => b.n - a.n)[0];
       return { nA, nB, nC, best: best.id };
     };
     return {
-      dias, tonMS, costoComprar, tonACosechar, haForraje, costoProduccion, costoPropioPorTon,
+      dias, tonMS, costoComprar, costoForrajeHa, costoRentaHa, tonACosechar, haForraje, costoProduccion, costoPropioPorTon,
       precioNetoRenta, ingresoRenta, costoRentaTotal, margenRenta,
       netoA, netoB, netoC, ahorro, oportunidadTierra, convieneProducir, ahorroPorCab,
       relacionMaizNovillo, rindeForrajeBE, precioCompraBE, costoInmagRef,
@@ -4521,7 +4630,7 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
     <div className="space-y-5">
       <div className="rounded-3xl p-5 bg-gradient-to-br from-lime-50 to-emerald-50 border-2 border-lime-100">
         <p className="text-lg font-black text-lime-800 tracking-tight">🌽 Chacra — Alimento propio vs. comprar vs. renta</p>
-        <p className="text-xs text-lime-600 mt-1">Para el alimento que necesita tu engorde: ¿conviene producir tu forraje y dárselo, comprarlo, o hacer un cultivo de renta y con eso comprar?</p>
+        <p className="text-xs text-lime-600 mt-1">Cargá el costo de producción completo de cada cultivo (semilla, fertilizantes, agroquímicos, labores, cosecha/picado…) y el módulo arma la cuenta sola.</p>
       </div>
 
       <div className="rounded-3xl p-5 bg-white border-2 border-slate-100 shadow-sm space-y-3">
@@ -4550,15 +4659,15 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Rinde del cultivo" value={inp.rindeForraje} onChange={set("rindeForraje")} unit={CULTIVOS_FORRAJE[inp.cultivoForraje].unidad} step={0.5} sliderMax={50} />
-          <Field label="Costo de producción" value={inp.costoForrajeHa} onChange={set("costoForrajeHa")} unit="$/ha" step={50000} sliderMax={3000000}
-            hint="Implantación + labores + cosecha/picado" />
           <Field label="Pérdidas / mermas" value={inp.perdidasPct} onChange={set("perdidasPct")} unit="%" sliderMax={30}
             hint="Confección, almacenaje y suministro" />
         </div>
+        <CostEditor titulo={`Costos de producción · ${fLabel}`} lineas={inp.costosForraje} onChange={(a) => setInp((p) => ({ ...p, costosForraje: a }))} />
         <div className="rounded-2xl bg-lime-50 border border-lime-100 p-3 grid grid-cols-2 gap-2">
-          <span className="text-xs text-lime-700">Hectáreas necesarias: <b>{fmt(calc.haForraje, 1)} ha</b></span>
+          <span className="text-xs text-lime-700">Costo: <b>{fmtMoney(calc.costoForrajeHa)}/ha</b></span>
+          <span className="text-xs text-lime-700">Hectáreas: <b>{fmt(calc.haForraje, 1)} ha</b></span>
           <span className="text-xs text-lime-700">Costo total producción: <b>{fmtMoney(calc.costoProduccion)}</b></span>
-          <span className="text-xs text-lime-700 col-span-2">Costo propio: <b>{fmtMoney(calc.costoPropioPorTon)}/t MS</b> · comprar = {fmtMoney(inp.precioAlimentoComprado)}/t</span>
+          <span className="text-xs text-lime-700">Costo propio: <b>{fmtMoney(calc.costoPropioPorTon)}/t MS</b></span>
         </div>
       </div>
 
@@ -4576,11 +4685,12 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
             hint="Pizarra Rosario (bruto)" />
           <Field label="Gastos comercialización" value={inp.gastosComercPct} onChange={set("gastosComercPct")} unit="%" sliderMax={30}
             hint={`Neto puerta tranquera ≈ ${fmtMoney(calc.precioNetoRenta)}/t`} />
-          <Field label="Costo de renta" value={inp.costoRentaHa} onChange={set("costoRentaHa")} unit="$/ha" step={50000} sliderMax={3000000} />
         </div>
+        <CostEditor titulo={`Costos de producción · ${rLabel}`} lineas={inp.costosRenta} onChange={(a) => setInp((p) => ({ ...p, costosRenta: a }))} defaultOpen={false} />
         <div className="rounded-2xl bg-purple-50 border border-purple-100 p-3 grid grid-cols-2 gap-2">
-          <span className="text-xs text-purple-700">Ingreso por venta: <b>{fmtMoney(calc.ingresoRenta)}</b></span>
-          <span className="text-xs text-purple-700">Margen agrícola: <b>{fmtMoney(calc.margenRenta)}</b></span>
+          <span className="text-xs text-purple-700">Costo: <b>{fmtMoney(calc.costoRentaHa)}/ha</b></span>
+          <span className="text-xs text-purple-700">Ingreso venta: <b>{fmtMoney(calc.ingresoRenta)}</b></span>
+          <span className="text-xs text-purple-700 col-span-2">Margen agrícola: <b>{fmtMoney(calc.margenRenta)}</b> en {fmt(calc.haForraje, 1)} ha</span>
         </div>
       </div>
 
@@ -4591,8 +4701,8 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
             hint={`Relación maíz/novillo: ${fmt(calc.relacionMaizNovillo, 1)}`} />
         </div>
         <p className="text-[11px] text-slate-400 leading-snug">
-          Precios sembrados al 6-7 jun 2026 (Rosario): maíz $255.500/t · sorgo $275.000/t · soja $455.000/t. Rindes y costos son supuestos editables —
-          validá con los números de tu lote. Tu config de engorde (INMAG) valúa el pasto/mantenimiento aparte (≈ {fmtMoney(calc.costoInmagRef)}); este módulo modela la ración que les agregás.
+          Precios y costos sembrados con referencias de jun 2026 (Rosario): maíz $255.500/t · sorgo $275.000/t · soja $455.000/t. Todos los costos son editables —
+          ajustalos a tus proveedores. Tu config de engorde (INMAG) valúa el pasto/mantenimiento aparte (≈ {fmtMoney(calc.costoInmagRef)}); este módulo modela la ración que les agregás.
         </p>
       </div>
 
@@ -4688,9 +4798,9 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
           { label: "Consumo", value: `${fmt(inp.consumoKgMSdia, 1)} kg MS/día/cab` },
           { label: "Precio alimento comprado", value: `$${fmt(inp.precioAlimentoComprado)}/t MS` },
           { label: "Forraje", value: `${fLabel} · ${fmt(inp.rindeForraje, 1)} ${CULTIVOS_FORRAJE[inp.cultivoForraje].unidad}` },
-          { label: "Costo forraje", value: `$${fmt(inp.costoForrajeHa)}/ha` },
+          { label: "Costo forraje", value: `${fmtMoney(calc.costoForrajeHa)}/ha` },
           { label: "Cultivo de renta", value: `${rLabel} · ${fmt(inp.rindeRenta, 1)} t/ha @ $${fmt(inp.precioRenta)}/t` },
-          { label: "Costo renta", value: `$${fmt(inp.costoRentaHa)}/ha` },
+          { label: "Costo renta", value: `${fmtMoney(calc.costoRentaHa)}/ha` },
         ],
         detalle: [
           { label: "Alimento del ciclo", value: `${fmt(calc.tonMS, 1)} t MS` },
@@ -4807,11 +4917,11 @@ function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
           <div className="dash-card">
             <MenuCard
               title="Chacra Alimento"
-              desc="¿Producís tu forraje, lo comprás, o hacés renta y comprás? Impacto económico en el engorde."
+              desc="¿Producís tu forraje, lo comprás, o hacés renta y comprás? Costos de cultivo completos e impacto en el engorde."
               icon={<Wheat size={38} className="text-white" />}
               iconAnim="float"
               color="green"
-              stats={["Propio vs comprar", "Cultivo de renta", "Break-even"]}
+              stats={["Costos detallados", "Cultivo de renta", "Break-even"]}
               onClick={() => onNavigate("chacra")}
             />
           </div>
