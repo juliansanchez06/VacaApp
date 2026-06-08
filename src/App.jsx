@@ -10987,6 +10987,20 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
 
+  // ── Forzar viewport mobile ───────────────────────────────────────────────
+  // Si el index.html no tiene <meta name="viewport">, el celular renderiza la
+  // página a ~980px y la achica → el texto se ve chiquito y NINGÚN @media
+  // (max-width:640px) se activa. Esto lo garantiza desde el propio React.
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "viewport");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
+  }, []);
+
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
 
   // ── Auto-guardar cuando el store cambia (debounce 2s) ────────────────────
