@@ -667,6 +667,66 @@ const GLOBAL_STYLE = `
     .rounded-2xl { padding: 16px !important; }
     .rounded-3xl { padding: 18px !important; }
   }
+
+  /* ════════════════════════════════════════════════════════════════════ */
+  /*  MOBILE ROBUSTO — se aplica por clase .is-mobile (dispositivo táctil), */
+  /*  NO por ancho de pantalla. Así funciona aunque el navegador del cel    */
+  /*  esté en "modo escritorio" o reporte un ancho raro.                    */
+  /*  La especificidad (html.is-mobile .clase) le gana a Tailwind.          */
+  /*  Para agrandar/achicar TODO: cambiá los px de acá.                     */
+  /* ════════════════════════════════════════════════════════════════════ */
+  html.is-mobile { font-size: 30px !important; }
+  html.is-mobile body { font-size: 30px !important; }
+
+  html.is-mobile div, html.is-mobile p, html.is-mobile span,
+  html.is-mobile td, html.is-mobile th, html.is-mobile li,
+  html.is-mobile a, html.is-mobile label,
+  html.is-mobile h1, html.is-mobile h2, html.is-mobile h3,
+  html.is-mobile h4, html.is-mobile h5, html.is-mobile h6 { font-size: 28px; }
+
+  html.is-mobile .text-xs   { font-size: 25px !important; line-height: 1.5 !important; }
+  html.is-mobile .text-sm   { font-size: 28px !important; line-height: 1.5 !important; }
+  html.is-mobile .text-base { font-size: 31px !important; }
+  html.is-mobile .text-lg   { font-size: 36px !important; }
+  html.is-mobile .text-xl   { font-size: 42px !important; }
+  html.is-mobile .text-2xl  { font-size: 50px !important; }
+  html.is-mobile .text-3xl  { font-size: 58px !important; }
+  html.is-mobile .text-4xl  { font-size: 66px !important; }
+  html.is-mobile .text-\\[10px\\], html.is-mobile .text-\\[11px\\],
+  html.is-mobile .text-\\[12px\\] { font-size: 24px !important; }
+
+  html.is-mobile .font-mono { font-size: 31px !important; }
+  html.is-mobile .font-mono.text-2xl, html.is-mobile .font-mono.text-3xl,
+  html.is-mobile .font-mono.text-4xl { font-size: 56px !important; }
+  html.is-mobile .font-mono.text-xl { font-size: 44px !important; }
+
+  html.is-mobile .uppercase.tracking-widest { font-size: 23px !important; letter-spacing: 0.03em !important; }
+  html.is-mobile .uppercase.tracking-wider  { font-size: 24px !important; }
+
+  /* Inputs y selects más grandes y cómodos */
+  html.is-mobile input, html.is-mobile select, html.is-mobile textarea {
+    font-size: 30px !important;
+    min-height: 70px !important;
+    padding: 12px 16px !important;
+  }
+
+  /* Botones grandes y fáciles de tocar */
+  html.is-mobile button {
+    font-size: 30px !important;
+    min-height: 72px !important;
+    padding: 14px 20px !important;
+  }
+  /* Botones chicos de +/- (steppers): cuadrados y grandes */
+  html.is-mobile button.w-9, html.is-mobile button.w-10,
+  html.is-mobile button.w-11, html.is-mobile button.w-12 {
+    min-width: 72px !important;
+    min-height: 72px !important;
+  }
+
+  /* Más aire en las tarjetas */
+  html.is-mobile .rounded-2xl { padding: 18px !important; }
+  html.is-mobile .rounded-3xl { padding: 20px !important; }
+
   @keyframes floatDollar1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
   @keyframes floatDollar2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-55px) rotate(28deg)}}
   @keyframes floatDollar3{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-30px) rotate(5deg)}}
@@ -10987,10 +11047,12 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
   const { toasts, push: pushToast } = useToast();
 
-  // ── Forzar viewport mobile ───────────────────────────────────────────────
-  // Si el index.html no tiene <meta name="viewport">, el celular renderiza la
-  // página a ~980px y la achica → el texto se ve chiquito y NINGÚN @media
-  // (max-width:640px) se activa. Esto lo garantiza desde el propio React.
+  // ── Optimización mobile robusta ──────────────────────────────────────────
+  // 1) Garantiza el <meta viewport>.
+  // 2) Detecta si es un dispositivo TÁCTIL (celular/tablet) por hardware y le
+  //    pone la clase .is-mobile al <html>. El tamaño grande se aplica con esa
+  //    clase (ver GLOBAL_STYLE), así NO depende del ancho de pantalla ni se
+  //    rompe con el modo "Sitio para computadoras" del navegador.
   useEffect(() => {
     let meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
@@ -10999,6 +11061,13 @@ function EstrategiaComercial({ userEmail, onLogout }) {
       document.head.appendChild(meta);
     }
     meta.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
+
+    const esTactil =
+      (navigator.maxTouchPoints || 0) > 0 ||
+      "ontouchstart" in window ||
+      (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    document.documentElement.classList.toggle("is-mobile", esTactil);
   }, []);
 
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
