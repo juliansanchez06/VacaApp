@@ -1277,6 +1277,239 @@ const GLOBAL_STYLE = `
   .cat-enter:nth-child(2) { animation-delay: 0.12s; }
   .cat-enter:nth-child(3) { animation-delay: 0.19s; }
 
+  /* ════════════════════════════════════════════════════════════════
+     NEUMORFISMO — REDESIGN VISUAL EXCLUSIVO
+     Solo se modifican: background, box-shadow, border-color, color.
+     Layout intacto: ningún width, height, flex, grid ni media-query
+     estructural fue alterado.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* ── Variables del sistema ────────────────────────────────────── */
+  :root {
+    --nm-bg:   #e0e5ec;                            /* base — fondo = componentes */
+    --nm-deep: #d4dae3;                            /* tono más oscuro */
+    --nm-sl:   rgba(255,255,255,0.88);             /* sombra CLARA (luz arriba-izq) */
+    --nm-sd:   rgba(163,177,198,0.65);             /* sombra OSCURA (derecha-abajo)  */
+    --nm-text: #2d3748;                            /* texto — contraste ~9:1 sobre nm-bg */
+    --nm-sub:  #64748b;                            /* texto secundario ~4:1          */
+    --nm-up:   7px 7px 16px var(--nm-sd), -6px -6px 14px var(--nm-sl);
+    --nm-up-s: 3px 3px  8px var(--nm-sd), -3px -3px  8px var(--nm-sl);
+    --nm-dn:   inset 5px 5px 11px var(--nm-sd), inset -4px -4px 9px var(--nm-sl);
+    --nm-dn-s: inset 3px 3px  6px var(--nm-sd), inset -3px -3px  6px var(--nm-sl);
+  }
+
+  /* ── 1. Fondo global ──────────────────────────────────────────── */
+  body, .app-bg {
+    background: var(--nm-bg) !important;
+    color: var(--nm-text) !important;
+  }
+
+  /* ── 2. Textos: contraste garantizado ────────────────────────── */
+  .text-slate-800, .text-slate-700 { color: var(--nm-text) !important; }
+  .text-slate-600, .text-slate-500 { color: var(--nm-sub)  !important; }
+  .text-slate-400, .text-slate-300 { color: rgba(100,116,139,0.68) !important; }
+
+  /* ── 3. Fondos blancos / grises neutros → base neumórfica ────── */
+  .bg-white, .bg-slate-50, .bg-slate-100, .bg-gray-50 {
+    background: var(--nm-bg) !important;
+  }
+
+  /* ── 4. Gradientes → base neumórfica (neumorfismo = monocromático) */
+  .bg-gradient-to-br, .bg-gradient-to-b, .bg-gradient-to-r {
+    background: var(--nm-bg) !important;
+  }
+
+  /* ── 5. Paneles tintados (bg-*-50/100) → base neumórfica ─────── */
+  .bg-emerald-50, .bg-lime-50,   .bg-violet-50,
+  .bg-purple-50,  .bg-sky-50,    .bg-amber-50,
+  .bg-emerald-100,.bg-lime-100,  .bg-violet-100,
+  .bg-purple-100, .bg-sky-100,   .bg-amber-100  {
+    background: var(--nm-bg) !important;
+  }
+
+  /* ── 6. Tarjetas: efecto extruido ────────────────────────────── */
+  .rounded-3xl, .rounded-2xl {
+    background:   var(--nm-bg) !important;
+    box-shadow:   var(--nm-up) !important;
+    border-color: transparent  !important;
+  }
+  .rounded-xl {
+    background:   var(--nm-bg)   !important;
+    box-shadow:   var(--nm-up-s) !important;
+    border-color: transparent    !important;
+  }
+
+  /* ── 7. Sombras de Tailwind → neumórficas ────────────────────── */
+  .shadow-xl, .shadow-lg, .shadow-md { box-shadow: var(--nm-up)   !important; }
+  .shadow-sm, .shadow               { box-shadow: var(--nm-up-s) !important; }
+
+  /* ── 8. Bordes: color → transparente (box-sizing intacto) ───── */
+  [class*="border-slate"],   [class*="border-lime"],
+  [class*="border-emerald"], [class*="border-violet"],
+  [class*="border-sky"],     [class*="border-purple"],
+  [class*="border-amber"],   [class*="border-teal"],
+  [class*="border-cyan"],    [class*="border-gray"],
+  [class*="border-blue"]     { border-color: transparent !important; }
+
+  /* ── 9. Restaurar MenuCards oscuras (identidad visual del menú) */
+  .card-green     { background: linear-gradient(135deg,#163d44 0%,#1a4a52 40%,#1e5560 100%) !important; }
+  .card-multi     { background: linear-gradient(135deg,#312e81 0%,#4c1d95 30%,#7c3aed 60%,#db2777 100%) !important; }
+  .card-amber     { background: linear-gradient(135deg,#92400e 0%,#b45309 40%,#d97706 100%) !important; }
+  .card-campo     { background: linear-gradient(135deg,#1e3a5f 0%,#1e4d8c 50%,#1a6b5c 100%) !important; }
+  .card-simulador { background: linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%) !important; }
+  .card-green, .card-multi, .card-amber, .card-campo, .card-simulador {
+    box-shadow: 8px 8px 20px rgba(0,0,0,0.55), -3px -3px 10px rgba(255,255,255,0.07) !important;
+  }
+
+  /* ── 10. Restaurar CTAs coloreados + sombra neumórfica de color */
+  .bg-emerald-600 {
+    background: #059669 !important;
+    box-shadow: 5px 5px 13px rgba(4,120,87,0.50), -3px -3px 9px rgba(167,243,208,0.60) !important;
+  }
+  .bg-emerald-700 { background: #047857 !important; }
+  .bg-emerald-500 { background: #10b981 !important; }
+  .bg-lime-600 {
+    background: #65a30d !important;
+    box-shadow: 5px 5px 13px rgba(70,110,10,0.45), -3px -3px 9px rgba(217,249,157,0.60) !important;
+  }
+  .bg-violet-500 {
+    background: #8b5cf6 !important;
+    box-shadow: 5px 5px 13px rgba(100,50,200,0.45),-3px -3px 9px rgba(237,233,254,0.60) !important;
+  }
+  .bg-violet-600 {
+    background: #7c3aed !important;
+    box-shadow: 5px 5px 13px rgba(90,40,185,0.50), -3px -3px 9px rgba(237,233,254,0.55) !important;
+  }
+  .bg-teal-600 {
+    background: #0d9488 !important;
+    box-shadow: 5px 5px 13px rgba(10,120,110,0.50),-3px -3px 9px rgba(204,251,241,0.60) !important;
+  }
+  .bg-sky-500 {
+    background: #0ea5e9 !important;
+    box-shadow: 5px 5px 13px rgba(10,130,200,0.45),-3px -3px 9px rgba(224,242,254,0.60) !important;
+  }
+  .bg-sky-600   { background: #0284c7 !important; }
+  .bg-blue-600  { background: #2563eb !important; }
+  .bg-red-500, .bg-red-600 {
+    background: #ef4444 !important;
+    box-shadow: 5px 5px 13px rgba(180,30,30,0.50), -3px -3px 9px rgba(254,226,226,0.60) !important;
+  }
+  .bg-amber-600 {
+    background: #d97706 !important;
+    box-shadow: 5px 5px 13px rgba(170,90,10,0.50), -3px -3px 9px rgba(254,243,199,0.60) !important;
+  }
+  .bg-rose-500  { background: #f43f5e !important; }
+  .bg-slate-700, .bg-slate-800 { background: #334155 !important; }
+
+  /* ── 11. Login (pantalla de acceso — fondo oscuro intacto) ───── */
+  .login-bg { background: #163d44 !important; box-shadow: none !important; }
+
+  /* ── 12. Inputs: efecto hundido (inset) ──────────────────────── */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="search"],
+  select, textarea {
+    background:   var(--nm-bg)  !important;
+    box-shadow:   var(--nm-dn)  !important;
+    border-color: transparent   !important;
+    color:        var(--nm-text) !important;
+  }
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  select:focus, textarea:focus {
+    box-shadow: inset 5px 5px 12px var(--nm-sd),
+                inset -5px -5px 12px var(--nm-sl),
+                0 0 0 3px rgba(16,185,129,0.22) !important;
+    outline: none !important;
+  }
+
+  /* ── 13. Botones: transición + sombra neumórfica de color ────── */
+  button { transition: box-shadow 0.15s ease !important; }
+
+  button[class*="bg-emerald"], button[class*="bg-green"] {
+    box-shadow: 5px 5px 13px rgba(4,120,87,0.50), -3px -3px 9px rgba(167,243,208,0.60) !important;
+  }
+  button[class*="bg-emerald"]:active, button[class*="bg-green"]:active {
+    box-shadow: inset 4px 4px 9px rgba(4,120,87,0.45),
+                inset -3px -3px 7px rgba(167,243,208,0.50) !important;
+  }
+  button[class*="bg-lime"] {
+    box-shadow: 5px 5px 13px rgba(70,110,10,0.45), -3px -3px 9px rgba(217,249,157,0.60) !important;
+  }
+  button[class*="bg-lime"]:active {
+    box-shadow: inset 4px 4px 9px rgba(70,110,10,0.40),
+                inset -3px -3px 7px rgba(217,249,157,0.50) !important;
+  }
+  button[class*="bg-violet"], button[class*="bg-purple"] {
+    box-shadow: 5px 5px 13px rgba(100,50,200,0.45), -3px -3px 9px rgba(237,233,254,0.60) !important;
+  }
+  button[class*="bg-violet"]:active, button[class*="bg-purple"]:active {
+    box-shadow: inset 4px 4px 9px rgba(100,50,200,0.40),
+                inset -3px -3px 7px rgba(237,233,254,0.50) !important;
+  }
+  button[class*="bg-sky"], button[class*="bg-blue"], button[class*="bg-cyan"] {
+    box-shadow: 5px 5px 13px rgba(10,100,180,0.45), -3px -3px 9px rgba(224,242,254,0.60) !important;
+  }
+  button[class*="bg-teal"] {
+    box-shadow: 5px 5px 13px rgba(10,120,110,0.50), -3px -3px 9px rgba(204,251,241,0.60) !important;
+  }
+  button[class*="bg-amber"] {
+    box-shadow: 5px 5px 13px rgba(170,90,10,0.50), -3px -3px 9px rgba(254,243,199,0.60) !important;
+  }
+  button[class*="bg-red"], button[class*="bg-rose"] {
+    box-shadow: 5px 5px 13px rgba(180,30,30,0.50), -3px -3px 9px rgba(254,226,226,0.60) !important;
+  }
+
+  /* ── 14. Slider: track hundido + thumb extruido ──────────────── */
+  input[type=range] { background: transparent !important; box-shadow: none !important; }
+  input[type=range]::-webkit-slider-runnable-track {
+    background:    var(--nm-deep) !important;
+    box-shadow:    inset 2px 2px 5px var(--nm-sd), inset -2px -2px 5px var(--nm-sl) !important;
+    border-radius: 8px !important;
+    height:        6px !important;
+  }
+  input[type=range]::-moz-range-track {
+    background:    var(--nm-deep) !important;
+    box-shadow:    inset 2px 2px 5px var(--nm-sd), inset -2px -2px 5px var(--nm-sl) !important;
+    border-radius: 8px !important;
+    height:        6px !important;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    background: var(--nm-bg) !important;
+    box-shadow: 3px 3px 7px var(--nm-sd), -2px -2px 5px var(--nm-sl) !important;
+    border:     2px solid rgba(163,177,198,0.20) !important;
+  }
+  input[type=range]::-moz-range-thumb {
+    background: var(--nm-bg) !important;
+    box-shadow: 3px 3px 7px var(--nm-sd), -2px -2px 5px var(--nm-sl) !important;
+    border:     2px solid rgba(163,177,198,0.20) !important;
+  }
+
+  /* ── 15. Header sticky ───────────────────────────────────────── */
+  .sticky.top-0 {
+    background:   var(--nm-bg) !important;
+    box-shadow:   0 5px 16px var(--nm-sd), 0 -2px 8px var(--nm-sl) !important;
+    border-color: transparent !important;
+  }
+
+  /* ── 16. Tablas ──────────────────────────────────────────────── */
+  table { background: transparent !important; }
+  tr    { border-color: rgba(163,177,198,0.20) !important; }
+
+  /* ── 17. Scrollbar ───────────────────────────────────────────── */
+  ::-webkit-scrollbar       { width:6px; height:6px; }
+  ::-webkit-scrollbar-track {
+    background: var(--nm-bg) !important;
+    box-shadow: inset 2px 2px 5px var(--nm-sd) !important;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background:  var(--nm-deep) !important;
+    box-shadow:  2px 2px 4px var(--nm-sd), -1px -1px 3px var(--nm-sl) !important;
+    border-radius: 10px;
+  }
+
 `;
 
 // ─── Long-press hook ──────────────────────────────────────────────────────────
