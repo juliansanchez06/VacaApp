@@ -1314,18 +1314,16 @@ const GLOBAL_STYLE = `
     background: var(--nm-bg) !important;
   }
 
-  /* ── 4. Gradientes → base neumórfica (neumorfismo = monocromático) */
-  .bg-gradient-to-br, .bg-gradient-to-b, .bg-gradient-to-r {
+  /* ── 4. Gradientes — sólo overrideamos los que son puramente neutros ────
+     (from-slate-50 to-white) que quedan igual de grises que el fondo;
+     los gradientes de color se conservan para diferenciar secciones. */
+  .from-slate-50.to-white, .from-gray-50.to-white {
     background: var(--nm-bg) !important;
   }
 
-  /* ── 5. Paneles tintados (bg-*-50/100) → base neumórfica ─────── */
-  .bg-emerald-50, .bg-lime-50,   .bg-violet-50,
-  .bg-purple-50,  .bg-sky-50,    .bg-amber-50,
-  .bg-emerald-100,.bg-lime-100,  .bg-violet-100,
-  .bg-purple-100, .bg-sky-100,   .bg-amber-100  {
-    background: var(--nm-bg) !important;
-  }
+  /* ── 5. Paneles tintados (bg-*-50/100) — conservan su tinte ────
+     Dan identidad visual a cada sección (verde=ganadero, etc.)
+     Neumorfismo: el volumen lo dan las sombras, el color las tints. */
 
   /* ── 6. Tarjetas: efecto extruido ────────────────────────────── */
   .rounded-3xl, .rounded-2xl {
@@ -1509,6 +1507,10 @@ const GLOBAL_STYLE = `
     box-shadow:  2px 2px 4px var(--nm-sd), -1px -1px 3px var(--nm-sl) !important;
     border-radius: 10px;
   }
+
+  /* ── Logo: eliminar fondo blanco del JPEG sobre la superficie neumórfica ── */
+  img[alt="SoyPekun"] { mix-blend-mode: multiply; }
+  .login-bg img[alt="SoyPekun"] { mix-blend-mode: normal; }
 
 `;
 
