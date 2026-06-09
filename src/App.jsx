@@ -1484,10 +1484,12 @@ const GLOBAL_STYLE = `
     border:     2px solid rgba(163,177,198,0.20) !important;
   }
 
-  /* ── 15. Header sticky ───────────────────────────────────────── */
+  /* ── 15. Header sticky: blanco sobre fondo gris neumórfico ────
+     El nav blanco diferencia el header del cuerpo gris (nm-base).
+     La sombra inferior marca el límite sin necesitar border-color. */
   .sticky.top-0 {
-    background:   var(--nm-bg) !important;
-    box-shadow:   0 5px 16px var(--nm-sd), 0 -2px 8px var(--nm-sl) !important;
+    background:   white       !important;
+    box-shadow:   0 4px 20px rgba(163,177,198,0.45), 0 1px 0 rgba(255,255,255,0.9) !important;
     border-color: transparent !important;
   }
 
@@ -1508,16 +1510,24 @@ const GLOBAL_STYLE = `
     border-radius: 10px;
   }
 
-  /* ── Logo: placa blanca neumórfica ────────────────────────────────────────
-     El JPEG tiene píxeles blancos embebidos — no es removible con CSS puro.
-     Solución: placa blanca elevada (bg-white + shadow + radius) = diseño
-     intencional. Estándar en Soft UI / Neumorfismo. ── */
+  /* ── Logo ──────────────────────────────────────────────────────────────────
+     • Dashboard/home (fondo gris): placa blanca neumórfica — el blanco del
+       JPEG queda como elemento de diseño intencional, elevado con sombra.
+     • Nav/header (fondo blanco): sin placa — el blanco del JPEG se funde
+       con el header blanco → no se ve ningún rectángulo, logo flotante limpio.
+     • Login (fondo verde oscuro): intacto, fue diseñado para ese fondo.    */
   img[alt="SoyPekun"] {
     background:    white !important;
     border-radius: 18px  !important;
     box-shadow:    var(--nm-up) !important;
   }
-  /* El logo del login ya fue diseñado sobre fondo oscuro — no tocar */
+  /* Header blanco: el JPEG blanco se funde — sin placa ni sombra visible */
+  nav img[alt="SoyPekun"] {
+    background:    transparent !important;
+    border-radius: 10px        !important;
+    box-shadow:    none        !important;
+  }
+  /* Login: fondo oscuro, intacto */
   .login-bg img[alt="SoyPekun"] {
     background:    transparent !important;
     border-radius: 0           !important;
