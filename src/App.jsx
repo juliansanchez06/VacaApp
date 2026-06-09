@@ -1508,9 +1508,21 @@ const GLOBAL_STYLE = `
     border-radius: 10px;
   }
 
-  /* ── Logo: eliminar fondo blanco del JPEG sobre la superficie neumórfica ── */
-  img[alt="SoyPekun"] { mix-blend-mode: multiply; }
-  .login-bg img[alt="SoyPekun"] { mix-blend-mode: normal; }
+  /* ── Logo: placa blanca neumórfica ────────────────────────────────────────
+     El JPEG tiene píxeles blancos embebidos — no es removible con CSS puro.
+     Solución: placa blanca elevada (bg-white + shadow + radius) = diseño
+     intencional. Estándar en Soft UI / Neumorfismo. ── */
+  img[alt="SoyPekun"] {
+    background:    white !important;
+    border-radius: 18px  !important;
+    box-shadow:    var(--nm-up) !important;
+  }
+  /* El logo del login ya fue diseñado sobre fondo oscuro — no tocar */
+  .login-bg img[alt="SoyPekun"] {
+    background:    transparent !important;
+    border-radius: 0           !important;
+    box-shadow:    none        !important;
+  }
 
 `;
 
