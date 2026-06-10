@@ -1448,12 +1448,12 @@ const GLOBAL_STYLE = `
 
   /* ── Variables del sistema ────────────────────────────────────── */
   :root {
-    --nm-bg:   #e0e5ec;                            /* base — fondo = componentes */
-    --nm-deep: #d4dae3;                            /* tono más oscuro */
-    --nm-sl:   rgba(255,255,255,0.88);             /* sombra CLARA (luz arriba-izq) */
-    --nm-sd:   rgba(163,177,198,0.65);             /* sombra OSCURA (derecha-abajo)  */
-    --nm-text: #2d3748;                            /* texto — contraste ~9:1 sobre nm-bg */
-    --nm-sub:  #64748b;                            /* texto secundario ~4:1          */
+    --nm-bg:   #EAE1D0;                            /* base — fondo = componentes */
+    --nm-deep: #DDD2BC;                            /* tono más oscuro */
+    --nm-sl:   rgba(255,253,247,0.92);             /* sombra CLARA (luz arriba-izq) */
+    --nm-sd:   rgba(176,158,124,0.52);             /* sombra OSCURA (derecha-abajo)  */
+    --nm-text: #2E2A20;                            /* texto — contraste ~9:1 sobre nm-bg */
+    --nm-sub:  #6E6450;                            /* texto secundario ~4:1          */
     --nm-up:   7px 7px 16px var(--nm-sd), -6px -6px 14px var(--nm-sl);
     --nm-up-s: 3px 3px  8px var(--nm-sd), -3px -3px  8px var(--nm-sl);
     --nm-dn:   inset 5px 5px 11px var(--nm-sd), inset -4px -4px 9px var(--nm-sl);
@@ -1477,17 +1477,12 @@ const GLOBAL_STYLE = `
   }
 
   /* ── 4. Gradientes → base neumórfica (neumorfismo = monocromático) */
-  .bg-gradient-to-br, .bg-gradient-to-b, .bg-gradient-to-r {
-    background: var(--nm-bg) !important;
-  }
+  /* (desactivado) los gradientes vuelven a mostrar color por seccion */
+  .nm-disabled-grad-placeholder { display:none; }
 
   /* ── 5. Paneles tintados (bg-*-50/100) → base neumórfica ─────── */
-  .bg-emerald-50, .bg-lime-50,   .bg-violet-50,
-  .bg-purple-50,  .bg-sky-50,    .bg-amber-50,
-  .bg-emerald-100,.bg-lime-100,  .bg-violet-100,
-  .bg-purple-100, .bg-sky-100,   .bg-amber-100  {
-    background: var(--nm-bg) !important;
-  }
+  /* (desactivado) paneles tintados conservan su color por seccion */
+  .nm-disabled-tint-placeholder { display:none; }
 
   /* ── 6. Tarjetas: efecto extruido ────────────────────────────── */
   .rounded-3xl, .rounded-2xl {
@@ -11887,7 +11882,19 @@ function EstrategiaComercial({ userEmail, onLogout }) {
       "ontouchstart" in window ||
       (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
       /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    document.documentElement.classList.toggle("is-mobile", esTactil);
+    // El tamaño grande aplica SOLO en pantallas chicas (celular), no en desktop
+    // tactil. Usamos screen.width ademas de innerWidth para que un celular en
+    // "modo escritorio" (que reporta innerWidth ancho) igual cuente como chico.
+    const aplicarMobil = () => {
+      const anchoChico = Math.min(
+        window.innerWidth || 9999,
+        (window.screen && window.screen.width) || 9999
+      ) <= 860;
+      document.documentElement.classList.toggle("is-mobile", esTactil && anchoChico);
+    };
+    aplicarMobil();
+    window.addEventListener("resize", aplicarMobil);
+    return () => window.removeEventListener("resize", aplicarMobil);
   }, []);
 
   // ── Cargar estado de Firestore al iniciar — ahora se hace en App ─────────
