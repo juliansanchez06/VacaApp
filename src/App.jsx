@@ -4670,15 +4670,15 @@ function LoginScreen() {
   };
 
   const STYLE = `
-    .lb{min-height:100vh;background:#3a7d2c;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
+    .lb{min-height:100vh;background:linear-gradient(160deg,#F4EEE1 0%,#EAE1D0 55%,#E3D2B0 100%);display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
     .lblob{position:absolute;border-radius:50%;pointer-events:none;}
-    .lb1{width:560px;height:560px;background:#10b981;opacity:.11;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
-    .lb2{width:360px;height:360px;background:#34d399;opacity:.10;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
-    .lb3{width:200px;height:200px;background:#6ee7b7;opacity:.10;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
-    .lb4{width:110px;height:110px;background:#a7f3d0;opacity:.10;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
+    .lb1{width:560px;height:560px;background:#2F7D4F;opacity:.07;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
+    .lb2{width:360px;height:360px;background:#C2683C;opacity:.06;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
+    .lb3{width:200px;height:200px;background:#D9A441;opacity:.07;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
+    .lb4{width:110px;height:110px;background:#2F7D4F;opacity:.06;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
     @keyframes lbf1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,-36px) scale(1.06)}}
     @keyframes lbf2{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,24px) scale(1.09)}}
-    .ldollar{position:absolute;color:#a7f3d0;font-weight:900;pointer-events:none;user-select:none;line-height:1;}
+    .ldollar{position:absolute;color:#C9A24B;font-weight:900;pointer-events:none;user-select:none;line-height:1;}
     .ld1{font-size:72px;opacity:.09;top:8%;left:4%;animation:fd1 7s ease-in-out infinite;}
     .ld2{font-size:48px;opacity:.07;top:15%;right:6%;animation:fd2 9s ease-in-out 1s infinite;}
     .ld3{font-size:96px;opacity:.06;bottom:12%;left:2%;animation:fd1 8s ease-in-out 2s infinite;}
@@ -4687,17 +4687,17 @@ function LoginScreen() {
     .ld6{font-size:44px;opacity:.08;top:42%;left:15%;animation:fd2 7.5s ease-in-out 3s infinite;}
     @keyframes fd1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
     @keyframes fd2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-50px) rotate(28deg)}}
-    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:420px;position:relative;z-index:2;box-shadow:0 40px 100px -10px rgba(6,78,59,.5);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
+    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:420px;position:relative;z-index:2;box-shadow:0 30px 80px -12px rgba(90,70,40,.30);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
     @keyframes lcardIn{from{opacity:0;transform:translateY(40px) scale(0.93)}to{opacity:1;transform:translateY(0) scale(1)}}
     .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;}
     .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;}
-    .lbadge{background:linear-gradient(135deg,#163d44,#1e5560);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
+    .lbadge{background:linear-gradient(135deg,#2F7D4F,#256B43);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
     .lslogan{font-size:10px;font-weight:700;letter-spacing:.18em;color:#6b7280;text-transform:uppercase;margin:0;}
     .lh2{font-size:21px;font-weight:900;color:#111827;text-align:center;margin:1rem 0 .25rem;letter-spacing:-.4px;}
     .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.2rem;line-height:1.55;}
     .ltabs{display:flex;gap:6px;margin-bottom:1.25rem;background:#f3f4f6;border-radius:14px;padding:4px;}
     .ltab{flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;background:transparent;color:#6b7280;}
-    .ltab.active{background:#fff;color:#163d44;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+    .ltab.active{background:#fff;color:#2F7D4F;box-shadow:0 2px 8px rgba(0,0,0,.1);}
     .linpwrap{position:relative;margin-bottom:.7rem;}
     .linpicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;}
     .linptoggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:.45;cursor:pointer;background:none;border:none;padding:0;display:flex;}
@@ -4705,7 +4705,7 @@ function LoginScreen() {
     .linp:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.14);}
     .linp.lerr{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12);}
     .linp::placeholder{color:#9ca3af;}
-    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#163d44,#1e5560);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
+    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#2F7D4F,#256B43);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
     .lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,78,59,.4);}
     .lbtn:active{transform:scale(.97);}
     .lbtn:disabled{opacity:.7;cursor:not-allowed;transform:none!important;}
@@ -4732,7 +4732,7 @@ function LoginScreen() {
 
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"24px", width:"100%", maxWidth:"420px", position:"relative", zIndex:2 }}>
           {/* Logo sobre el fondo verde — mismo color que el fondo del PNG */}
-          <img src={`data:image/png;base64,${LOGO_LOGIN_B64}`} alt="SoyPekun"
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
             style={{ height:"110px", objectFit:"contain" }} />
 
         <div className="lcard">
@@ -12434,24 +12434,24 @@ export default function App() {
   if (user && cargaError) {
     return (
       <div style={{
-        minHeight:"100vh", background:"#163d44",
+        minHeight:"100vh", background:"linear-gradient(160deg,#F4EEE1 0%,#EAE1D0 55%,#E3D2B0 100%)",
         display:"flex", alignItems:"center", justifyContent:"center",
         flexDirection:"column", gap:"16px", padding:"24px", textAlign:"center",
       }}>
-        <p style={{color:"#fff", fontSize:"18px", fontWeight:800, maxWidth:"320px"}}>
+        <p style={{color:"#2E2A20", fontSize:"18px", fontWeight:800, maxWidth:"320px"}}>
           No pudimos cargar tus datos
         </p>
-        <p style={{color:"rgba(255,255,255,0.7)", fontSize:"14px", maxWidth:"320px"}}>
+        <p style={{color:"#6E6450", fontSize:"14px", maxWidth:"320px"}}>
           Tu información está a salvo en la nube. Revisá tu conexión y reintentá — no se guardó nada en cero.
         </p>
         <button onClick={() => window.location.reload()} style={{
           padding:"12px 24px", borderRadius:"10px", border:"none",
-          background:"#16a34a", color:"#fff", fontSize:"15px", fontWeight:"bold", cursor:"pointer",
+          background:"#2F7D4F", color:"#fff", fontSize:"15px", fontWeight:"bold", cursor:"pointer",
         }}>
           Reintentar
         </button>
         <button onClick={() => signOut(auth)} style={{
-          border:"none", background:"none", color:"rgba(255,255,255,0.6)",
+          border:"none", background:"none", color:"#6E6450",
           fontSize:"13px", textDecoration:"underline", cursor:"pointer",
         }}>
           Cerrar sesión
@@ -12469,18 +12469,18 @@ export default function App() {
           .app-spinner { animation: appSpin 0.8s linear infinite; }
         ` }} />
         <div style={{
-          minHeight:"100vh", background:"#163d44",
+          minHeight:"100vh", background:"linear-gradient(160deg,#F4EEE1 0%,#EAE1D0 55%,#E3D2B0 100%)",
           display:"flex", alignItems:"center", justifyContent:"center",
           flexDirection:"column", gap:"16px",
         }}>
-          <img src={`data:image/png;base64,${LOGO_LOGIN_B64}`} alt="SoyPekun"
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
             style={{ height:"120px", objectFit:"contain" }} />
           <div className="app-spinner" style={{
             width:"32px", height:"32px",
-            border:"3px solid rgba(255,255,255,0.3)",
-            borderTopColor:"#fff", borderRadius:"50%",
+            border:"3px solid rgba(47,125,79,0.22)",
+            borderTopColor:"#2F7D4F", borderRadius:"50%",
           }} />
-          <p style={{color:"rgba(255,255,255,0.6)", fontSize:"13px"}}>Cargando datos...</p>
+          <p style={{color:"#7C6F58", fontSize:"13px"}}>Cargando datos...</p>
         </div>
       </>
     );
