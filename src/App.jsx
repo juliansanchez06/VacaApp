@@ -142,6 +142,15 @@ async function guardarEstado(userEmail) {
     console.error("❌ guardarEstado: userEmail o db nulo", { userEmail, db });
     throw new Error("Sin usuario o base de datos");
   }
+  // ── Guard anti-pérdida de datos ─────────────────────────────────────────────
+  // Si el estado todavía NO se cargó correctamente (firestoreCargado !== true),
+  // el store está en CERO (valores por defecto). Guardar en ese momento pisaría
+  // los datos reales del usuario en la nube. Por eso se omite el guardado hasta
+  // que haya una carga exitosa (applyData o "usuario nuevo" la marcan en true).
+  if (vacaStore.getState().firestoreCargado !== true) {
+    console.warn("⏸️ Guardado omitido: el estado aún no se cargó (anti-pérdida de datos).");
+    return;
+  }
   const s = vacaStore.getState();
   const payload = {
     global:           s.global,
@@ -1314,16 +1323,18 @@ const GLOBAL_STYLE = `
     background: var(--nm-bg) !important;
   }
 
-  /* ── 4. Gradientes — sólo overrideamos los que son puramente neutros ────
-     (from-slate-50 to-white) que quedan igual de grises que el fondo;
-     los gradientes de color se conservan para diferenciar secciones. */
-  .from-slate-50.to-white, .from-gray-50.to-white {
+  /* ── 4. Gradientes → base neumórfica (neumorfismo = monocromático) */
+  .bg-gradient-to-br, .bg-gradient-to-b, .bg-gradient-to-r {
     background: var(--nm-bg) !important;
   }
 
-  /* ── 5. Paneles tintados (bg-*-50/100) — conservan su tinte ────
-     Dan identidad visual a cada sección (verde=ganadero, etc.)
-     Neumorfismo: el volumen lo dan las sombras, el color las tints. */
+  /* ── 5. Paneles tintados (bg-*-50/100) → base neumórfica ─────── */
+  .bg-emerald-50, .bg-lime-50,   .bg-violet-50,
+  .bg-purple-50,  .bg-sky-50,    .bg-amber-50,
+  .bg-emerald-100,.bg-lime-100,  .bg-violet-100,
+  .bg-purple-100, .bg-sky-100,   .bg-amber-100  {
+    background: var(--nm-bg) !important;
+  }
 
   /* ── 6. Tarjetas: efecto extruido ────────────────────────────── */
   .rounded-3xl, .rounded-2xl {
@@ -1484,12 +1495,10 @@ const GLOBAL_STYLE = `
     border:     2px solid rgba(163,177,198,0.20) !important;
   }
 
-  /* ── 15. Header sticky: blanco sobre fondo gris neumórfico ────
-     El nav blanco diferencia el header del cuerpo gris (nm-base).
-     La sombra inferior marca el límite sin necesitar border-color. */
+  /* ── 15. Header sticky ───────────────────────────────────────── */
   .sticky.top-0 {
-    background:   white       !important;
-    box-shadow:   0 4px 20px rgba(163,177,198,0.45), 0 1px 0 rgba(255,255,255,0.9) !important;
+    background:   var(--nm-bg) !important;
+    box-shadow:   0 5px 16px var(--nm-sd), 0 -2px 8px var(--nm-sl) !important;
     border-color: transparent !important;
   }
 
@@ -1508,30 +1517,6 @@ const GLOBAL_STYLE = `
     background:  var(--nm-deep) !important;
     box-shadow:  2px 2px 4px var(--nm-sd), -1px -1px 3px var(--nm-sl) !important;
     border-radius: 10px;
-  }
-
-  /* ── Logo ──────────────────────────────────────────────────────────────────
-     • Dashboard/home (fondo gris): placa blanca neumórfica — el blanco del
-       JPEG queda como elemento de diseño intencional, elevado con sombra.
-     • Nav/header (fondo blanco): sin placa — el blanco del JPEG se funde
-       con el header blanco → no se ve ningún rectángulo, logo flotante limpio.
-     • Login (fondo verde oscuro): intacto, fue diseñado para ese fondo.    */
-  img[alt="SoyPekun"] {
-    background:    white !important;
-    border-radius: 18px  !important;
-    box-shadow:    var(--nm-up) !important;
-  }
-  /* Header blanco: el JPEG blanco se funde — sin placa ni sombra visible */
-  nav img[alt="SoyPekun"] {
-    background:    transparent !important;
-    border-radius: 10px        !important;
-    box-shadow:    none        !important;
-  }
-  /* Login: fondo oscuro, intacto */
-  .login-bg img[alt="SoyPekun"] {
-    background:    transparent !important;
-    border-radius: 0           !important;
-    box-shadow:    none        !important;
   }
 
 `;
@@ -12131,6 +12116,7 @@ export default function App() {
   const [user,         setUser]         = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [datosListos,  setDatosListos]  = useState(false);
+  const [cargaError,   setCargaError]   = useState(false);
   const [isOnline,     setIsOnline]     = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [syncPending,  setSyncPending]  = useState(() => loadQueue().length > 0);
   const [syncing,      setSyncing]      = useState(false);
@@ -12161,12 +12147,24 @@ export default function App() {
       setUser(u);
       if (u) {
         // Cargar datos de Firestore antes de mostrar la app
+        setCargaError(false);
+        let ok = false;
         try {
-          await cargarEstado(u.email);
+          ok = await cargarEstado(u.email);
         } catch(e) {
           console.warn("No se pudo cargar de Firestore:", e.message);
         }
-        setDatosListos(true);
+        if (ok) {
+          // Carga exitosa (o usuario nuevo) → recién acá habilitamos la app y el autosave.
+          setDatosListos(true);
+        } else {
+          // Carga fallida: NO entramos a la app con el estado en cero.
+          // Junto al guard de guardarEstado, esto evita pisar los datos reales.
+          setCargaError(true);
+        }
+      } else {
+        setDatosListos(false);
+        setCargaError(false);
       }
       setLoading(false);
     });
@@ -12174,6 +12172,39 @@ export default function App() {
   }, []);
 
   const handleLogout = () => signOut(auth);
+
+  // ── Error de carga ──────────────────────────────────────────────────────────
+  // La carga de Firestore falló (sin conexión estable y sin copia local propia).
+  // Mostramos error con reintento en vez de entrar con el campo en cero, para que
+  // el usuario no crea que perdió sus datos ni los pise con un guardado.
+  if (user && cargaError) {
+    return (
+      <div style={{
+        minHeight:"100vh", background:"#163d44",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        flexDirection:"column", gap:"16px", padding:"24px", textAlign:"center",
+      }}>
+        <p style={{color:"#fff", fontSize:"18px", fontWeight:800, maxWidth:"320px"}}>
+          No pudimos cargar tus datos
+        </p>
+        <p style={{color:"rgba(255,255,255,0.7)", fontSize:"14px", maxWidth:"320px"}}>
+          Tu información está a salvo en la nube. Revisá tu conexión y reintentá — no se guardó nada en cero.
+        </p>
+        <button onClick={() => window.location.reload()} style={{
+          padding:"12px 24px", borderRadius:"10px", border:"none",
+          background:"#16a34a", color:"#fff", fontSize:"15px", fontWeight:"bold", cursor:"pointer",
+        }}>
+          Reintentar
+        </button>
+        <button onClick={() => signOut(auth)} style={{
+          border:"none", background:"none", color:"rgba(255,255,255,0.6)",
+          fontSize:"13px", textDecoration:"underline", cursor:"pointer",
+        }}>
+          Cerrar sesión
+        </button>
+      </div>
+    );
+  }
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading || (user && !datosListos)) {
