@@ -2658,6 +2658,22 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
     const toUSD   = p => p / dolar;
     const toKgNov = p => p / precioNovilloInmag;
 
+    // ── Punto de equilibrio del ternero ──────────────────────────────────────
+    // Precio $/kg de ternero al que el margen neto = 0 (despejado de la fórmula).
+    const kgTerneroVidaUtil = ternerosAnuales * pesoTerneroConKreep * inputs.anosVidaUtil;
+    const factorNetoVenta   = 1 - comisionVentaPctV;
+    const precioEquilibrioTernero =
+      (ternerosAnuales > 0 && pesoTerneroConKreep > 0 && factorNetoVenta > 0 && inputs.anosVidaUtil > 0)
+        ? (((costoTotalProyecto - recuperoDescarte) / inputs.anosVidaUtil) + fleteVentaV)
+          / (ternerosAnuales * pesoTerneroConKreep * factorNetoVenta)
+        : 0;
+    // Costo neto por kg de ternero producido (descontado el recupero de descarte)
+    const costoPorKgTernero = kgTerneroVidaUtil > 0
+      ? (costoTotalProyecto - recuperoDescarte) / kgTerneroVidaUtil : 0;
+    // Cuánto puede caer el precio actual antes de empezar a perder
+    const margenSeguridadPct = (inputs.precioTerneroKg > 0 && precioEquilibrioTernero > 0)
+      ? ((inputs.precioTerneroKg - precioEquilibrioTernero) / inputs.precioTerneroKg) * 100 : 0;
+
     return {
       inversionInicial, costoRecriaPreServicio, costoPastoreoVida,
       costoIatfTotal, costoTorosAnual, costoTorosTotal,
@@ -2670,6 +2686,7 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
       roiPct, precioCompraRef,
       // Nuevos: moneda constante + VAN
       flujos, van, tir, payback, toUSD, toKgNov,
+      precioEquilibrioTernero, costoPorKgTernero, margenSeguridadPct, kgTerneroVidaUtil,
     };
   }, [inputs, tipoCompra, inmagVientres, precioNovilloInmag, dolar, tasaDescuento, gastos]);
 
@@ -2977,6 +2994,29 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
           color={calc.roiPct >= 0 ? "text-emerald-600" : "text-red-500"} />
         <KpiCard label="Terneros / año" value={`${fmt(calc.ternerosAnuales, 1)} cab`}
           sub={`${inputs.pctDestete}% de ${inputs.cantidad} vientres`} />
+      </div>
+
+      {/* ── Punto de equilibrio ─────────────────────────────────────── */}
+      <div className={`rounded-2xl border-2 p-5 ${calc.margenSeguridadPct >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+        <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-1">⚖️ Punto de equilibrio</p>
+        <p className="text-xs text-slate-500 mb-3">El precio del ternero al que el proyecto no gana ni pierde.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <p className="text-xs text-slate-500 font-semibold">Precio de equilibrio</p>
+            <p className="font-black text-lg font-mono text-slate-800">${fmt(calc.precioEquilibrioTernero, 0)}/kg</p>
+            <p className="text-xs text-slate-400">hoy vendés a ${fmt(inputs.precioTerneroKg, 0)}/kg</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500 font-semibold">Costo por kg producido</p>
+            <p className="font-black text-lg font-mono text-slate-800">${fmt(calc.costoPorKgTernero, 0)}/kg</p>
+            <p className="text-xs text-slate-400">neto de descarte</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500 font-semibold">Margen de seguridad</p>
+            <p className={`font-black text-lg font-mono ${calc.margenSeguridadPct >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmt(calc.margenSeguridadPct, 1)}%</p>
+            <p className="text-xs text-slate-400">{calc.margenSeguridadPct >= 0 ? "puede caer esto antes de perder" : "estás vendiendo bajo el costo"}</p>
+          </div>
+        </div>
       </div>
 
       {inflacionMensual > 0 && (
@@ -6642,7 +6682,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
         {/* ── Carga animal — EV/ha ──────────────────────────────────────── */}
         {hectareas > 0 && (() => {
-          const cargaIdeal = 1.0;
+          const cargaIdeal = Number(campoStore.receptividadEvHa) > 0 ? Number(campoStore.receptividadEvHa) : 1.0;
+          // ── Capacidad ociosa / sobrecarga (oportunidad de $) ──────────────
+          const evDisponibleHa = cargaIdeal - evPorHa;
+          const evOcioso  = Math.max(0, evDisponibleHa) * hectareas;
+          const evExceso  = Math.max(0, -evDisponibleHa) * hectareas;
+          const cabAdic   = Math.round(evOcioso);              // ~1 EV por novillo de invernada
+          const pctOcioso = cargaIdeal > 0 ? (Math.max(0, evDisponibleHa) / cargaIdeal) * 100 : 0;
+          const precioNovPast = precioNovPastaje || 0;
+          const ingresoPastajePotencial = cabAdic * 6 * precioNovPast * 12; // 6 kg novillo/mes por cab
+          const setRecep = (v) => vacaStore.getState().setCampo({ receptividadEvHa: isNaN(v) ? 0 : v });
           const pct     = Math.min(100, (evPorHa  / cargaIdeal) * 100);
           const pctProp = Math.min(100, (evPropHa / cargaIdeal) * 100);
           const pctPast = Math.min(100, (evPastHa / cargaIdeal) * 100);
@@ -6678,6 +6727,32 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <div className="h-full transition-all" style={{ width: pctProp + "%", background: estado.bar }} />
                 {evPastaje > 0 && <div className="h-full transition-all" style={{ width: pctPast + "%", background: "#f97316" }} />}
               </div>
+              {/* Receptividad editable del campo */}
+              <div className="flex items-center justify-center gap-2 mt-3 text-xs text-slate-500">
+                <span>Receptividad del campo:</span>
+                <input type="number" step="0.1" min="0" value={campoStore.receptividadEvHa ?? 1.0}
+                  onChange={e => setRecep(parseFloat(e.target.value))}
+                  className="w-20 border-2 border-slate-200 rounded-lg px-2 py-1 text-right font-mono text-sm" />
+                <span>EV/ha</span>
+              </div>
+              {/* Capacidad ociosa → oportunidad de $ */}
+              {evOcioso >= 1 && (
+                <div className="mt-3 rounded-xl border-2 border-sky-200 bg-sky-50 p-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-sky-700 mb-1">💡 Capacidad ociosa</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    Te sobran <b className="font-mono">{Math.round(evOcioso)} EV</b> ({Math.round(pctOcioso)}% sin usar): podés sumar <b>≈ {cabAdic} novillos</b> de invernada, o tomar pastaje por <b className="text-sky-700">{fmtMoney(ingresoPastajePotencial)}/año</b>.
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">Estimado a 6 kg novillo/mes por cabeza · novillo {fmtMoney(precioNovPast)}/kg</p>
+                </div>
+              )}
+              {evExceso >= 1 && (
+                <div className="mt-3 rounded-xl border-2 border-red-200 bg-red-50 p-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-red-700 mb-1">⚠️ Sobrecarga</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    Estás <b className="font-mono">{Math.round(evExceso)} EV</b> por encima de la receptividad. Riesgo de pérdida de estado, menor preñez y más mortandad: conviene aliviar carga o suplementar.
+                  </p>
+                </div>
+              )}
               {evPastaje > 0 && (
                 <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
                   <span className="flex items-center gap-1"><span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", background: estado.bar }} /> Propio {evPropHa.toFixed(2)} EV/ha</span>
