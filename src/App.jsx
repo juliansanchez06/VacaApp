@@ -107,7 +107,7 @@ import {
   doc, setDoc, getDoc, collection, getDocs, writeBatch,
 } from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
+import { DollarSign, Calculator, TrendingUp, ArrowLeft, Wheat, Scale, Zap, Map as MapIcon, BarChart2, Plus, Minus, RefreshCw } from "lucide-react";
 
 // ── Firebase init ─────────────────────────────────────────────────────────────
 const firebaseConfig = {
@@ -9118,7 +9118,7 @@ function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogo
               <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
               <div className="relative p-6 md:p-8">
                 <div className="bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30 w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 shadow-lg card-icon-float">
-                  <Map size={28} className="text-white" />
+                  <MapIcon size={28} className="text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Mi Campo</h3>
                 <p className="text-blue-100 font-medium leading-relaxed text-sm mb-4">Stock de hacienda, costos de estructura y gestión de tu establecimiento.</p>
