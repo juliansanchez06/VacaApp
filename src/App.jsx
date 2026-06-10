@@ -4214,6 +4214,21 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
                 <span className={`shrink-0 text-xs font-black px-2.5 py-1 rounded-full ${c.badge} text-white`}>
                   {sim.kpiLabel}: {sim.kpiValue}
                 </span>
+                {/* Exportar PDF del resumen guardado */}
+                <button
+                  onClick={() => exportarPDF(
+                    sim.nombre || "Simulación",
+                    [
+                      { grupo: "Resultados" },
+                      ...(sim.detalle || []),
+                      ...(hasParams ? [{ grupo: "Parámetros técnicos" }, ...sim.params] : []),
+                    ],
+                    `${sim.categoriaLabel || sim.tab || ""}${sim.fecha ? " · " + sim.fecha : ""}`
+                  )}
+                  title="Exportar este resumen a PDF"
+                  className={`shrink-0 text-xs font-black px-2.5 py-1.5 rounded-lg border bg-white ${c.text} border-current opacity-70 hover:opacity-100 transition-all select-none`}>
+                  🖨️ PDF
+                </button>
                 {/* Expand */}
                 <button
                   onClick={() => setExpandida(isOpen ? null : sim.id)}
@@ -4372,6 +4387,10 @@ function exportarPDF(titulo, secciones, subtitulo = "") {
 }
 
 function BotonExportarPDF({ titulo, secciones, color = "slate", subtitulo = "" }) {
+  // La exportacion a PDF se hace ahora desde cada simulacion GUARDADA
+  // (ver SimulacionesPanel). Este boton "en vivo" queda desactivado a proposito.
+  return null;
+  // eslint-disable-next-line no-unreachable
   const colores = {
     slate:   "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200",
     violet:  "bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200",
