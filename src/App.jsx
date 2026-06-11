@@ -684,8 +684,10 @@ const vacaStore = createStore((set, get) => ({
 
     set({
       campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, vaquillonas: 0, ternerosNoDestetados: 0, vacias: 0, ciclos: (c.ciclos ?? []).map(x => ({ ...x, ternerosAlPie: 0 })) },
-      campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
-      campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
+      // Ascenso de categoría: los novillos que ya hicieron su recría suben a terminación;
+      // los terneros que recriaron este año pasan a ser el nuevo pool de novillos en recría.
+      campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: machosSobrev },
+      campoTerminacion: { ...t, novillosCampo: r.novillos, novillosFeedlot: 0 },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
       historialAnos: { ...historialAnos, [anoGanaderoActual]: snapshot },
     });
