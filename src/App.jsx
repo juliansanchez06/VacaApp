@@ -602,6 +602,8 @@ const vacaStore = createStore((set, get) => ({
       case "vaquillonas2":            return { campoCria: { ...s.campoCria, vaquillonas2: (s.campoCria.vaquillonas2??0) + cantidad } };
       case "novillos-campo":          return { campoTerminacion: { ...s.campoTerminacion, novillosCampo:  s.campoTerminacion.novillosCampo  + cantidad } };
       case "novillos-feedlot":        return { campoTerminacion: { ...s.campoTerminacion, novillosFeedlot:s.campoTerminacion.novillosFeedlot + cantidad } };
+      case "vaquillonas":             return { campoCria:        { ...s.campoCria,        vaquillonas1:  (s.campoCria.vaquillonas1 ?? s.campoCria.vaquillonas ?? 0) + cantidad } };
+      case "novillos":                return { campoTerminacion: { ...s.campoTerminacion, novillosCampo: s.campoTerminacion.novillosCampo + cantidad } };
       default: return {};
     }
   }),
@@ -623,7 +625,7 @@ const vacaStore = createStore((set, get) => ({
 
     const preniadas    = Math.round((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) * c.pctPreniez / 100);
     const nacidos      = Math.round(preniadas * (1 - mortCria));
-    const totalDest    = c.ternerosNoDestetados > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
+    const totalDest    = (c.ternerosNoDestetados ?? 0) > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
@@ -634,11 +636,11 @@ const vacaStore = createStore((set, get) => ({
 
     // Balance economico del ano
     const precioNov = gl.precioNovilloInmag || 1800;
-    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + c.ternerosNoDestetados + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
+    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + (c.ternerosNoDestetados ?? 0) + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
       + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
       + t.novillosCampo + t.novillosFeedlot;
     const hectareas = (cp&&cp.hectareas) || 1000;
-    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + c.ternerosNoDestetados*0.55
+    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + (c.ternerosNoDestetados ?? 0)*0.55
       + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
       + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
 
@@ -679,7 +681,7 @@ const vacaStore = createStore((set, get) => ({
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
-      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas: nuevasVaq, ternerosNoDestetados: 0, vacias: 0 },
+      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, vaquillonas: 0, ternerosNoDestetados: 0, vacias: 0 },
       campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
       campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
