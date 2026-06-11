@@ -425,7 +425,7 @@ function getEstadoVacio() {
     campoTerminacion: {
       novillosCampo: 0, novillosFeedlot: 0,
       mejTerminacion: 0, vacaEngorde: 0, vaqEngorde: 0,
-      pesoPromedioKg: 420, diasRestantes: 45,
+      pesoPromedioKg: 420, diasRestantes: 45, diasFeedlot: 100,
       costoComidaDia: 4500, costoHoteleriaDia: 800,
       pctMortandadFeedlot: 2, gdpNovilloFaena: 1.1,
       novillosHilton: 0, novillosUE481: 0,
@@ -520,7 +520,7 @@ const vacaStore = createStore((set, get) => ({
   campoTerminacion: {
     novillosCampo: 0, novillosFeedlot: 0,
     mejTerminacion: 0, vacaEngorde: 0, vaqEngorde: 0,
-    pesoPromedioKg: 420, diasRestantes: 45,
+    pesoPromedioKg: 420, diasRestantes: 45, diasFeedlot: 100,
     costoComidaDia: 4500, costoHoteleriaDia: 800,
     pctMortandadFeedlot: 2, gdpNovilloFaena: 1.1,
     // Exportación
@@ -5474,7 +5474,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 function makeActs(p) {
   const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, terminacionDatos, fmt, fmtMoney } = p;
   const loc = (n) => (n||0).toLocaleString("es-AR");
-  const feedlotCosto = (terminacionDatos?.novillosFeedlot||0)*((terminacionDatos?.costoComidaDia||0)+(terminacionDatos?.costoHoteleriaDia||0))*365;
+  const feedlotCosto = (terminacionDatos?.novillosFeedlot||0)*((terminacionDatos?.costoComidaDia||0)+(terminacionDatos?.costoHoteleriaDia||0))*(terminacionDatos?.diasFeedlot||100);
   const base = [
     { id: "cria", label: "\uD83D\uDC04 Cría", cab: cabCria, color: "emerald", ingreso: ingresoCria, costo: sanidadCria, margen: margenCria,
       desglose: [
@@ -5499,7 +5499,7 @@ function makeActs(p) {
         { label: "Ingresos", tipo: "header" },
         { label: "Novillos gordo", valor: cabTermSale+" cab x "+pesoTerm+" kg x $"+loc(precioNovKg)+"/kg", total: ingresoTerm, positivo: true },
         { label: "Costos directos", tipo: "header" },
-        { label: "Feedlot / hoteleria", valor: (terminacionDatos?.novillosFeedlot||0)+" cab x 365 dias", total: -feedlotCosto, positivo: false },
+        { label: "Feedlot / hoteleria", valor: (terminacionDatos?.novillosFeedlot||0)+" cab x "+(terminacionDatos?.diasFeedlot||100)+" dias", total: -feedlotCosto, positivo: false },
         { label: "Sanidad y nutricion", valor: cabTerm+" cab x $"+loc(sanidadPorCabAnio||40000)+"/ano", total: -sanidadTerm, positivo: false },
       ],
     },
@@ -6311,7 +6311,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoRecAnual   = costoTotalAnual * (cabRec  / totalCabAct);
   const costoTermAnual  = costoTotalAnual * (cabTerm / totalCabAct);
   // Terminación suma costo de comida y hotelería específico
-  const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * 365;
+  const costoFeedlotAnual = (terminacionDatos.novillosFeedlot ?? 0) * ((terminacionDatos.costoComidaDia ?? 0) + (terminacionDatos.costoHoteleriaDia ?? 0)) * (terminacionDatos.diasFeedlot ?? 100);
 
   // ── Ingreso pastaje (debe calcularse ANTES del margen bruto) ─────────────
   const periodosPastaje = campoPastaje?.periodos ?? [];
@@ -7837,6 +7837,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <EditField label="Comida / cab / día" value={terminacionDatos.costoComidaDia} onChange={v=>setTerminacion(p=>({...p,costoComidaDia:v}))} step={500} prefix="$" usdVal={usd(terminacionDatos.costoComidaDia)} />
                         <EditField label="Hotelería / cab / día" value={terminacionDatos.costoHoteleriaDia} onChange={v=>setTerminacion(p=>({...p,costoHoteleriaDia:v}))} step={100} prefix="$" usdVal={usd(terminacionDatos.costoHoteleriaDia)} />
+                        <EditField label="Días de feedlot (ciclo)" value={terminacionDatos.diasFeedlot ?? 100} onChange={v=>setTerminacion(p=>({...p,diasFeedlot:v}))} step={10} suffix=" días" hint="Duración del ciclo de engorde — típico 90 a 120 días" />
                       </div>
                       <div className="bg-white rounded-xl border border-amber-200 p-3 grid grid-cols-3 gap-3 text-center">
                         <div><p className="text-xs text-amber-600">Costo/cab/día</p><p className="font-black text-amber-900">{fmtMoney(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p><p className="text-xs text-emerald-600">{usd(terminacionDatos.costoComidaDia+terminacionDatos.costoHoteleriaDia)}</p></div>
