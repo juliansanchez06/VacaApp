@@ -622,10 +622,12 @@ const vacaStore = createStore((set, get) => ({
     const mortRecria = r.pctMortandadRecria  / 100;
     const pctRepos   = c.pctReposicion      / 100;
     const pctMachos  = c.pctMachos          / 100;
+    // Fuente de verdad de terneros al pie: los ciclos (con fallback al campo plano)
+    const ternerosAlPie = ((c.ciclos ?? []).reduce((a,x)=>a+(x.ternerosAlPie??0),0)) || (c.ternerosNoDestetados ?? 0);
 
     const preniadas    = Math.round((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) * c.pctPreniez / 100);
     const nacidos      = Math.round(preniadas * (1 - mortCria));
-    const totalDest    = (c.ternerosNoDestetados ?? 0) > 0 ? c.ternerosNoDestetados : Math.round(nacidos * c.pctDestete / 100);
+    const totalDest    = ternerosAlPie > 0 ? ternerosAlPie : Math.round(nacidos * c.pctDestete / 100);
     const hembrasDest  = Math.round(totalDest * (1 - pctMachos));
     const hembrasRepos = Math.round(hembrasDest * pctRepos);
 
@@ -636,11 +638,11 @@ const vacaStore = createStore((set, get) => ({
 
     // Balance economico del ano
     const precioNov = gl.precioNovilloInmag || 1800;
-    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + (c.ternerosNoDestetados ?? 0) + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
+    const totalStock = c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0) + ternerosAlPie + c.toros + (c.vacias||0) + (c.vacaCut??0) + (c.vaqRechazo??0)
       + r.ternerosLiquidaMachos + r.ternerosLiquidaHembras + r.ternerosCompraMachos + r.ternerosCompraHembras + r.novillos
       + t.novillosCampo + t.novillosFeedlot;
     const hectareas = (cp&&cp.hectareas) || 1000;
-    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + (c.ternerosNoDestetados ?? 0)*0.55
+    const evTotal = c.vacas*1.0 + ((c.vaquillonas1??c.vaquillonas??0)+(c.vaquillonas2??0))*0.85 + c.toros*1.3 + ternerosAlPie*0.55
       + (c.vacias||0)*1.0 + r.ternerosLiquidaMachos*0.7 + r.ternerosLiquidaHembras*0.7
       + r.ternerosCompraMachos*0.7 + r.ternerosCompraHembras*0.7 + r.novillos*0.95 + t.novillosCampo*1.0;
 
@@ -681,7 +683,7 @@ const vacaStore = createStore((set, get) => ({
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
-      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, vaquillonas: 0, ternerosNoDestetados: 0, vacias: 0 },
+      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas1: nuevasVaq, vaquillonas2: 0, vaquillonas: 0, ternerosNoDestetados: 0, vacias: 0, ciclos: (c.ciclos ?? []).map(x => ({ ...x, ternerosAlPie: 0 })) },
       campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
       campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
@@ -7027,7 +7029,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Terneros al pie</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <EditField label="Terneros no destetados" value={totalTernerosAlPie} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre — no computan rendimiento aún" />
+                      <EditField label="Terneros no destetados" value={totalTernerosAlPie} onChange={v=>setCriaActiva(p=>{
+                        const ciclos = (p.ciclos && p.ciclos.length) ? [...p.ciclos] : [];
+                        if (ciclos.length) ciclos[0] = { ...ciclos[0], ternerosAlPie: v };
+                        return { ...p, ciclos, ternerosNoDestetados: v };
+                      })} hint="Al pie de la madre — no computan rendimiento aún" />
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">Destetados este año</p>
