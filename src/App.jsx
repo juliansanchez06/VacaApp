@@ -7019,7 +7019,34 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
                 <div className="p-5 md:p-6 space-y-6">
-                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría — stock</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría — stock</p>
+                    {!anoViendo && (
+                      <button
+                        onClick={() => {
+                          if (!window.confirm("¿Poner TODA la cría en 0? (vacas, vaquillonas, toros, terneros, diagnósticos). Podés deshacerlo con \"Deshacer\" antes de salir.")) return;
+                          setCriaActiva(p => ({
+                            ...p,
+                            vacas: 0, vaquillonas1: 0, vaquillonas2: 0, vaquillonas: 0,
+                            toros: 0, vacias: 0, vacaCut: 0, vaqRechazo: 0,
+                            ternerosNoDestetados: 0,
+                            ciclos: (p.ciclos ?? []).map(c => ({
+                              ...c,
+                              ternerosAlPie: 0, ternerosDestetados: 0,
+                              machosDestetados: 0, hembrasDestetadas: 0,
+                              estado: "al_pie", pctPreniez: 0, pctDestete: 0,
+                              transferidoRecria: false, fechaDesteReal: null,
+                            })),
+                            diagnosticos: [],
+                            pctPreniez: 0, pctDestete: 0,
+                          }));
+                          onToast && onToast("🔄 Cría puesta en 0 — verificá que se guarde", "success");
+                        }}
+                        className="shrink-0 text-xs font-black px-3 py-1.5 rounded-xl border-2 border-rose-300 text-rose-600 hover:bg-rose-50 transition-all active:scale-95">
+                        🔄 Poner todo en 0
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EditField label="Vacas" value={criaDatos.vacas} onChange={v=>setCriaActiva(p=>({...p,vacas:v}))} hint="Vacas con cría o sin servicio" />
                     <EditField label="Vaquillonas 1° Servicio" value={criaDatos.vaquillonas1??criaDatos.vaquillonas??0} onChange={v=>setCriaActiva(p=>({...p,vaquillonas1:v}))} hint="Entrada al rodeo por primera vez" />
