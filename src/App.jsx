@@ -7053,7 +7053,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-3">Terneros al pie</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <EditField label="Terneros no destetados" value={totalTernerosAlPie} onChange={v=>setCriaActiva(p=>({...p,ternerosNoDestetados:v}))} hint="Al pie de la madre — no computan rendimiento aún" />
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-600">🐂 Terneros para destetar</p>
+                          <p className="text-2xl font-black text-amber-800">{totalTernerosAlPie}</p>
+                          <p className="text-[11px] text-slate-400">se carga por ciclo (abajo)</p>
+                        </div>
+                      </div>
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">Destetados este año</p>
@@ -10166,26 +10172,28 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     localPastajeRef.current = pastaje ?? {};
   }, []); // eslint-disable-line
 
-  // Update local ONLY — no propagation to parent during editing
+  // Update local Y propagar al store de inmediato (gemelo digital: nada se pierde).
+  // El auto-guardado del store (debounce 2s) toma cada cambio; el botón Guardar
+  // sigue forzando un guardado inmediato a la nube.
   const updateLocal = React.useCallback((patch) => {
-    setLocalPastaje(prev => {
-      const next = { ...prev, ...patch };
-      localPastajeRef.current = next;
-      return next;
-    });
-  }, []);
+    const next = { ...localPastajeRef.current, ...patch };
+    localPastajeRef.current = next;
+    setLocalPastaje(next);
+    setPastaje(next);
+  }, [setPastaje]);
 
-  // Sync al padre — llamar solo desde el botón Guardar o al desmontar
+  // Sync al padre — botón Guardar fuerza guardado inmediato a la nube
   const syncToParent = React.useCallback(() => {
     setPastaje(localPastajeRef.current);
-  }, [setPastaje]);
+    const email = vacaStore.getState().__userEmail;
+    if (email) guardarEstado(email).catch(console.error);
+    onToast && onToast("💾 Pastaje guardado", "success");
+  }, [setPastaje, onToast]);
 
-  // Sync al desmontar (cambian de sección)
+  // Red de seguridad: persistir también al desmontar (solo una vez)
   React.useEffect(() => {
-    return () => {
-      setPastaje(localPastajeRef.current);
-    };
-  }, [setPastaje]);
+    return () => { setPastaje(localPastajeRef.current); };
+  }, []); // eslint-disable-line
 
   const precioNov    = localPastaje?.precioNov ?? precioNovillo;
   const setPrecioNov = (v) => updateLocal({ precioNov: v });
@@ -10226,21 +10234,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   const HOY_FIJO = new Date().toISOString().slice(0, 10);
 
-  // Corregir fechaIngreso corruptas automáticamente al montar
+  // Completar SOLO datos faltantes (fecha de ingreso vacía o tercero sin asignar).
+  // No reescribe fechas válidas ya cargadas — antes pisaba fechas recientes.
   useEffect(() => {
     if (tropas.length === 0) return;
-    const necesitaFix = tropas.some(t => !t.fechaIngreso || t.fechaIngreso === HOY_FIJO || t.fechaIngreso > "2026-04-21");
+    const necesitaFix = tropas.some(t => !t.fechaIngreso || t.terceroId == null);
     if (!necesitaFix) return;
     const tropasCorregidas = tropas.map(t => ({
       ...t,
-      fechaIngreso: (!t.fechaIngreso || t.fechaIngreso >= HOY_FIJO) ? "2026-04-21" : t.fechaIngreso,
+      fechaIngreso: t.fechaIngreso || HOY_FIJO,
       terceroId: t.terceroId ?? 1,
     }));
-    setPastaje({ tropas: tropasCorregidas });
-    setTimeout(() => {
-      const email = vacaStore.getState().__userEmail;
-      if (email) guardarEstado(email).catch(console.error);
-    }, 500);
+    setTropas(() => tropasCorregidas);
   }, [tropas.length]); // solo cuando cambia la cantidad de tropas
 
   const necesitaCorreccion = false; // ya no necesitamos el banner manual
