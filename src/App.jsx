@@ -6105,6 +6105,49 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
                     Total: {totalNac} nacidos · {pctMachos}% machos · del {srv.label.toLowerCase()} {d.anioServicio}
                   </p>
                 )}
+                {/* Sync al rodeo: los nacidos son stock real → ciclo con terneros al pie */}
+                {totalNac > 0 && !anoViendo && (
+                  d.nacidosPasados ? (
+                    <div className="rounded-xl bg-emerald-100 px-3 py-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-black text-emerald-800">✅ {totalNac} pasados al rodeo</span>
+                      <button onClick={() => {
+                        setCriaActiva((p) => ({
+                          ...p,
+                          ciclos: (p.ciclos ?? []).filter((c) => c.origenTacto !== d.id),
+                          diagnosticos: (p.diagnosticos ?? []).map((x) => x.id === d.id ? { ...x, nacidosPasados: false } : x),
+                        }));
+                        onToast && onToast("↩ Deshecho — sacados del rodeo", "success");
+                      }} className="text-xs font-black text-rose-600 hover:underline shrink-0">↩ deshacer</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => {
+                      const pctM = totalNac > 0 ? Math.round((d.ternerosNacidos || 0) / totalNac * 100) : 50;
+                      setCriaActiva((p) => ({
+                        ...p,
+                        ciclos: [...(p.ciclos ?? []), {
+                          id: "ciclo_tacto_" + d.id,
+                          servicio: d.servicio,
+                          paricionMes: mesParicion,
+                          paricionAnio: anioParicion,
+                          mesesDestete: 6,
+                          pctPreniez: 0, pctDestete: 0,
+                          pesoDesteteKg: 187,
+                          ternerosAlPie: totalNac,
+                          pctMachos: pctM,
+                          estado: "al_pie",
+                          ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0,
+                          fechaDesteReal: null, transferidoRecria: false,
+                          origenTacto: d.id,
+                        }],
+                        diagnosticos: (p.diagnosticos ?? []).map((x) => x.id === d.id ? { ...x, nacidosPasados: true } : x),
+                      }));
+                      onToast && onToast(`🐄 ${totalNac} terneros pasados al rodeo`, "success");
+                    }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95">
+                      🐄 Pasar {totalNac} nacidos al rodeo →
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </div>
@@ -8032,6 +8075,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ══════════════════════════════════════════════════════════════ */}
           {/* ══ MOVIMIENTOS ══════════════════════════════════════════════ */}
           {seccion === "movimientos" && (
+            <>
             <VistaMovimientos
               movimientos={movimientos}
               setMovimientos={setMovimientos}
@@ -8049,6 +8093,43 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               global={global}
               onToast={onToast}
             />
+            {/* ── Listado de tactos / ecografías ─────────────────────────── */}
+            <div className="mt-6 rounded-3xl bg-white border-2 border-sky-100 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-black text-sky-800">🔬 Tactos / Ecografías</p>
+                {!anoViendo && (
+                  <button onClick={() => { setSeccion("stock"); setSubStock("cria"); setCriaTab("diagnostico"); }}
+                    className="text-xs font-black px-3 py-1.5 bg-sky-600 text-white rounded-xl hover:bg-sky-700 transition-all">+ Nueva</button>
+                )}
+              </div>
+              {(criaDatos.diagnosticos ?? []).length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">No hay tactos cargados todavía.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(criaDatos.diagnosticos ?? []).map((d) => {
+                    const pct = d.vacasRevisadas > 0 ? Math.round((d.preniadas || 0) / d.vacasRevisadas * 100) : 0;
+                    const srv = SERVICIOS_DIAG[d.servicio] || SERVICIOS_DIAG.primavera;
+                    return (
+                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-700 truncate">{d.tipo === "eco" ? "📡 Eco" : "✋ Tacto"} · {srv.label} {d.anioServicio}</p>
+                          <p className="text-[11px] text-slate-400">{d.fecha} · {d.preniadas || 0}/{d.vacasRevisadas || 0} preñadas · {pct}% · rechazo {d.rechazo || 0}{d.nacidosPasados ? " · ✅ en rodeo" : ""}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button onClick={() => { setSeccion("stock"); setSubStock("cria"); setCriaTab("diagnostico"); }}
+                            className="text-xs font-black px-2.5 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-slate-600 hover:border-sky-300 transition-all" title="Editar">✏️</button>
+                          {!anoViendo && (
+                            <button onClick={() => { if (window.confirm("¿Borrar este tacto? Si lo pasaste al rodeo, también se saca de ahí.")) { setCriaActiva((p) => ({ ...p, diagnosticos: (p.diagnosticos ?? []).filter((x) => x.id !== d.id), ciclos: (p.ciclos ?? []).filter((c) => c.origenTacto !== d.id) })); onToast && onToast("🗑 Tacto borrado", "success"); } }}
+                              className="text-xs font-black px-2.5 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-rose-500 hover:border-rose-300 transition-all" title="Borrar">🗑</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </>
           )}
 
           {seccion === "rendimiento" && (
