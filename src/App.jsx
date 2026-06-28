@@ -5902,10 +5902,13 @@ Sos directo — primero el veredicto, después el análisis. Máximo 250 palabra
 // su servicio + año, y la parición resultante es del año siguiente.
 // ═══════════════════════════════════════════════════════════════════════════
 const SERVICIOS_DIAG = {
-  primavera: { label: "Servicio primavera", emoji: "🌸" },
-  verano:    { label: "Servicio verano",    emoji: "☀️" },
-  otoño:     { label: "Servicio otoño",     emoji: "🍂" },
+  primavera: { label: "Servicio primavera", emoji: "🌸", mesServ: 10 }, // ~Noviembre
+  verano:    { label: "Servicio verano",    emoji: "☀️", mesServ: 0  }, // ~Enero
+  otoño:     { label: "Servicio otoño",     emoji: "🍂", mesServ: 3  }, // ~Abril
 };
+const MESES_AB = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const GESTACION_MESES = 9;   // gestación bovina ≈ 9 meses
+const MESES_AL_DESTETE = 6;  // destete típico ≈ 6 meses post-parición
 
 function DiagNum({ label, value, onChange, accent = "slate", sub }) {
   const set = (e) => { const v = parseInt(e.target.value); onChange(Number.isFinite(v) ? Math.max(0, v) : 0); };
@@ -5995,8 +5998,16 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
         const pctVacias = 100 - pct;
         const totalNac = (d.ternerosNacidos || 0) + (d.ternerasNacidas || 0);
         const pctMachos = totalNac > 0 ? Math.round((d.ternerosNacidos || 0) / totalNac * 100) : 0;
-        const anioParicion = (d.anioServicio || new Date().getFullYear()) + 1;
         const srv = SERVICIOS_DIAG[d.servicio] || SERVICIOS_DIAG.primavera;
+        // Parición = servicio + 9 meses de gestación (rueda de año si pasa diciembre)
+        const mesServ = srv.mesServ ?? 10;
+        const parRaw = mesServ + GESTACION_MESES;
+        const mesParicion = parRaw % 12;
+        const anioParicion = (d.anioServicio || new Date().getFullYear()) + Math.floor(parRaw / 12);
+        // Destete ≈ 6 meses después de la parición
+        const desRaw = parRaw + MESES_AL_DESTETE;
+        const mesDestete = desRaw % 12;
+        const anioDestete = (d.anioServicio || new Date().getFullYear()) + Math.floor(desRaw / 12);
         return (
           <div key={d.id} className="rounded-3xl border-2 border-slate-100 bg-white overflow-hidden shadow-sm">
             {/* Header: tipo + borrar */}
@@ -6026,7 +6037,7 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
                     {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
-                <p className="text-xs text-amber-700 mt-2 font-bold">{srv.emoji} {srv.label} {d.anioServicio} → 🐮 Parición {anioParicion}</p>
+                <p className="text-xs text-amber-700 mt-2 font-bold leading-relaxed">{srv.emoji} {srv.label} {d.anioServicio} → 🐮 Parición {MESES_AB[mesParicion]} {anioParicion} → 🥛 Destete {MESES_AB[mesDestete]} {anioDestete}</p>
                 <div className="mt-2">
                   <p className="text-[11px] text-slate-400 font-bold mb-0.5">Fecha del diagnóstico</p>
                   <input type="date" value={d.fecha} onChange={(e) => updDiag(d.id, { fecha: e.target.value })}
@@ -6079,7 +6090,7 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
               {/* Parición resultante — terneros/terneras nacidos de ESTE ciclo */}
               <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-3 space-y-2">
                 <p className="text-[11px] uppercase tracking-widest font-black text-sky-700">
-                  Parición {anioParicion} — nacidos de este ciclo
+                  Parición {MESES_AB[mesParicion]} {anioParicion} — nacidos de este ciclo
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white border border-blue-200 rounded-xl p-2.5">
