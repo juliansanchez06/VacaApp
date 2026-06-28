@@ -5894,10 +5894,220 @@ Sos directo — primero el veredicto, después el análisis. Máximo 250 palabra
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DIAGNÓSTICO DE PREÑEZ — Tacto / Ecografía (pestaña dentro de Cría)
+// Registra sesiones de tacto/eco POR CICLO de servicio. Esta preñez es de un
+// ciclo distinto al ternero al pie (una vaca puede estar preñada del servicio
+// nuevo Y con ternero al pie del servicio anterior). Por eso cada sesión lleva
+// su servicio + año, y la parición resultante es del año siguiente.
+// ═══════════════════════════════════════════════════════════════════════════
+const SERVICIOS_DIAG = {
+  primavera: { label: "Servicio primavera", emoji: "🌸" },
+  verano:    { label: "Servicio verano",    emoji: "☀️" },
+  otoño:     { label: "Servicio otoño",     emoji: "🍂" },
+};
+
+function DiagNum({ label, value, onChange, accent = "slate", sub }) {
+  const set = (e) => { const v = parseInt(e.target.value); onChange(Number.isFinite(v) ? Math.max(0, v) : 0); };
+  return (
+    <div>
+      <p className="text-xs text-slate-500 font-bold mb-1">{label}</p>
+      <input type="number" min="0" inputMode="numeric" value={value}
+        onChange={set}
+        className={`w-full text-2xl font-black bg-transparent focus:outline-none text-${accent}-800`} />
+      {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+    </div>
+  );
+}
+
+function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
+  const diagnosticos = criaDatos.diagnosticos ?? [];
+  const madresActuales = (criaDatos.vacas || 0) + (criaDatos.vaquillonas1 ?? criaDatos.vaquillonas ?? 0) + (criaDatos.vaquillonas2 || 0);
+
+  const addDiag = () => setCriaActiva((p) => ({
+    ...p,
+    diagnosticos: [...(p.diagnosticos ?? []), {
+      id: "diag_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      tipo: "tacto",
+      fecha: new Date().toISOString().slice(0, 10),
+      servicio: "primavera",
+      anioServicio: new Date().getFullYear(),
+      vacasRevisadas: madresActuales,
+      preniadas: 0,
+      rechazo: 0,
+      rechazoAplicado: false,
+      ternerosNacidos: 0,
+      ternerasNacidas: 0,
+    }],
+  }));
+  const updDiag = (id, patch) => setCriaActiva((p) => ({
+    ...p,
+    diagnosticos: (p.diagnosticos ?? []).map((d) => (d.id === id ? { ...d, ...patch } : d)),
+  }));
+  const delDiag = (id) => setCriaActiva((p) => ({
+    ...p,
+    diagnosticos: (p.diagnosticos ?? []).filter((d) => d.id !== id),
+  }));
+
+  // Totales
+  const totRev = diagnosticos.reduce((s, d) => s + (d.vacasRevisadas || 0), 0);
+  const totPren = diagnosticos.reduce((s, d) => s + (d.preniadas || 0), 0);
+  const totRech = diagnosticos.reduce((s, d) => s + (d.rechazo || 0), 0);
+  const pctGlobal = totRev > 0 ? Math.round(totPren / totRev * 100) : 0;
+
+  return (
+    <div className="sim-zoom-enter space-y-4">
+      {/* Intro */}
+      <div className="rounded-3xl p-5 bg-gradient-to-br from-sky-50 to-cyan-50 border-2 border-sky-100">
+        <p className="text-base font-black text-sky-800 tracking-tight">🔬 Tacto / Ecografía — diagnóstico de preñez</p>
+        <p className="text-xs text-sky-600 mt-1 leading-snug">
+          Cada sesión es de un <b>servicio</b> (ciclo) puntual. Ojo: esta preñez es del servicio nuevo y pare el <b>año que viene</b> —
+          es distinta del ternero al pie que estás por destetar (ese vino del servicio anterior). Por eso cada sesión lleva su año de ciclo.
+        </p>
+      </div>
+
+      {/* Resumen */}
+      {diagnosticos.length > 0 && (
+        <div className="rounded-2xl bg-white border-2 border-slate-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Revisadas</p><p className="text-xl font-black text-slate-700">{totRev}</p></div>
+          <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Preñadas</p><p className="text-xl font-black text-emerald-700">{totPren}</p></div>
+          <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">% Preñez global</p><p className="text-xl font-black text-emerald-700">{pctGlobal}%</p></div>
+          <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">A rechazo</p><p className="text-xl font-black text-rose-700">{totRech}</p></div>
+        </div>
+      )}
+
+      {/* Botón agregar */}
+      {!anoViendo && (
+        <button onClick={addDiag}
+          className="w-full bg-sky-600 hover:bg-sky-700 text-white font-black text-sm px-3 py-3 rounded-2xl transition-all active:scale-95">
+          + Nueva sesión de tacto / eco
+        </button>
+      )}
+
+      {diagnosticos.length === 0 && (
+        <p className="text-center text-slate-400 text-sm py-6">Todavía no cargaste ninguna sesión de tacto o ecografía.</p>
+      )}
+
+      {/* Sesiones */}
+      {diagnosticos.map((d) => {
+        const pct = d.vacasRevisadas > 0 ? Math.round((d.preniadas || 0) / d.vacasRevisadas * 100) : 0;
+        const vacias = Math.max(0, (d.vacasRevisadas || 0) - (d.preniadas || 0));
+        const pctVacias = 100 - pct;
+        const totalNac = (d.ternerosNacidos || 0) + (d.ternerasNacidas || 0);
+        const pctMachos = totalNac > 0 ? Math.round((d.ternerosNacidos || 0) / totalNac * 100) : 0;
+        const anioParicion = (d.anioServicio || new Date().getFullYear()) + 1;
+        const srv = SERVICIOS_DIAG[d.servicio] || SERVICIOS_DIAG.primavera;
+        return (
+          <div key={d.id} className="rounded-3xl border-2 border-slate-100 bg-white overflow-hidden shadow-sm">
+            {/* Header: tipo + borrar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <div className="flex gap-1.5">
+                <button onClick={() => updDiag(d.id, { tipo: "tacto" })}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${d.tipo === "tacto" ? "bg-purple-600 text-white border-purple-600" : "bg-white text-slate-400 border-slate-200"}`}>✋ Tacto</button>
+                <button onClick={() => updDiag(d.id, { tipo: "eco" })}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${d.tipo === "eco" ? "bg-sky-600 text-white border-sky-600" : "bg-white text-slate-400 border-slate-200"}`}>📡 Ecografía</button>
+              </div>
+              {!anoViendo && (
+                <button onClick={() => delDiag(d.id)} className="text-slate-300 hover:text-red-500 font-black px-1">✕</button>
+              )}
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Banner del ciclo — para no perderse de qué año es */}
+              <div className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-3">
+                <p className="text-[11px] uppercase tracking-widest font-black text-amber-700 mb-2">Ciclo</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={d.servicio} onChange={(e) => updDiag(d.id, { servicio: e.target.value })}
+                    className="text-sm font-black bg-white border-2 border-amber-200 rounded-xl px-2 py-1.5 text-amber-800 focus:outline-none">
+                    {Object.keys(SERVICIOS_DIAG).map((k) => <option key={k} value={k}>{SERVICIOS_DIAG[k].label}</option>)}
+                  </select>
+                  <select value={d.anioServicio} onChange={(e) => updDiag(d.id, { anioServicio: parseInt(e.target.value) })}
+                    className="text-sm font-black bg-white border-2 border-amber-200 rounded-xl px-2 py-1.5 text-amber-800 focus:outline-none">
+                    {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-amber-700 mt-2 font-bold">{srv.emoji} {srv.label} {d.anioServicio} → 🐮 Parición {anioParicion}</p>
+                <div className="mt-2">
+                  <p className="text-[11px] text-slate-400 font-bold mb-0.5">Fecha del diagnóstico</p>
+                  <input type="date" value={d.fecha} onChange={(e) => updDiag(d.id, { fecha: e.target.value })}
+                    className="text-xs font-bold bg-white border-2 border-amber-200 rounded-xl px-2 py-1.5 text-slate-700 focus:outline-none" />
+                </div>
+              </div>
+
+              {/* Revisadas + preñadas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <DiagNum label="Vacas revisadas" value={d.vacasRevisadas} onChange={(v) => updDiag(d.id, { vacasRevisadas: v })} accent="slate" />
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+                  <DiagNum label="🐄 Preñadas" value={d.preniadas} onChange={(v) => updDiag(d.id, { preniadas: v })} accent="emerald" sub="contadas en el tacto/eco" />
+                </div>
+              </div>
+
+              {/* Resultado: % preñez + vacías */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-emerald-600 text-white p-3">
+                  <p className="text-[11px] uppercase tracking-widest font-black opacity-80">% Preñez</p>
+                  <p className="text-3xl font-black">{pct}%</p>
+                  <p className="text-[11px] opacity-80">{d.preniadas || 0} de {d.vacasRevisadas || 0}</p>
+                </div>
+                <div className="rounded-2xl bg-rose-50 border-2 border-rose-200 p-3">
+                  <p className="text-[11px] uppercase tracking-widest font-black text-rose-600">Vacías</p>
+                  <p className="text-3xl font-black text-rose-700">{vacias}</p>
+                  <p className="text-[11px] text-rose-500">{pctVacias}% no preñadas</p>
+                </div>
+              </div>
+
+              {/* Rechazo manual */}
+              <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-3">
+                <div className="flex items-end justify-between gap-3">
+                  <DiagNum label="🔻 A rechazo (manual)" value={d.rechazo} onChange={(v) => updDiag(d.id, { rechazo: v })} accent="rose" sub={`sugerido: ${vacias} vacías`} />
+                  {!anoViendo && d.rechazo > 0 && !d.rechazoAplicado && (
+                    <button onClick={() => {
+                      setCriaActiva((p) => ({ ...p, vacaCut: (p.vacaCut ?? 0) + d.rechazo }));
+                      updDiag(d.id, { rechazoAplicado: true });
+                      onToast && onToast(`🔻 ${d.rechazo} vacas pasadas a Vaca CUT (descarte)`, "success");
+                    }}
+                      className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs px-3 py-2 rounded-xl transition-all active:scale-95">
+                      → Pasar a descarte
+                    </button>
+                  )}
+                  {d.rechazoAplicado && <span className="shrink-0 text-xs font-black text-emerald-700">✅ Aplicado a descarte</span>}
+                </div>
+              </div>
+
+              {/* Parición resultante — terneros/terneras nacidos de ESTE ciclo */}
+              <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-3 space-y-2">
+                <p className="text-[11px] uppercase tracking-widest font-black text-sky-700">
+                  Parición {anioParicion} — nacidos de este ciclo
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white border border-blue-200 rounded-xl p-2.5">
+                    <DiagNum label="♂ Terneros (machos)" value={d.ternerosNacidos} onChange={(v) => updDiag(d.id, { ternerosNacidos: v })} accent="blue" />
+                  </div>
+                  <div className="bg-white border border-rose-200 rounded-xl p-2.5">
+                    <DiagNum label="♀ Terneras (hembras)" value={d.ternerasNacidas} onChange={(v) => updDiag(d.id, { ternerasNacidas: v })} accent="rose" />
+                  </div>
+                </div>
+                {totalNac > 0 && (
+                  <p className="text-xs text-sky-700 font-bold">
+                    Total: {totalNac} nacidos · {pctMachos}% machos · del {srv.label.toLowerCase()} {d.anioServicio}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
+  const [criaTab,    setCriaTab]    = useState("rodeo");
 
   // ── Snapshots para deshacer por sección ──────────────────────────────────
   const [snapCria,       setSnapCria]       = useState(null);
@@ -6789,6 +6999,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapCria(null); }}
                 onDeshacer={deshacerCria}
               />
+              {/* Pestañas internas de Cría */}
+              <div className="flex gap-2">
+                <button onClick={() => setCriaTab("rodeo")}
+                  className={`flex-1 px-3 py-2.5 rounded-2xl text-sm font-black transition-all ${criaTab === "rodeo" ? "bg-emerald-600 text-white shadow" : "bg-white text-slate-500 border-2 border-slate-200"}`}>
+                  🐄 Rodeo
+                </button>
+                <button onClick={() => setCriaTab("diagnostico")}
+                  className={`flex-1 px-3 py-2.5 rounded-2xl text-sm font-black transition-all ${criaTab === "diagnostico" ? "bg-sky-600 text-white shadow" : "bg-white text-slate-500 border-2 border-slate-200"}`}>
+                  🔬 Tacto / Eco
+                </button>
+              </div>
+
+              {criaTab === "diagnostico" && (
+                <DiagnosticoPreniez criaDatos={criaDatos} setCriaActiva={setCriaActiva} anoViendo={anoViendo} onToast={onToast} />
+              )}
+
+              {criaTab === "rodeo" && (
               <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
                 <div className="p-5 md:p-6 space-y-6">
@@ -7357,6 +7584,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   </button>
                 </div>
               </div>
+              )}
             </div>
           )}
   
