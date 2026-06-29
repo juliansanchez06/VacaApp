@@ -6133,6 +6133,8 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
                           pctPreniez: 0, pctDestete: 0,
                           pesoDesteteKg: 187,
                           ternerosAlPie: totalNac,
+                          ternerosAlPieMachos: d.ternerosNacidos || 0,
+                          ternerosAlPieHembras: d.ternerasNacidas || 0,
                           pctMachos: pctM,
                           estado: "al_pie",
                           ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0,
@@ -7233,6 +7235,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const ternDestProyec = nacidosCiclo;
                       const pctPreniezDer  = madresCiclo > 0 ? Math.round(nacidosCiclo / madresCiclo * 100) : 0;
                       const pctDesteteDer  = madresCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / madresCiclo * 100) : 0;
+                      // Al pie dividido M/H (compat: si no está el split, lo deriva de pctMachos)
+                      const alPieM = ciclo.ternerosAlPieMachos ?? Math.round((ciclo.ternerosAlPie ?? 0) * (ciclo.pctMachos ?? 50) / 100);
+                      const alPieH = ciclo.ternerosAlPieHembras ?? Math.max(0, (ciclo.ternerosAlPie ?? 0) - alPieM);
                       const updateCiclo = (patch) => setCriaActiva(p => ({
                         ...p,
                         ciclos: (p.ciclos ?? []).map((c, i) => i === idx ? { ...c, ...patch } : c)
@@ -7284,11 +7289,22 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             {/* Terneros al pie */}
                             <div className="grid grid-cols-2 gap-3">
                               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                                <p className="text-xs text-slate-500 font-bold mb-1">🐂 Terneros para destetar</p>
-                                <input type="number" min="0" value={ciclo.ternerosAlPie ?? 0}
-                                  onChange={e => updateCiclo({ ternerosAlPie: parseInt(e.target.value)||0 })}
-                                  className="w-full text-2xl font-black text-amber-800 bg-transparent focus:outline-none" />
-                                <p className="text-xs text-slate-400">los que tenés al pie → define % preñez</p>
+                                <p className="text-xs text-slate-500 font-bold mb-2">🐂 Terneros para destetar (al pie)</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-blue-50 rounded-lg p-2">
+                                    <p className="text-[11px] text-blue-600 font-bold mb-0.5">♂ Machos</p>
+                                    <input type="number" min="0" value={alPieM}
+                                      onChange={e => { const m = parseInt(e.target.value)||0; updateCiclo({ ternerosAlPieMachos: m, ternerosAlPie: m + alPieH, pctMachos: (m + alPieH) > 0 ? Math.round(m / (m + alPieH) * 100) : 50 }); }}
+                                      className="w-full text-xl font-black text-blue-800 bg-white border border-blue-200 rounded-lg px-2 py-1 focus:outline-none" />
+                                  </div>
+                                  <div className="bg-rose-50 rounded-lg p-2">
+                                    <p className="text-[11px] text-rose-600 font-bold mb-0.5">♀ Hembras</p>
+                                    <input type="number" min="0" value={alPieH}
+                                      onChange={e => { const h = parseInt(e.target.value)||0; updateCiclo({ ternerosAlPieHembras: h, ternerosAlPie: alPieM + h, pctMachos: (alPieM + h) > 0 ? Math.round(alPieM / (alPieM + h) * 100) : 50 }); }}
+                                      className="w-full text-xl font-black text-rose-800 bg-white border border-rose-200 rounded-lg px-2 py-1 focus:outline-none" />
+                                  </div>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1.5">Total: {alPieM + alPieH} → define % preñez</p>
                               </div>
                               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                                 <p className="text-xs text-slate-500 font-bold mb-1">📅 Destete estimado</p>
@@ -7344,11 +7360,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             {!isDestetado && (
                               <DesteteParcialBtn
                                 ternerosNoDestetados={ciclo.ternerosAlPie ?? 0}
+                                machosAlPie={alPieM}
+                                hembrasAlPie={alPieH}
                                 pctMachos={ciclo.pctMachos ?? 50}
                                 onDestetar={(cant, machos, hembras) => {
-                                  const restantes = Math.max(0, (ciclo.ternerosAlPie ?? 0) - cant);
+                                  const restM = Math.max(0, alPieM - machos);
+                                  const restH = Math.max(0, alPieH - hembras);
+                                  const restantes = restM + restH;
                                   updateCiclo({
                                     ternerosAlPie: restantes,
+                                    ternerosAlPieMachos: restM,
+                                    ternerosAlPieHembras: restH,
                                     ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
                                     machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
                                     hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
@@ -10144,7 +10166,7 @@ function SyncDescartesBtn({ criaDatos, setCriaActiva, setTermActiva, onToast }) 
 }
 
 // Componente para destete parcial
-function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
+function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar, machosAlPie, hembrasAlPie }) {
   const pctM = pctMachos ?? 50;
   const [machos,  setMachos]  = React.useState(0);
   const [hembras, setHembras] = React.useState(0);
@@ -10152,10 +10174,15 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar }) {
   const total = (parseInt(machos)||0) + (parseInt(hembras)||0);
 
   const handleOpen = () => {
-    // Pre-fill con la proyección basada en terneros al pie y % machos
-    const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
-    setMachos(Math.round(tot * pctM / 100));
-    setHembras(tot - Math.round(tot * pctM / 100));
+    // Pre-fill con la división real M/H del al pie (si existe), o proyección por % machos
+    if (machosAlPie != null || hembrasAlPie != null) {
+      setMachos(machosAlPie ?? 0);
+      setHembras(hembrasAlPie ?? 0);
+    } else {
+      const tot = ternerosNoDestetados > 0 ? ternerosNoDestetados : 0;
+      setMachos(Math.round(tot * pctM / 100));
+      setHembras(tot - Math.round(tot * pctM / 100));
+    }
     setOpen(true);
   };
 
