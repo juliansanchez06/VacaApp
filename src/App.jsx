@@ -6284,26 +6284,33 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const madresParicion       = (criaDatos.vacas || 0) + (criaDatos.vaquillonas1 ?? criaDatos.vaquillonas ?? 0) + (criaDatos.vaquillonas2 || 0);
   const totalDestetadosReal  = ciclos.reduce((s, c) => s + (c.ternerosDestetados ?? 0), 0);
   const nacidosTotales       = totalTernerosAlPie + totalDestetadosReal;
-  const pctPreniezAgg        = madresParicion > 0 ? Math.round(nacidosTotales / madresParicion * 100) : 0;
-  const pctDesteteAgg        = madresParicion > 0 ? Math.round(totalDestetadosReal / madresParicion * 100) : 0;
+  // % Preñez NO sale de los terneros al pie (ese servicio ya pasó). Sale de los TACTOS.
+  const _tactosCria          = criaDatos.diagnosticos ?? [];
+  const _totRevTactos        = _tactosCria.reduce((s, t) => s + (t.vacasRevisadas || 0), 0);
+  const _totPrenTactos       = _tactosCria.reduce((s, t) => s + (t.preniadas || 0), 0);
+  const pctPreniezAgg        = _totRevTactos > 0 ? Math.round(_totPrenTactos / _totRevTactos * 100) : null; // null = sin datos
+  // % Destete = destetados ÷ nacidos (los terneros que tenías al pie)
+  const pctDesteteAgg        = nacidosTotales > 0 ? Math.round(totalDestetadosReal / nacidosTotales * 100) : 0;
 
   useEffect(() => {
-    if (anoViendo) return;            // no escribir sobre años históricos
-    if (madresParicion <= 0) return;  // sin madres no hay % que derivar
+    if (anoViendo) return; // no escribir sobre años históricos
     const cic = criaDatos.ciclos ?? [];
+    const tactos = criaDatos.diagnosticos ?? [];
     let ciclosChanged = false;
     const nuevosCiclos = cic.map((c) => {
-      const nac = (c.ternerosAlPie || 0) + (c.ternerosDestetados || 0);
-      const pr  = Math.round(nac / madresParicion * 100);
-      const de  = Math.round((c.ternerosDestetados || 0) / madresParicion * 100);
-      if (c.pctPreniez !== pr || c.pctDestete !== de) { ciclosChanged = true; return { ...c, pctPreniez: pr, pctDestete: de }; }
+      const nacC = (c.ternerosAlPie || 0) + (c.ternerosDestetados || 0);
+      const deC  = nacC > 0 ? Math.round((c.ternerosDestetados || 0) / nacC * 100) : 0;
+      const tl   = tactos.find((t) => t.id === c.origenTacto);
+      const prC  = (tl && tl.vacasRevisadas > 0) ? Math.round((tl.preniadas || 0) / tl.vacasRevisadas * 100) : (c.pctPreniez ?? 0);
+      if (c.pctDestete !== deC || c.pctPreniez !== prC) { ciclosChanged = true; return { ...c, pctDestete: deC, pctPreniez: prC }; }
       return c;
     });
-    const aggChanged = (criaDatos.pctPreniez ?? -1) !== pctPreniezAgg || (criaDatos.pctDestete ?? -1) !== pctDesteteAgg;
+    const newPreniez = pctPreniezAgg != null ? pctPreniezAgg : (criaDatos.pctPreniez ?? 0);
+    const aggChanged = (criaDatos.pctPreniez ?? -1) !== newPreniez || (criaDatos.pctDestete ?? -1) !== pctDesteteAgg;
     if (ciclosChanged || aggChanged) {
-      setCriaActiva((p) => ({ ...p, pctPreniez: pctPreniezAgg, pctDestete: pctDesteteAgg, ...(ciclosChanged ? { ciclos: nuevosCiclos } : {}) }));
+      setCriaActiva((p) => ({ ...p, pctPreniez: newPreniez, pctDestete: pctDesteteAgg, ...(ciclosChanged ? { ciclos: nuevosCiclos } : {}) }));
     }
-  }, [criaDatos, anoViendo, madresParicion, pctPreniezAgg, pctDesteteAgg]);
+  }, [criaDatos, anoViendo, pctPreniezAgg, pctDesteteAgg]);
 
   // ── Costos estructura detallados ──────────────────────────────────────────
   const costoMensualEmpleado = (e) => {
@@ -7159,12 +7166,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-500 font-semibold">% Preñez</span>
-                          <span className="text-[10px] text-emerald-700 font-black bg-emerald-100 px-1.5 py-0.5 rounded-full">auto</span>
+                          <span className="text-[10px] text-sky-700 font-black bg-sky-100 px-1.5 py-0.5 rounded-full">del tacto</span>
                         </div>
                         <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2.5">
-                          <span className="text-2xl font-black text-emerald-700">{pctPreniezAgg}%</span>
+                          {pctPreniezAgg != null
+                            ? <span className="text-2xl font-black text-emerald-700">{pctPreniezAgg}%</span>
+                            : <span className="text-base font-black text-slate-400">Sin datos</span>}
                         </div>
-                        <p className="text-[11px] text-slate-400">{nacidosTotales} nacidos ÷ {madresParicion} madres</p>
+                        <p className="text-[11px] text-slate-400">{pctPreniezAgg != null ? `${_totPrenTactos} preñadas ÷ ${_totRevTactos} revisadas` : "cargá un tacto / eco"}</p>
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
@@ -7174,7 +7183,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2.5">
                           <span className="text-2xl font-black text-emerald-700">{pctDesteteAgg}%</span>
                         </div>
-                        <p className="text-[11px] text-slate-400">{totalDestetadosReal} destetados ÷ {madresParicion} madres</p>
+                        <p className="text-[11px] text-slate-400">{totalDestetadosReal} destetados ÷ {nacidosTotales} nacidos</p>
                       </div>
                       <EditField label="Peso al destete (kg)" value={criaDatos.pesoDesteteKg??187} onChange={v=>setCriaActiva(p=>({...p,pesoDesteteKg:Math.max(100,Math.min(300,v))}))} step={5} suffix="kg" hint="175-200 kg típico para Argentina. Impacta en margen de Cría y costo de reposición de Recría." />
                       <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
@@ -7233,8 +7242,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const nacidosCiclo   = (ciclo.ternerosAlPie ?? 0) + (ciclo.ternerosDestetados ?? 0);
                       const ternNacidos    = nacidosCiclo;
                       const ternDestProyec = nacidosCiclo;
-                      const pctPreniezDer  = madresCiclo > 0 ? Math.round(nacidosCiclo / madresCiclo * 100) : 0;
-                      const pctDesteteDer  = madresCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / madresCiclo * 100) : 0;
+                      const tactoLinkCiclo = (criaDatos.diagnosticos ?? []).find(t => t.id === ciclo.origenTacto);
+                      const pctPreniezDer  = (tactoLinkCiclo && tactoLinkCiclo.vacasRevisadas > 0) ? Math.round((tactoLinkCiclo.preniadas ?? 0) / tactoLinkCiclo.vacasRevisadas * 100) : null;
+                      const pctDesteteDer  = nacidosCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / nacidosCiclo * 100) : 0;
                       // Al pie dividido M/H (compat: si no está el split, lo deriva de pctMachos)
                       const alPieM = ciclo.ternerosAlPieMachos ?? Math.round((ciclo.ternerosAlPie ?? 0) * (ciclo.pctMachos ?? 50) / 100);
                       const alPieH = ciclo.ternerosAlPieHembras ?? Math.max(0, (ciclo.ternerosAlPie ?? 0) - alPieM);
@@ -7320,12 +7330,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-slate-500 font-semibold">% Preñez</span>
-                                  <span className="text-[10px] text-emerald-700 font-black bg-emerald-100 px-1.5 py-0.5 rounded-full">auto</span>
+                                  <span className="text-[10px] text-sky-700 font-black bg-sky-100 px-1.5 py-0.5 rounded-full">del tacto</span>
                                 </div>
                                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2">
-                                  <span className="text-xl font-black text-emerald-700">{pctPreniezDer}%</span>
+                                  {pctPreniezDer != null
+                                    ? <span className="text-xl font-black text-emerald-700">{pctPreniezDer}%</span>
+                                    : <span className="text-sm font-black text-slate-400">Sin datos</span>}
                                 </div>
-                                <p className="text-[10px] text-slate-400">{nacidosCiclo} ÷ {madresCiclo} madres</p>
+                                <p className="text-[10px] text-slate-400">{pctPreniezDer != null ? "del tacto vinculado" : "sin tacto de este servicio"}</p>
                               </div>
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -7335,7 +7347,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2">
                                   <span className="text-xl font-black text-emerald-700">{pctDesteteDer}%</span>
                                 </div>
-                                <p className="text-[10px] text-slate-400">{ciclo.ternerosDestetados ?? 0} ÷ {madresCiclo} madres</p>
+                                <p className="text-[10px] text-slate-400">{ciclo.ternerosDestetados ?? 0} ÷ {nacidosCiclo} nacidos</p>
                               </div>
                               <EditField label="Peso destete (kg)" value={ciclo.pesoDesteteKg} onChange={v => updateCiclo({ pesoDesteteKg: Math.max(100, Math.min(300, v)) })} step={5} suffix=" kg" />
                               <EditField label="% Machos" value={ciclo.pctMachos ?? 50} onChange={v => updateCiclo({ pctMachos: Math.min(100, Math.max(0, v)) })} step={1} suffix="%" hint={"Hembras: " + (100 - (ciclo.pctMachos ?? 50)) + "%"} />
@@ -7367,6 +7379,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                   const restM = Math.max(0, alPieM - machos);
                                   const restH = Math.max(0, alPieH - hembras);
                                   const restantes = restM + restH;
+                                  const pctRep     = criaDatos.pctReposicion ?? 30;
+                                  const hembrasRep = Math.round(hembras * pctRep / 100);
+                                  const hembrasVta = hembras - hembrasRep;
+                                  // 1) Sacar del al pie + registrar el destete
                                   updateCiclo({
                                     ternerosAlPie: restantes,
                                     ternerosAlPieMachos: restM,
@@ -7376,8 +7392,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
                                     estado: restantes === 0 ? "destetado" : "al_pie",
                                     fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
+                                    transferidoRecria: true,
                                   });
-                                  onToast("✅ " + cant + " destetados — " + machos + " machos, " + hembras + " hembras" + (restantes === 0 ? " — ciclo completo" : " — quedan " + restantes), "success");
+                                  // 2) Pasar ESTE lote a Recría (no desaparecen: salen de cría y entran a recría)
+                                  setRecriaActiva(p => ({
+                                    ...p,
+                                    ternerosLiquidaMachos:  (p.ternerosLiquidaMachos  ?? 0) + machos,
+                                    vaquillonaRecria:       (p.vaquillonaRecria       ?? 0) + hembrasRep,
+                                    ternerosLiquidaHembras: (p.ternerosLiquidaHembras ?? 0) + hembrasVta,
+                                    pesoEntradaRecria:      ciclo.pesoDesteteKg ?? p.pesoEntradaRecria ?? 187,
+                                  }));
+                                  onToast("✅ " + cant + " destetados y pasados a Recría — " + machos + "♂ novillos, " + hembrasRep + "♀ reposición, " + hembrasVta + "♀ venta", "success");
                                 }}
                               />
                             )}
@@ -7401,7 +7426,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                             ternerosLiquidaHembras: Math.max(0, (p.ternerosLiquidaHembras ?? 0) - hembrasVta),
                                           }));
                                         }
-                                        updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null, transferidoRecria: false });
+                                        updateCiclo({ estado: "al_pie", ternerosAlPie: ciclo.ternerosDestetados, ternerosAlPieMachos: ciclo.machosDestetados ?? 0, ternerosAlPieHembras: ciclo.hembrasDestetadas ?? 0, ternerosDestetados: 0, machosDestetados: 0, hembrasDestetadas: 0, fechaDesteReal: null, transferidoRecria: false });
                                       }}
                                       className="text-xs text-slate-400 hover:text-red-500 font-bold">↩ Deshacer</button>
                                   </div>
@@ -7454,34 +7479,6 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                   </div>
                                 )}
 
-                                {/* ── Botón: Pasar destetados a Recría ── */}
-                                {!ciclo.transferidoRecria && (ciclo.ternerosDestetados ?? 0) > 0 && (() => {
-                                  const machos      = ciclo.machosDestetados ?? 0;
-                                  const hembras     = ciclo.hembrasDestetadas ?? 0;
-                                  const pctRep      = criaDatos.pctReposicion ?? 30;
-                                  const hembrasRep  = Math.round(hembras * pctRep / 100);
-                                  const hembrasVta  = hembras - hembrasRep;
-                                  return (
-                                    <button
-                                      onClick={() => {
-                                        // Sumar al stock real de recría
-                                        setRecriaActiva(p => ({
-                                          ...p,
-                                          ternerosLiquidaMachos:  (p.ternerosLiquidaMachos  ?? 0) + machos,
-                                          vaquillonaRecria:       (p.vaquillonaRecria       ?? 0) + hembrasRep,
-                                          ternerosLiquidaHembras: (p.ternerosLiquidaHembras ?? 0) + hembrasVta,
-                                          pesoEntradaRecria:      ciclo.pesoDesteteKg ?? p.pesoEntradaRecria ?? 187,
-                                        }));
-                                        // Marcar el ciclo como transferido
-                                        updateCiclo({ transferidoRecria: true });
-                                        onToast(`✅ Pasados a Recría: ${machos} machos → novillos, ${hembrasRep} hembras → reposición, ${hembrasVta} hembras → venta`, "success");
-                                      }}
-                                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-black text-sm shadow-md transition-all active:scale-95"
-                                    >
-                                      🐂 Pasar {ciclo.ternerosDestetados} terneros a Recría →
-                                    </button>
-                                  );
-                                })()}
 
                                 {ciclo.transferidoRecria && (
                                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-between">
