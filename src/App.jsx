@@ -7246,12 +7246,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const ternNacidos    = nacidosCiclo;
                       const ternDestProyec = nacidosCiclo;
                       const tactoLinkCiclo = (criaDatos.diagnosticos ?? []).find(t => t.id === ciclo.origenTacto);
-                      // El eco solo aplica si su año de parición coincide con el del ciclo
-                      // (los terneros al pie de un servicio viejo NO llevan el % del eco nuevo)
-                      const _ecoParAnio = tactoLinkCiclo
-                        ? (tactoLinkCiclo.anioServicio + Math.floor(((SERVICIOS_DIAG[tactoLinkCiclo.servicio]?.mesServ ?? 10) + 9) / 12))
-                        : null;
-                      const pctPreniezDer  = (tactoLinkCiclo && tactoLinkCiclo.vacasRevisadas > 0 && _ecoParAnio === ciclo.paricionAnio)
+                      // El % preñez del eco recién se vuelve terneros EN la parición. Si esa
+                      // parición todavía no llegó, el eco es de la parición que VIENE y NO
+                      // aplica a lo que destetás hoy (eso es de la parición pasada).
+                      const _ecoMesServ = tactoLinkCiclo ? (SERVICIOS_DIAG[tactoLinkCiclo.servicio]?.mesServ ?? 10) : 0;
+                      const _ecoParRaw  = _ecoMesServ + 9;
+                      const _ecoParAnio = tactoLinkCiclo ? (tactoLinkCiclo.anioServicio + Math.floor(_ecoParRaw / 12)) : null;
+                      const _ecoParMes  = _ecoParRaw % 12;
+                      const _hoyDate    = new Date();
+                      const _ecoYaPario = tactoLinkCiclo && ((_ecoParAnio < _hoyDate.getFullYear()) || (_ecoParAnio === _hoyDate.getFullYear() && _ecoParMes <= _hoyDate.getMonth()));
+                      const pctPreniezDer  = (tactoLinkCiclo && tactoLinkCiclo.vacasRevisadas > 0 && _ecoYaPario)
                         ? Math.round((tactoLinkCiclo.preniadas ?? 0) / tactoLinkCiclo.vacasRevisadas * 100)
                         : null;
                       const pctDesteteDer  = nacidosCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / nacidosCiclo * 100) : 0;
@@ -7347,7 +7351,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     ? <span className="text-xl font-black text-emerald-700">{pctPreniezDer}%</span>
                                     : <span className="text-sm font-black text-slate-400">Sin datos</span>}
                                 </div>
-                                <p className="text-[10px] text-slate-400">{pctPreniezDer != null ? "del tacto vinculado" : "sin tacto de este servicio"}</p>
+                                <p className="text-[10px] text-slate-400">{pctPreniezDer != null ? "del tacto vinculado" : (tactoLinkCiclo ? "el eco es de la parición que viene" : "sin tacto de este servicio")}</p>
                               </div>
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
