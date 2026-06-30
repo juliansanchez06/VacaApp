@@ -6129,7 +6129,7 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
                           servicio: d.servicio,
                           paricionMes: mesParicion,
                           paricionAnio: anioParicion,
-                          mesesDestete: 6,
+                          mesesDestete: 7,
                           pctPreniez: 0, pctDestete: 0,
                           pesoDesteteKg: 187,
                           ternerosAlPie: totalNac,
@@ -7209,13 +7209,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Ciclos de parición</p>
-                      <button onClick={() => setCriaActiva(p => ({
+                      <button onClick={() => setCriaActiva(p => {
+                        const dPar = new Date(); dPar.setMonth(dPar.getMonth() - 7);
+                        return {
                         ...p,
                         ciclos: [...(p.ciclos ?? []), {
                           id: "ciclo_" + Date.now(),
-                          servicio: "otoño",
-                          paricionMes: 4,
-                          paricionAnio: new Date().getFullYear(),
+                          servicio: "primavera",
+                          paricionMes: dPar.getMonth(),
+                          paricionAnio: dPar.getFullYear(),
                           mesesDestete: 7,
                           pctPreniez: 85,
                           pctDestete: 75,
@@ -7226,7 +7228,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           ternerosDestetados: 0,
                           fechaDesteReal: null,
                         }]
-                      }))}
+                        };
+                      })}
                         className="text-xs font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl transition-all active:scale-95">
                         + Agregar ciclo
                       </button>
@@ -7243,7 +7246,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       const ternNacidos    = nacidosCiclo;
                       const ternDestProyec = nacidosCiclo;
                       const tactoLinkCiclo = (criaDatos.diagnosticos ?? []).find(t => t.id === ciclo.origenTacto);
-                      const pctPreniezDer  = (tactoLinkCiclo && tactoLinkCiclo.vacasRevisadas > 0) ? Math.round((tactoLinkCiclo.preniadas ?? 0) / tactoLinkCiclo.vacasRevisadas * 100) : null;
+                      // El eco solo aplica si su año de parición coincide con el del ciclo
+                      // (los terneros al pie de un servicio viejo NO llevan el % del eco nuevo)
+                      const _ecoParAnio = tactoLinkCiclo
+                        ? (tactoLinkCiclo.anioServicio + Math.floor(((SERVICIOS_DIAG[tactoLinkCiclo.servicio]?.mesServ ?? 10) + 9) / 12))
+                        : null;
+                      const pctPreniezDer  = (tactoLinkCiclo && tactoLinkCiclo.vacasRevisadas > 0 && _ecoParAnio === ciclo.paricionAnio)
+                        ? Math.round((tactoLinkCiclo.preniadas ?? 0) / tactoLinkCiclo.vacasRevisadas * 100)
+                        : null;
                       const pctDesteteDer  = nacidosCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / nacidosCiclo * 100) : 0;
                       // Al pie dividido M/H (compat: si no está el split, lo deriva de pctMachos)
                       const alPieM = ciclo.ternerosAlPieMachos ?? Math.round((ciclo.ternerosAlPie ?? 0) * (ciclo.pctMachos ?? 50) / 100);
