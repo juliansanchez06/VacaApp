@@ -553,6 +553,24 @@ const vacaStore = createStore((set, get) => ({
     });
     return snapshot;
   },
+  reabrirUltimoAno: () => {
+    const { historialAnos } = get();
+    const keys = Object.keys(historialAnos || {}).sort();
+    if (keys.length === 0) return null;
+    const ano  = keys[keys.length - 1];
+    const snap = historialAnos[ano];
+    if (!snap) return null;
+    const rest = { ...historialAnos };
+    delete rest[ano];
+    set({
+      campoCria:        { ...snap.cria },
+      campoRecria:      { ...snap.recria },
+      campoTerminacion: { ...snap.terminacion },
+      anoGanaderoActual: ano,
+      historialAnos: rest,
+    });
+    return ano;
+  },
 }));
 
 // Hooks selectivos para cada componente (evitan re-renders innecesarios)
@@ -6116,7 +6134,7 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
   );
 }
 
-function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
+function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, onReabrirAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
   const [subStock,   setSubStock]   = useState(null);
@@ -6681,19 +6699,34 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </span>
             ))}
           </div>
-          {!anoViendo && (
-            <button onClick={() => {
-              if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno();
-            }}
-              className="ml-auto text-xs font-bold text-slate-400 hover:text-orange-500 border border-dashed border-slate-200 hover:border-orange-300 px-3 py-1 rounded-full transition-all shrink-0">
-              Cerrar año →
-            </button>
-          )}
-          {anoViendo && (
-            <span className="ml-auto text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full shrink-0">
-              Solo lectura — año {anoViendo}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {anoViendo && (
+              <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                Solo lectura — año {anoViendo}
+              </span>
+            )}
+            {Object.keys(historialAnos).length > 0 && (!anoViendo || anoViendo === Object.keys(historialAnos).sort().pop()) && (
+              <button onClick={() => {
+                const ultimo = Object.keys(historialAnos).sort().pop();
+                if (window.confirm(`¿Reabrir el año ${ultimo}?\n\nSe restauran sus datos tal como estaban justo antes de cerrarlo y volvés a ese año para poder editarlo (agregar o sacar animales) y después cerrarlo de nuevo.\n\nOjo: si ya cargaste algo en el año actual, se reemplaza por los datos del año reabierto.`)) {
+                  onReabrirAno && onReabrirAno();
+                  setAnoViendo(null);
+                }
+              }}
+                className="text-xs font-bold px-3 py-1 rounded-full transition-all"
+                style={{ color: "#163D44", border: "1px dashed #9DBAB0", background: "#EAF1F0" }}>
+                ↩ Reabrir {anoViendo ? "este año" : "último año"}
+              </button>
+            )}
+            {!anoViendo && (
+              <button onClick={() => {
+                if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno();
+              }}
+                className="text-xs font-bold text-slate-400 hover:text-orange-500 border border-dashed border-slate-200 hover:border-orange-300 px-3 py-1 rounded-full transition-all">
+                Cerrar año →
+              </button>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -12135,6 +12168,13 @@ function EstrategiaComercial({ userEmail, onLogout }) {
     );
   };
 
+  const handleReabrirAno = () => {
+    const ano = vacaStore.getState().reabrirUltimoAno();
+    if (ano) pushToast(`↩ Año ${ano} reabierto — ya podés editarlo y volver a cerrarlo.`, "success");
+    else pushToast("No hay años cerrados para reabrir.", "info");
+    return ano;
+  };
+
   const CATEGORIAS = {
     poder:         { label: "Poder de Compra",     emoji: "⇄" },
     vientres:      { label: "Proyecto Vientres",   emoji: "🐄" },
@@ -12264,6 +12304,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
           anoGanadero={anoGanaderoActual}
           historialAnos={historialAnos}
           onCerrarAno={handleCerrarAno}
+          onReabrirAno={handleReabrirAno}
           campoPastaje={campoPastaje}
           setCampoPastaje={setCampoPastaje}
           precioNovilloGlobal={global.precioNovilloInmag}
