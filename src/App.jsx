@@ -6648,33 +6648,30 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   return (
     <div className="app-bg text-slate-800 font-sans antialiased min-h-screen">
-      <nav className="sticky top-0 z-50 bg-white border-b-2 border-slate-100 shadow-md simulator-enter">
-        <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500" />
-        <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+      <nav className="sticky top-0 z-50" style={{ background: "#fff", borderBottom: "1px solid #E6EBE5", fontFamily: SANS }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "13px clamp(16px,4vw,32px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <button onClick={onVolver}
-            className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95 group"
-            style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}>
-            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-            Volver al Menú
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#163D44", border: "none", cursor: "pointer", color: "#fff", fontWeight: 800, fontSize: 13, fontFamily: SANS, padding: "10px 15px", borderRadius: 12 }}>
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Volver</span>
           </button>
-          <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
-            <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              className="h-11 sm:h-14 object-contain shrink-0" style={{ maxWidth: "160px" }} />
-            <div className="bg-blue-500 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
-              <span>🌾</span><span className="hidden sm:inline">Mi Campo</span>
-            </div>
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
+            style={{ height: 34, width: "auto", objectFit: "contain", maxWidth: 150 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <button onClick={() => onSincronizar(datosSync)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#2F9D4E", border: "none", cursor: "pointer", color: "#fff", fontWeight: 800, fontSize: 12.5, fontFamily: SANS, padding: "9px 13px", borderRadius: 11 }}>
+              <RefreshCw size={14} />
+              <span className="hidden sm:inline">Sync</span>
+            </button>
+            <span className="hidden sm:inline" style={{ fontSize: 11, fontWeight: 800, color: "#163D44", background: "#EAF1F0", padding: "7px 12px", borderRadius: 999, letterSpacing: ".04em" }}>MI CAMPO</span>
           </div>
-          <button onClick={() => onSincronizar(datosSync)}
-            className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 group shrink-0">
-            <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-            <span className="hidden sm:inline">Sync al Simulador</span>
-          </button>
         </div>
         {/* Año ganadero bar */}
         <div className="border-t border-slate-100 px-3 sm:px-6 lg:px-8 py-2 flex items-center gap-3 overflow-x-auto">
           <span className="text-xs text-slate-400 font-semibold shrink-0">Año ganadero:</span>
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-black px-3 py-1 rounded-full ${!anoViendo ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-500 cursor-pointer hover:bg-slate-200"}`}
+            <span className={`text-xs font-black px-3 py-1 rounded-full ${!anoViendo ? "text-white" : "bg-slate-100 text-slate-500 cursor-pointer hover:bg-slate-200"}`}
+              style={!anoViendo ? { background: "#163D44" } : undefined}
               onClick={() => setAnoViendo(null)}>
               {anoGanadero} {!anoViendo && "· actual"}
             </span>
@@ -6849,7 +6846,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           <div className="campo-sidebar">
             {SECCIONES.map(s => (
               <button key={s.id} onClick={() => handleSetSeccion(s.id)}
-                style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderRadius:"14px", textAlign:"left", transition:"all 0.15s", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b"}}>
+                style={{width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"11px 14px", borderRadius:"13px", textAlign:"left", transition:"all 0.15s", fontFamily:SANS, border: seccion===s.id?"none":"1px solid #E6EBE5", background: seccion===s.id?"#163D44":"#fff", color: seccion===s.id?"#fff":"#5A6B6E", boxShadow: seccion===s.id?"0 6px 16px rgba(22,61,68,.28)":"none"}}>
                 <span style={{fontSize:"16px", lineHeight:1}}>{s.icon}</span>
                 <span style={{fontSize:"10px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1.2}}>{s.label}</span>
               </button>
@@ -6863,7 +6860,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             <div className="campo-mobile-nav">
               {SECCIONES.map(s => (
                 <button key={s.id} onClick={() => handleSetSeccion(s.id)}
-                  style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"16px", border: seccion===s.id?"none":"2px solid #e2e8f0", background: seccion===s.id?"#1e293b":"white", color: seccion===s.id?"white":"#64748b", transition:"all 0.15s"}}>
+                  style={{display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", padding:"10px 4px", borderRadius:"14px", fontFamily:SANS, border: seccion===s.id?"none":"1px solid #E6EBE5", background: seccion===s.id?"#163D44":"#fff", color: seccion===s.id?"#fff":"#5A6B6E", transition:"all 0.15s", boxShadow: seccion===s.id?"0 6px 16px rgba(22,61,68,.28)":"none"}}>
                   <span style={{fontSize:"20px", lineHeight:1}}>{s.icon}</span>
                   <span style={{fontSize:"9px", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", lineHeight:1.2, textAlign:"center"}}>{s.label}</span>
                 </button>
