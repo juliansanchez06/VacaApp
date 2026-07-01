@@ -5479,7 +5479,7 @@ function MargenActividad(p) {
 }
 
 
-function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
+function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
   const TIPOS_MOV = [
     { id: "venta-novillos",   label: "Venta novillos",        tipo: "venta",  emoji: "💚" },
     { id: "venta-vacas",      label: "Venta vacas descarte",  tipo: "venta",  emoji: "💚" },
@@ -5628,6 +5628,25 @@ function VistaMovimientos({ movimientos, setMovimientos, movimientosAnio, kgVend
         <div className="space-y-2">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">Movimientos {anoGanadero}</p>
           {[...movimientosAnio].sort((a,b) => (b.fecha ?? "").localeCompare(a.fecha ?? "")).map(m => {
+            if (m.tipo === "traspaso") {
+              return (
+                <div key={m.id} className="rounded-2xl border-2 p-3 flex items-center gap-3" style={{ background: "#EAF1F0", borderColor: "#9DBAB0" }}>
+                  <span className="text-2xl">{m.emoji ?? "🔄"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm" style={{ color: "#163D44" }}>{m.label}</p>
+                    <p className="text-xs text-slate-500 truncate">{m.fecha} · {m.detalle}</p>
+                  </div>
+                  {onDeshacerMovimiento && (
+                    <button onClick={() => { if (window.confirm("¿Deshacer este movimiento? Los animales vuelven a donde estaban antes.")) onDeshacerMovimiento(m); }}
+                      className="text-xs font-black px-3 py-1.5 rounded-lg shrink-0" style={{ color: "#163D44", background: "#fff", border: "1px solid #9DBAB0" }}>
+                      ↩ Deshacer
+                    </button>
+                  )}
+                  <button onClick={() => { if (window.confirm("¿Borrar solo el registro del historial? (No mueve animales.)")) setMovimientos(prev => prev.filter(x => x.id !== m.id)); }}
+                    className="text-slate-300 hover:text-red-500 font-black transition-colors shrink-0">✕</button>
+                </div>
+              );
+            }
             const tipoInfo = TIPOS_MOV.find(t => t.id === m.tipoId) ?? {};
             const esVenta = m.tipo === "venta";
             return (
@@ -6335,6 +6354,35 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgCompradosTotal = compras.reduce((s, m) => s + (m.cab * m.kgProm), 0);
   const ingresoVentas    = ventas.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
   const costoCompras     = compras.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
+
+  // Deshacer un movimiento registrado (revierte el efecto y lo saca del log)
+  const deshacerMovimiento = (mov) => {
+    if (!mov) return;
+    if (mov.accion === "destete-recria") {
+      setRecriaActiva(p => ({
+        ...p,
+        ternerosLiquidaMachos:  Math.max(0, (p.ternerosLiquidaMachos  ?? 0) - (mov.machos     ?? 0)),
+        vaquillonaRecria:       Math.max(0, (p.vaquillonaRecria       ?? 0) - (mov.hembrasRep ?? 0)),
+        ternerosLiquidaHembras: Math.max(0, (p.ternerosLiquidaHembras ?? 0) - (mov.hembrasVta ?? 0)),
+      }));
+      setCriaActiva(p => ({
+        ...p,
+        ciclos: (p.ciclos ?? []).map(c => (mov.cicloId != null && c.id === mov.cicloId) ? {
+          ...c,
+          ternerosAlPieMachos:  (c.ternerosAlPieMachos  ?? 0) + (mov.machos  ?? 0),
+          ternerosAlPieHembras: (c.ternerosAlPieHembras ?? 0) + (mov.hembras ?? 0),
+          ternerosAlPie:        (c.ternerosAlPie ?? 0) + (mov.machos ?? 0) + (mov.hembras ?? 0),
+          ternerosDestetados:   Math.max(0, (c.ternerosDestetados ?? 0) - ((mov.machos ?? 0) + (mov.hembras ?? 0))),
+          machosDestetados:     Math.max(0, (c.machosDestetados ?? 0) - (mov.machos  ?? 0)),
+          hembrasDestetadas:    Math.max(0, (c.hembrasDestetadas ?? 0) - (mov.hembras ?? 0)),
+          estado: "al_pie",
+          transferidoRecria: false,
+        } : c),
+      }));
+      onToast?.("↩ Destete deshecho — los terneros volvieron al pie y salieron de Recría.", "info");
+    }
+    setMovimientos(prev => prev.filter(x => x.id !== mov.id));
+  };
 
   // ── EV/ha — Equivalente Vaca por hectárea ─────────────────────────────────
   // Coeficientes EV estándar (INTA): vaca cría con ternero = 1, toro = 1.3,
@@ -7429,6 +7477,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     ternerosLiquidaHembras: (p.ternerosLiquidaHembras ?? 0) + hembrasVta,
                                     pesoEntradaRecria:      ciclo.pesoDesteteKg ?? p.pesoEntradaRecria ?? 187,
                                   }));
+                                  // 3) Registrar en Movimientos (con datos para deshacer)
+                                  setMovimientos(prev => [...prev, {
+                                    id: Date.now() + Math.floor(Math.random() * 1000),
+                                    tipo: "traspaso",
+                                    accion: "destete-recria",
+                                    label: "Destete → Recría",
+                                    emoji: "🐄",
+                                    fecha: new Date().toISOString().slice(0, 10),
+                                    anoGanadero,
+                                    cicloId: ciclo.id ?? null,
+                                    machos, hembras, hembrasRep, hembrasVta,
+                                    detalle: `${cant} destetados (${machos}♂ · ${hembras}♀) → Recría`,
+                                  }]);
                                   onToast("✅ " + cant + " destetados y pasados a Recría — " + machos + "♂ novillos, " + hembrasRep + "♀ reposición, " + hembrasVta + "♀ venta", "success");
                                 }}
                               />
@@ -8033,6 +8094,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             <VistaMovimientos
               movimientos={movimientos}
               setMovimientos={setMovimientos}
+              onDeshacerMovimiento={anoViendo ? null : deshacerMovimiento}
               movimientosAnio={movimientosAnio}
               kgVendidosTotal={kgVendidosTotal}
               ingresoVentas={ingresoVentas}
