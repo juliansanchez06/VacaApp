@@ -6264,6 +6264,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const _totRevTactos        = _tactosCria.reduce((s, t) => s + (t.vacasRevisadas || 0), 0);
   const _totPrenTactos       = _tactosCria.reduce((s, t) => s + (t.preniadas || 0), 0);
   const pctPreniezAgg        = _totRevTactos > 0 ? Math.round(_totPrenTactos / _totRevTactos * 100) : null; // null = sin datos
+  // ── Timeline del tacto: a qué parición apunta y cuándo se sabría su destete ──
+  const _MESES_TL = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const _tactoPariciones = [...new Set(_tactosCria.map((t) => {
+    const ms = SERVICIOS_DIAG[t.servicio]?.mesServ ?? 10;
+    const parRaw = ms + 9;
+    return (t.anioServicio ?? new Date().getFullYear()) + Math.floor(parRaw / 12);
+  }))].sort();
+  const _tactoParicionLabel = _tactoPariciones.length ? _tactoPariciones.join(" y ") : null;
+  const _tactoDesteteLabel = (() => {
+    if (!_tactosCria.length) return null;
+    const t = _tactosCria[_tactosCria.length - 1];
+    const ms = SERVICIOS_DIAG[t.servicio]?.mesServ ?? 10;
+    const parRaw = ms + 9;
+    const parAnio = (t.anioServicio ?? new Date().getFullYear()) + Math.floor(parRaw / 12);
+    const desRaw = (parRaw % 12) + 7;
+    return `${_MESES_TL[desRaw % 12]} ${parAnio + Math.floor(desRaw / 12)}`;
+  })();
   // % Destete = destetados ÷ nacidos (los terneros que tenías al pie)
   const pctDesteteAgg        = nacidosTotales > 0 ? Math.round(totalDestetadosReal / nacidosTotales * 100) : 0;
 
@@ -7161,6 +7178,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             : <span className="text-base font-black text-slate-400">Sin datos</span>}
                         </div>
                         <p className="text-[11px] text-slate-400">{pctPreniezAgg != null ? `${_totPrenTactos} preñadas ÷ ${_totRevTactos} revisadas` : "cargá un tacto / eco"}</p>
+                        {pctPreniezAgg != null && _tactoParicionLabel && (
+                          <p className="text-[11px] font-bold" style={{ color: "#0369a1" }}>→ parición {_tactoParicionLabel} (futura){_tactoDesteteLabel ? ` · su destete se sabrá ~${_tactoDesteteLabel}` : ""}</p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
@@ -7171,10 +7191,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                           <span className="text-2xl font-black text-emerald-700">{pctDesteteAgg}%</span>
                         </div>
                         <p className="text-[11px] text-slate-400">{totalDestetadosReal} destetados ÷ {nacidosTotales} nacidos</p>
+                        <p className="text-[11px] font-bold" style={{ color: "#047857" }}>→ parición pasada (ya destetada)</p>
                       </div>
                       <EditField label="Peso al destete (kg)" value={criaDatos.pesoDesteteKg??187} onChange={v=>setCriaActiva(p=>({...p,pesoDesteteKg:Math.max(100,Math.min(300,v))}))} step={5} suffix="kg" hint="175-200 kg típico para Argentina. Impacta en margen de Cría y costo de reposición de Recría." />
                       <EditField label="% Mortandad cría" value={criaDatos.pctMortandadCria??2} onChange={v=>setCriaActiva(p=>({...p,pctMortandadCria:Math.min(10,Math.max(0,v))}))} step={0.5} suffix="%" hint="0% a 10%" />
                     </div>
+                    {pctPreniezAgg != null && (
+                      <div className="mt-3 p-3 rounded-2xl text-[11px] leading-relaxed" style={{ background: "#F1F5F9", border: "1px solid #E2E8F0", color: "#475569" }}>
+                        <span className="font-black" style={{ color: "#163049" }}>Ojo con los tiempos:</span> el <b>% preñez</b> es de la <b>parición que viene</b>{_tactoParicionLabel ? ` (${_tactoParicionLabel})` : ""} — el destete de esos terneros recién se conocerá {_tactoDesteteLabel ? <>~<b>{_tactoDesteteLabel}</b></> : "más adelante"}. El <b>% destete</b> de acá es de la <b>parición pasada</b> (los que ya destetaste). Son ciclos distintos; para proyectar, el destete pasado se usa como estimación del que viene.
+                      </div>
+                    )}
                     {/* GDP Ternero */}
                     <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
                       <p className="text-xs font-black text-emerald-700 mb-2">⚡ GDP Ternero — nacimiento → destete</p>
