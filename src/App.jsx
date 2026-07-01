@@ -1287,22 +1287,25 @@ const GLOBAL_STYLE = `
 
   /* ── Variables del sistema ────────────────────────────────────── */
   :root {
-    --nm-bg:   #e0e5ec;                            /* base — fondo = componentes */
-    --nm-deep: #d4dae3;                            /* tono más oscuro */
-    --nm-sl:   rgba(255,255,255,0.88);             /* sombra CLARA (luz arriba-izq) */
-    --nm-sd:   rgba(163,177,198,0.65);             /* sombra OSCURA (derecha-abajo)  */
-    --nm-text: #2d3748;                            /* texto — contraste ~9:1 sobre nm-bg */
-    --nm-sub:  #64748b;                            /* texto secundario ~4:1          */
-    --nm-up:   7px 7px 16px var(--nm-sd), -6px -6px 14px var(--nm-sl);
-    --nm-up-s: 3px 3px  8px var(--nm-sd), -3px -3px  8px var(--nm-sl);
-    --nm-dn:   inset 5px 5px 11px var(--nm-sd), inset -4px -4px 9px var(--nm-sl);
-    --nm-dn-s: inset 3px 3px  6px var(--nm-sd), inset -3px -3px  6px var(--nm-sl);
+    --nm-bg:   #F4F7F3;                            /* fondo de página (verde muy claro) */
+    --nm-deep: #EAF0EA;                            /* tono levemente más oscuro */
+    --nm-card: #ffffff;                            /* tarjetas: blanco limpio */
+    --nm-line: #E6EBE5;                            /* bordes finos */
+    --nm-sl:   rgba(255,255,255,0.9);
+    --nm-sd:   rgba(22,48,73,0.06);
+    --nm-text: #163049;                            /* texto navy */
+    --nm-sub:  #5A6B6E;                            /* texto secundario */
+    --nm-up:   0 6px 20px rgba(22,48,73,0.07);
+    --nm-up-s: 0 3px 10px rgba(22,48,73,0.05);
+    --nm-dn:   none;
+    --nm-dn-s: none;
   }
 
   /* ── 1. Fondo global ──────────────────────────────────────────── */
   body, .app-bg {
     background: var(--nm-bg) !important;
     color: var(--nm-text) !important;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
 
   /* ── 2. Textos: contraste garantizado ────────────────────────── */
@@ -1310,9 +1313,10 @@ const GLOBAL_STYLE = `
   .text-slate-600, .text-slate-500 { color: var(--nm-sub)  !important; }
   .text-slate-400, .text-slate-300 { color: rgba(100,116,139,0.68) !important; }
 
-  /* ── 3. Fondos blancos / grises neutros → base neumórfica ────── */
-  .bg-white, .bg-slate-50, .bg-slate-100, .bg-gray-50 {
-    background: var(--nm-bg) !important;
+  /* ── 3. Fondos neutros → blanco (tarjetas) / claro (paneles) ────── */
+  .bg-white { background: var(--nm-card) !important; }
+  .bg-slate-50, .bg-slate-100, .bg-gray-50 {
+    background: #EEF3EE !important;
   }
 
   /* ── 4. Gradientes — sólo overrideamos los que son puramente neutros ────
@@ -1326,29 +1330,24 @@ const GLOBAL_STYLE = `
      Dan identidad visual a cada sección (verde=ganadero, etc.)
      Neumorfismo: el volumen lo dan las sombras, el color las tints. */
 
-  /* ── 6. Tarjetas: efecto extruido ────────────────────────────── */
+  /* ── 6. Tarjetas: blanco limpio con borde fino y sombra suave ──── */
   .rounded-3xl, .rounded-2xl {
-    background:   var(--nm-bg) !important;
+    background:   var(--nm-card) !important;
     box-shadow:   var(--nm-up) !important;
-    border-color: transparent  !important;
+    border-color: var(--nm-line) !important;
   }
   .rounded-xl {
-    background:   var(--nm-bg)   !important;
+    background:   var(--nm-card)  !important;
     box-shadow:   var(--nm-up-s) !important;
-    border-color: transparent    !important;
+    border-color: var(--nm-line)  !important;
   }
 
   /* ── 7. Sombras de Tailwind → neumórficas ────────────────────── */
   .shadow-xl, .shadow-lg, .shadow-md { box-shadow: var(--nm-up)   !important; }
   .shadow-sm, .shadow               { box-shadow: var(--nm-up-s) !important; }
 
-  /* ── 8. Bordes: color → transparente (box-sizing intacto) ───── */
-  [class*="border-slate"],   [class*="border-lime"],
-  [class*="border-emerald"], [class*="border-violet"],
-  [class*="border-sky"],     [class*="border-purple"],
-  [class*="border-amber"],   [class*="border-teal"],
-  [class*="border-cyan"],    [class*="border-gray"],
-  [class*="border-blue"]     { border-color: transparent !important; }
+  /* ── 8. Bordes: neutros → línea fina; los de color conservan su tinte ── */
+  [class*="border-slate"], [class*="border-gray"] { border-color: var(--nm-line) !important; }
 
   /* ── 9. Restaurar MenuCards oscuras (identidad visual del menú) */
   .card-green     { background: linear-gradient(135deg,#163d44 0%,#1a4a52 40%,#1e5560 100%) !important; }
@@ -1403,23 +1402,22 @@ const GLOBAL_STYLE = `
   /* ── 11. Login (pantalla de acceso — fondo oscuro intacto) ───── */
   .login-bg { background: #163d44 !important; box-shadow: none !important; }
 
-  /* ── 12. Inputs: efecto hundido (inset) ──────────────────────── */
+  /* ── 12. Inputs: blancos con borde fino, foco verde ──────────── */
   input[type="text"],
   input[type="number"],
   input[type="email"],
   input[type="search"],
   select, textarea {
-    background:   var(--nm-bg)  !important;
-    box-shadow:   var(--nm-dn)  !important;
-    border-color: transparent   !important;
+    background:   var(--nm-card)  !important;
+    box-shadow:   none  !important;
+    border: 1px solid var(--nm-line) !important;
     color:        var(--nm-text) !important;
   }
   input[type="text"]:focus,
   input[type="number"]:focus,
   select:focus, textarea:focus {
-    box-shadow: inset 5px 5px 12px var(--nm-sd),
-                inset -5px -5px 12px var(--nm-sl),
-                0 0 0 3px rgba(16,185,129,0.22) !important;
+    box-shadow: 0 0 0 3px rgba(47,157,78,0.18) !important;
+    border-color: #2F9D4E !important;
     outline: none !important;
   }
 
@@ -1489,9 +1487,9 @@ const GLOBAL_STYLE = `
      El nav blanco diferencia el header del cuerpo gris (nm-base).
      La sombra inferior marca el límite sin necesitar border-color. */
   .sticky.top-0 {
-    background:   white       !important;
-    box-shadow:   0 4px 20px rgba(163,177,198,0.45), 0 1px 0 rgba(255,255,255,0.9) !important;
-    border-color: transparent !important;
+    background:   #fff       !important;
+    box-shadow:   0 1px 0 var(--nm-line), 0 4px 16px rgba(22,48,73,0.04) !important;
+    border-color: var(--nm-line) !important;
   }
 
   /* ── 16. Tablas ──────────────────────────────────────────────── */
