@@ -586,6 +586,7 @@ function fmtPct(n, dec = 1) {
 
 // ─── Global CSS (slider thumb enlarge + pastel bg) ───────────────────────────
 const GLOBAL_STYLE = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
   /* ── Background ──────────────────────────────────────────────────── */
   .app-bg { background: #ffffff; min-height: 100vh; }
 
@@ -4406,13 +4407,91 @@ function MenuCard({ title, desc, icon, iconAnim, color, onClick, stats }) {
 
 // LOGIN SCREEN — Email + Contraseña
 // ═══════════════════════════════════════════════════════════════════════════
+
+// ═══ REDISEÑO 2026 — helpers (fuentes, iconos, Campo, simuladores) ═══
+const SANS    = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
+const DISPLAY = "'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif";
+
+/* ── Iconos inline (sin dependencias) ─────────────────────────────────── */
+const IcoMail = (p) => (
+  <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
+);
+const IcoLock = (p) => (
+  <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+);
+const IcoEye = (p) => (
+  <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+);
+const IcoEyeOff = (p) => (
+  <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+);
+const IcoCheck = (p) => (
+  <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke={p.c||"#46C266"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+const IcoMap = (p) => (
+  <svg width={p.s||26} height={p.s||26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+);
+const IcoBars = (p) => (
+  <svg width={p.s||26} height={p.s||26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/></svg>
+);
+const IcoTrend = (p) => (
+  <svg width={p.s||16} height={p.s||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+);
+
+/* Campo de input reutilizable con foco verde */
+function Campo({ icon, right, ...props }) {
+  const [foco, setFoco] = useState(false);
+  return (
+    <div style={{ position: "relative", marginBottom: 13 }}>
+      <span style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)", color: "#9AA7A0", display: "flex" }}>{icon}</span>
+      <input
+        {...props}
+        onFocus={(e) => { setFoco(true); props.onFocus && props.onFocus(e); }}
+        onBlur={(e) => { setFoco(false); props.onBlur && props.onBlur(e); }}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          padding: right ? "14px 44px 14px 44px" : "14px 16px 14px 44px",
+          border: "1.5px solid " + (foco ? "#2F9D4E" : "#E1E7E1"),
+          borderRadius: 14, fontSize: 15, fontFamily: SANS, color: "#1B2A2E",
+          background: "#fff", outline: "none",
+          boxShadow: foco ? "0 0 0 4px rgba(47,157,78,.12)" : "none",
+          transition: "border-color .15s, box-shadow .15s",
+        }}
+      />
+      {right}
+    </div>
+  );
+}
+
+const SIM_ICONS = {
+  poder:    ["M12 1v22", "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"],
+  vientres: ["M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M8 7h8", "M8 11h.01", "M12 11h.01", "M16 11h.01", "M8 15h.01", "M12 15h.01", "M16 15h4"],
+  invernada:["M23 6 13.5 15.5 8.5 10.5 1 18", "M17 6h6v6"],
+  recria:   ["M12 3v18", "M5 7h14", "m5 7-3 6h6z", "m19 7-3 6h6z", "M8 21h8"],
+  chacra:   ["M12 22V8", "M12 8c0-3-3-5-6-5 0 3 3 5 6 5z", "M12 8c0-3 3-5 6-5 0 3-3 5-6 5z", "M12 14c0-3-3-5-6-5 0 3 3 5 6 5z", "M12 14c0-3 3-5 6-5 0 3-3 5-6 5z"],
+};
+const SimIcon = ({ k }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {SIM_ICONS[k].map((d, i) => <path key={i} d={d} />)}
+  </svg>
+);
+
+const SIMULADORES = [
+  { id: "poder",        ruta: "poder",        t: "Poder de Compra",  d: "¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales.", tags: ["Triangulación", "Relación V/C"], strip: "linear-gradient(90deg,#2F9D4E,#46C266)", ico: "#2F9D4E", icoBg: "#E9F4EC" },
+  { id: "vientres",     ruta: "vientres",     t: "Proyecto Vientres",d: "ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad.",  tags: ["ROI proyectado", "Costo/vientre"], strip: "linear-gradient(90deg,#5B6CF0,#8B5CF6)", ico: "#5B6CF0", icoBg: "#ECEDFD" },
+  { id: "invernada",    ruta: "invernada",    t: "Comp. Invernada",  d: "Invernada a campo vs feedlot — encontrá la opción más rentable.",            tags: ["Campo vs Feedlot", "Margen/cab"],  strip: "linear-gradient(90deg,#E8A13A,#F4C152)", ico: "#D9881F", icoBg: "#FBF1DE" },
+  { id: "recria",       ruta: "recria-compra",t: "Compra de Recría", d: "Simulá la compra de terneros por lote, costos completos y rentabilidad.",     tags: ["Por lotes", "Margen + ROI"],       strip: "linear-gradient(90deg,#2E8FD6,#46B0E6)", ico: "#2374B5", icoBg: "#E2F0FB" },
+  { id: "chacra",       ruta: "chacra",       t: "Chacra Alimento",  d: "¿Producís tu forraje, lo comprás, o hacés renta? Costos de cultivo completos.",tags: ["Costos detallados", "Break-even"], strip: "linear-gradient(90deg,#2F9D4E,#7BC74D)", ico: "#3E8E29", icoBg: "#EAF5E3" },
+];
+
+
 function LoginScreen() {
   const [modo,     setModo]     = useState("login"); // "login" | "register" | "reset"
   const [email,    setEmail]    = useState("");
   const [pass,     setPass]     = useState("");
   const [pass2,    setPass2]    = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [estado,   setEstado]   = useState("idle"); // idle | loading | ok | error
+  const [estado,   setEstado]   = useState("idle");  // idle | loading | ok | error
   const [errorMsg, setErrorMsg] = useState("");
   const [resetOk,  setResetOk]  = useState(false);
 
@@ -4425,13 +4504,13 @@ function LoginScreen() {
     setEstado("loading");
     try {
       await signInWithEmailAndPassword(auth, em, pass);
-    } catch(err) {
+    } catch (err) {
       const msgs = {
-        "auth/user-not-found":    "No existe una cuenta con ese email. Registrate primero.",
-        "auth/wrong-password":    "Contraseña incorrecta.",
-        "auth/invalid-credential":"Email o contraseña incorrectos.",
-        "auth/too-many-requests": "Demasiados intentos. Esperá unos minutos.",
-        "auth/invalid-email":     "Email inválido.",
+        "auth/user-not-found":     "No existe una cuenta con ese email. Registrate primero.",
+        "auth/wrong-password":     "Contraseña incorrecta.",
+        "auth/invalid-credential": "Email o contraseña incorrectos.",
+        "auth/too-many-requests":  "Demasiados intentos. Esperá unos minutos.",
+        "auth/invalid-email":      "Email inválido.",
       };
       setErrorMsg(msgs[err?.code] || `Error: ${err?.code || "desconocido"}`);
       setEstado("error");
@@ -4446,7 +4525,7 @@ function LoginScreen() {
     setEstado("loading");
     try {
       await createUserWithEmailAndPassword(auth, em, pass);
-    } catch(err) {
+    } catch (err) {
       const msgs = {
         "auth/email-already-in-use": "Ya existe una cuenta con ese email. Iniciá sesión.",
         "auth/weak-password":        "Contraseña muy débil. Usá al menos 6 caracteres.",
@@ -4463,196 +4542,121 @@ function LoginScreen() {
     setEstado("loading");
     try {
       await sendPasswordResetEmail(auth, em);
-      setResetOk(true);
-      setEstado("ok");
-    } catch(err) {
+      setResetOk(true); setEstado("ok");
+    } catch (err) {
       setErrorMsg("Error al enviar el email. Revisá que el email sea correcto.");
       setEstado("error");
     }
   };
 
   const handleSubmit = () => {
-    if (modo === "login")    handleLogin();
+    if (modo === "login") handleLogin();
     else if (modo === "register") handleRegistrar();
     else handleReset();
   };
 
-  const STYLE = `
-    .lb{min-height:100vh;background:#3a7d2c;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;overflow:hidden;font-family:sans-serif;}
-    .lblob{position:absolute;border-radius:50%;pointer-events:none;}
-    .lb1{width:560px;height:560px;background:#10b981;opacity:.11;top:-190px;right:-150px;animation:lbf1 9s ease-in-out infinite;}
-    .lb2{width:360px;height:360px;background:#34d399;opacity:.10;bottom:-110px;left:-90px;animation:lbf2 11s ease-in-out infinite;}
-    .lb3{width:200px;height:200px;background:#6ee7b7;opacity:.10;top:38%;left:6%;animation:lbf1 7s ease-in-out infinite;}
-    .lb4{width:110px;height:110px;background:#a7f3d0;opacity:.10;bottom:18%;right:8%;animation:lbf2 8s ease-in-out 1.5s infinite;}
-    @keyframes lbf1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,-36px) scale(1.06)}}
-    @keyframes lbf2{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,24px) scale(1.09)}}
-    .ldollar{position:absolute;color:#a7f3d0;font-weight:900;pointer-events:none;user-select:none;line-height:1;}
-    .ld1{font-size:72px;opacity:.09;top:8%;left:4%;animation:fd1 7s ease-in-out infinite;}
-    .ld2{font-size:48px;opacity:.07;top:15%;right:6%;animation:fd2 9s ease-in-out 1s infinite;}
-    .ld3{font-size:96px;opacity:.06;bottom:12%;left:2%;animation:fd1 8s ease-in-out 2s infinite;}
-    .ld4{font-size:36px;opacity:.09;bottom:25%;right:4%;animation:fd2 6s ease-in-out .5s infinite;}
-    .ld5{font-size:60px;opacity:.07;top:55%;right:12%;animation:fd1 10s ease-in-out 1.5s infinite;}
-    .ld6{font-size:44px;opacity:.08;top:42%;left:15%;animation:fd2 7.5s ease-in-out 3s infinite;}
-    @keyframes fd1{0%,100%{transform:translateY(0) rotate(-15deg)}50%{transform:translateY(-40px) rotate(-8deg)}}
-    @keyframes fd2{0%,100%{transform:translateY(0) rotate(20deg)}50%{transform:translateY(-50px) rotate(28deg)}}
-    .lcard{background:#fff;border-radius:32px;padding:2.5rem 2rem 2rem;width:100%;max-width:420px;position:relative;z-index:2;box-shadow:0 40px 100px -10px rgba(6,78,59,.5);animation:lcardIn .65s cubic-bezier(.16,1,.3,1) both;}
-    @keyframes lcardIn{from{opacity:0;transform:translateY(40px) scale(0.93)}to{opacity:1;transform:translateY(0) scale(1)}}
-    .lwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;}
-    .lline{height:2px;width:56px;background:linear-gradient(90deg,#10b981,#34d399,transparent);border-radius:2px;margin:8px 0;}
-    .lbadge{background:linear-gradient(135deg,#163d44,#1e5560);color:#a7f3d0;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;}
-    .lslogan{font-size:10px;font-weight:700;letter-spacing:.18em;color:#6b7280;text-transform:uppercase;margin:0;}
-    .lh2{font-size:21px;font-weight:900;color:#111827;text-align:center;margin:1rem 0 .25rem;letter-spacing:-.4px;}
-    .lsub{font-size:13px;color:#6b7280;text-align:center;margin:0 0 1.2rem;line-height:1.55;}
-    .ltabs{display:flex;gap:6px;margin-bottom:1.25rem;background:#f3f4f6;border-radius:14px;padding:4px;}
-    .ltab{flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;background:transparent;color:#6b7280;}
-    .ltab.active{background:#fff;color:#163d44;box-shadow:0 2px 8px rgba(0,0,0,.1);}
-    .linpwrap{position:relative;margin-bottom:.7rem;}
-    .linpicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;}
-    .linptoggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:.45;cursor:pointer;background:none;border:none;padding:0;display:flex;}
-    .linp{width:100%;box-sizing:border-box;padding:13px 14px 13px 44px;font-size:15px;border:2px solid #e5e7eb;border-radius:14px;outline:none;color:#111827;background:#f9fafb;transition:border-color .2s,box-shadow .2s;font-family:inherit;}
-    .linp:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.14);}
-    .linp.lerr{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12);}
-    .linp::placeholder{color:#9ca3af;}
-    .lbtn{width:100%;padding:14px;background:linear-gradient(135deg,#163d44,#1e5560);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;margin-top:.25rem;}
-    .lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,78,59,.4);}
-    .lbtn:active{transform:scale(.97);}
-    .lbtn:disabled{opacity:.7;cursor:not-allowed;transform:none!important;}
-    .lerrmsg{margin-top:.6rem;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:10px 13px;font-size:13px;color:#dc2626;font-weight:600;display:flex;align-items:center;gap:8px;}
-    .lokmsg{margin-top:.6rem;background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:12px;padding:10px 13px;font-size:13px;color:#065f46;font-weight:600;display:flex;align-items:center;gap:8px;}
-    .lforgot{font-size:12px;color:#6b7280;text-align:center;margin-top:.9rem;cursor:pointer;text-decoration:underline;}
-    .lspinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:lspin .7s linear infinite;display:inline-block;}
-    @keyframes lspin{to{transform:rotate(360deg)}}
-    .lnote{font-size:11px;color:#9ca3af;text-align:center;margin:1rem 0 0;line-height:1.55;}
-  `;
-
-  const isErr = estado === "error";
   const isLoading = estado === "loading";
+  const isErr     = estado === "error";
+  const isReg     = modo === "register";
+  const isReset   = modo === "reset";
+
+  const titulo = isReset ? "Recuperar contraseña" : isReg ? "Creá tu cuenta" : "Bienvenido de vuelta";
+  const subt   = isReset ? "Te mandamos un email para restablecer tu contraseña."
+                : isReg  ? "Empezá a gestionar tu campo en minutos."
+                         : "Ingresá tus credenciales para acceder.";
+  const btnLabel = isLoading
+      ? (isReset ? "Enviando…" : isReg ? "Registrando…" : "Ingresando…")
+      : (isReset ? "Enviar email  →" : isReg ? "Crear cuenta  →" : "Ingresar  →");
+
+  const tab = (active) => ({
+    flex: 1, border: "none", cursor: "pointer", fontFamily: SANS, fontWeight: 700,
+    fontSize: 14, padding: 11, borderRadius: 11, transition: "all .18s",
+    background: active ? "#fff" : "transparent",
+    color: active ? "#163049" : "#7C8A8D",
+    boxShadow: active ? "0 2px 8px rgba(22,48,73,.12)" : "none",
+  });
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: STYLE }} />
-      <div className="lb">
-        <div className="lblob lb1" /><div className="lblob lb2" />
-        <div className="lblob lb3" /><div className="lblob lb4" />
-        <div className="ldollar ld1">$</div><div className="ldollar ld2">$</div>
-        <div className="ldollar ld3">$</div><div className="ldollar ld4">$</div>
-        <div className="ldollar ld5">$</div><div className="ldollar ld6">$</div>
-
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"24px", width:"100%", maxWidth:"420px", position:"relative", zIndex:2 }}>
-          {/* Logo sobre el fondo verde — mismo color que el fondo del PNG */}
-          <img src={`data:image/png;base64,${LOGO_LOGIN_B64}`} alt="SoyPekun"
-            style={{ height:"110px", objectFit:"contain" }} />
-
-        <div className="lcard">
-          <div className="lwrap">
-            <div className="lline" />
-            <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-              <span className="lbadge">Simulador</span>
-              <span className="lslogan">Económico Ganadero</span>
+    <div style={{ display: "flex", flexWrap: "wrap", minHeight: "100vh", fontFamily: SANS, background: "#F4F7F3", color: "#1B2A2E" }}>
+      {/* Panel marca */}
+      <div style={{ flex: "1 1 440px", minHeight: 320, color: "#fff", padding: "clamp(36px,5vw,72px)", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden", background: "radial-gradient(130% 130% at 0% 0%, #1E5059 0%, #163D44 48%, #0F2E34 100%)" }}>
+        <div style={{ position: "absolute", top: -90, right: -70, width: 280, height: 280, borderRadius: "50%", background: "rgba(47,157,78,.16)" }} />
+        <div style={{ position: "absolute", bottom: -120, left: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,.05)" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <img src={`data:image/png;base64,${LOGO_LOGIN_B64}`} alt="SoyPekun" style={{ height: 46, width: "auto", display: "block" }} />
+        </div>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 420 }}>
+          <h1 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "clamp(28px,3.4vw,42px)", lineHeight: 1.08, letterSpacing: "-.02em", margin: "0 0 16px" }}>Tu campo,<br/>claro y al día.</h1>
+          <p style={{ fontSize: 16, lineHeight: 1.55, color: "#BCD2D2", fontWeight: 500, margin: "0 0 28px" }}>Stock de hacienda, simuladores de inversión y gestión de pastaje en un solo lugar.</p>
+          {["Stock de hacienda en tiempo real", "Simuladores de compra y rentabilidad", "Pastaje, cobros y liquidaciones"].map((t) => (
+            <div key={t} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 13 }}>
+              <span style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(47,157,78,.20)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><IcoCheck/></span>
+              <span style={{ fontSize: 15, color: "#D6E5E4", fontWeight: 500 }}>{t}</span>
             </div>
-          </div>
+          ))}
+        </div>
+        <p style={{ position: "relative", zIndex: 1, fontSize: 12, color: "#7E9698", margin: 0, fontWeight: 500 }}>Los cálculos son estimativos · Consultá con tu asesor</p>
+      </div>
 
-          {/* Tabs login / registrar / recuperar */}
-          <div className="ltabs">
-            <button className={`ltab${modo==="login" ? " active" : ""}`} onClick={() => cambiarModo("login")}>Ingresar</button>
-            <button className={`ltab${modo==="register" ? " active" : ""}`} onClick={() => cambiarModo("register")}>Registrarse</button>
-            <button className={`ltab${modo==="reset" ? " active" : ""}`} onClick={() => cambiarModo("reset")}>Recuperar</button>
-          </div>
-
-          <h2 className="lh2">
-            {modo === "login"    ? "Bienvenido de vuelta" :
-             modo === "register" ? "Crear cuenta" :
-                                   "Recuperar contraseña"}
-          </h2>
-          <p className="lsub">
-            {modo === "login"    ? "Ingresá tus credenciales para acceder." :
-             modo === "register" ? "Creá tu cuenta para empezar a gestionar tu campo." :
-                                   "Te mandamos un email para restablecer tu contraseña."}
-          </p>
-
-          {/* Email */}
-          <div className="linpwrap">
-            <div className="linpicon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 6 10-6"/></svg>
+      {/* Panel formulario */}
+      <div style={{ flex: "1 1 440px", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(28px,4vw,56px)" }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+          {!isReset && (
+            <div style={{ display: "flex", gap: 4, background: "#ECEFEA", padding: 5, borderRadius: 14, marginBottom: 26 }}>
+              <button onClick={() => cambiarModo("login")} style={tab(modo === "login")}>Ingresar</button>
+              <button onClick={() => cambiarModo("register")} style={tab(modo === "register")}>Crear cuenta</button>
             </div>
-            <input className={`linp${isErr ? " lerr" : ""}`} type="email"
-              placeholder="tu@email.com" value={email}
-              onChange={e => { setEmail(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
-              onKeyDown={e => e.key === "Enter" && handleSubmit()}
-              disabled={isLoading}
+          )}
+          <h2 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", margin: "0 0 6px", color: "#163049" }}>{titulo}</h2>
+          <p style={{ fontSize: 14.5, color: "#66767B", margin: "0 0 26px", fontWeight: 500 }}>{subt}</p>
+
+          <Campo
+            icon={<IcoMail/>} type="email" placeholder="tu@email.com" value={email} disabled={isLoading}
+            onChange={(e) => { setEmail(e.target.value); if (isErr) { setEstado("idle"); setErrorMsg(""); } }}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          />
+          {!isReset && (
+            <Campo
+              icon={<IcoLock/>} type={showPass ? "text" : "password"} placeholder="Contraseña" value={pass} disabled={isLoading}
+              onChange={(e) => { setPass(e.target.value); if (isErr) { setEstado("idle"); setErrorMsg(""); } }}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              right={<button onClick={() => setShowPass((p) => !p)} tabIndex={-1} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9AA7A0", padding: 6, display: "flex" }}>{showPass ? <IcoEyeOff/> : <IcoEye/>}</button>}
             />
-          </div>
-
-          {/* Contraseña */}
-          {modo !== "reset" && (
-            <div className="linpwrap">
-              <div className="linpicon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </div>
-              <input className={`linp${isErr ? " lerr" : ""}`}
-                type={showPass ? "text" : "password"}
-                placeholder="Contraseña (mín. 6 caracteres)" value={pass}
-                onChange={e => { setPass(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
-                onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                disabled={isLoading}
-                style={{ paddingRight: "44px" }}
-              />
-              <button className="linptoggle" onClick={() => setShowPass(p => !p)} tabIndex={-1}>
-                {showPass
-                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                }
-              </button>
+          )}
+          {isReg && (
+            <Campo
+              icon={<IcoLock/>} type={showPass ? "text" : "password"} placeholder="Repetí la contraseña" value={pass2} disabled={isLoading}
+              onChange={(e) => { setPass2(e.target.value); if (isErr) { setEstado("idle"); setErrorMsg(""); } }}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            />
+          )}
+          {modo === "login" && (
+            <div style={{ textAlign: "right", marginBottom: 18 }}>
+              <a onClick={() => cambiarModo("reset")} style={{ fontSize: 13, color: "#2F9D4E", fontWeight: 700, textDecoration: "none", cursor: "pointer" }}>¿Olvidaste tu contraseña?</a>
             </div>
           )}
 
-          {/* Confirmar contraseña (solo registro) */}
-          {modo === "register" && (
-            <div className="linpwrap">
-              <div className="linpicon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </div>
-              <input className={`linp${isErr ? " lerr" : ""}`}
-                type={showPass ? "text" : "password"}
-                placeholder="Repetí la contraseña" value={pass2}
-                onChange={e => { setPass2(e.target.value); if(isErr){ setEstado("idle"); setErrorMsg(""); } }}
-                onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                disabled={isLoading}
-                style={{ paddingRight: "44px" }}
-              />
-            </div>
-          )}
+          <button onClick={handleSubmit} disabled={isLoading} style={{ width: "100%", border: "none", cursor: isLoading ? "default" : "pointer", padding: 15, borderRadius: 14, background: "#2F9D4E", color: "#fff", fontWeight: 800, fontSize: 15.5, fontFamily: SANS, boxShadow: "0 8px 22px rgba(47,157,78,.3)", marginTop: 6, opacity: isLoading ? .75 : 1 }}>{btnLabel}</button>
 
-          {/* Botón principal */}
-          <button className="lbtn" onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? (
-              <><span className="lspinner" /> {modo === "login" ? "Ingresando..." : modo === "register" ? "Registrando..." : "Enviando..."}</>
-            ) : (
-              modo === "login"    ? "Ingresar →" :
-              modo === "register" ? "Crear cuenta →" :
-                                    "Enviar email de recuperación →"
-            )}
-          </button>
-
-          {/* Mensajes */}
           {isErr && (
-            <div className="lerrmsg">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, background: "#FDECEC", border: "1px solid #F6C9C9", color: "#C0392B", padding: "11px 14px", borderRadius: 12, fontSize: 13.5, fontWeight: 600 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0392B" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
               {errorMsg}
             </div>
           )}
           {resetOk && (
-            <div className="lokmsg">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              Email enviado a {email}. Revisá tu casilla.
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, background: "#E9F4EC", border: "1px solid #CFE7D6", color: "#1F6E33", padding: "11px 14px", borderRadius: 12, fontSize: 13.5, fontWeight: 600 }}>
+              <IcoCheck c="#1F6E33" s={16}/> Email enviado a {email}. Revisá tu casilla.
             </div>
           )}
-
-          <p className="lnote">SoyPekun · Gestión Ganadera Profesional</p>
-        </div>
+          {isReset && (
+            <p style={{ textAlign: "center", marginTop: 18 }}>
+              <a onClick={() => cambiarModo("login")} style={{ fontSize: 13.5, color: "#66767B", fontWeight: 700, textDecoration: "none", cursor: "pointer" }}>← Volver a ingresar</a>
+            </p>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -5077,112 +5081,67 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
   );
 }
 
-function SimuladorMenu({ onVolver, onNavigate, simulaciones, syncData }) {
-  return (
-    <div className="min-h-screen bg-white font-sans">
-      <nav className="sticky top-0 z-50 bg-white border-b-2 border-slate-100 shadow-md simulator-enter">
-        <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500" />
-        <div className="max-w-[1100px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
-          <button onClick={onVolver}
-            className="flex items-center gap-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md transition-all active:scale-95 group"
-            style={{transition:"all 0.2s cubic-bezier(0.34,1.56,0.64,1)"}}>
-            <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-            Volver al Menú
-          </button>
-          <div className="flex items-center gap-2.5 flex-1 justify-center min-w-0">
-            <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun"
-              className="h-11 sm:h-14 object-contain shrink-0" style={{ maxWidth: "160px" }} />
-            <div className="bg-violet-600 text-white font-black text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
-              <span>📊</span><span className="hidden sm:inline">Simulador</span>
-            </div>
-          </div>
-          <div className="shrink-0">
-            {syncData
-              ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full badge-pulse">Datos sincronizados ✓</span>
-              : simulaciones.length > 0
-              ? <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-3 py-1.5 rounded-full">{simulaciones.length} 💾</span>
-              : <span className="w-16 hidden sm:inline-block" />
-            }
-          </div>
-        </div>
-      </nav>
+function SimuladorMenu({ onVolver, onNavigate, simulaciones = [], syncData }) {
+  const chip = {
+    fontSize: 11.5, fontWeight: 700, color: "#5A6B6E", background: "#F1F4F0",
+    border: "1px solid #E6EBE5", padding: "4px 10px", borderRadius: 999,
+  };
+  const card = {
+    background: "#fff", border: "1px solid #E6EBE5", borderRadius: 22, overflow: "hidden",
+    boxShadow: "0 1px 2px rgba(22,48,73,.04)", transition: "transform .2s, box-shadow .2s",
+    cursor: "pointer", textAlign: "left", width: "100%", padding: 0, fontFamily: SANS,
+  };
+  const hov = (e, on) => {
+    e.currentTarget.style.transform = on ? "translateY(-4px)" : "none";
+    e.currentTarget.style.boxShadow = on ? "0 16px 34px rgba(22,48,73,.12)" : "0 1px 2px rgba(22,48,73,.04)";
+  };
 
-      <div className="px-4 md:px-12 pt-8 pb-12 max-w-4xl mx-auto">
+  return (
+    <div style={{ minHeight: "100vh", background: "#F4F7F3", fontFamily: SANS, color: "#1B2A2E" }}>
+      {/* Header */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #E6EBE5", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 1060, margin: "0 auto", padding: "14px clamp(20px,4vw,32px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <button onClick={onVolver} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#163049", border: "none", cursor: "pointer", color: "#fff", fontWeight: 800, fontSize: 13, fontFamily: SANS, padding: "10px 16px", borderRadius: 12 }}>
+            <span style={{ fontSize: 16 }}>←</span> Volver
+          </button>
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun" style={{ height: 30, width: "auto" }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#2F9D4E", background: "#E9F4EC", padding: "7px 13px", borderRadius: 999, letterSpacing: ".04em" }}>SIMULADOR</span>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "clamp(28px,4vw,44px) clamp(20px,4vw,32px) 60px" }}>
         {syncData && (
-          <div className="mb-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 flex items-center gap-3 sim-zoom-enter">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white shrink-0">
-              <RefreshCw size={16} />
-            </div>
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Datos sincronizados desde Mi Campo</p>
-              <p className="text-xs text-emerald-600 mt-0.5">
-                {syncData.cantidad} vientres · {syncData.pctDestete}% destete · {syncData.pesoTerneroDestetado} kg ternero
-              </p>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, background: "#E9F4EC", border: "1px solid #CFE7D6", padding: "12px 18px", borderRadius: 14 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: "#2F9D4E", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/><polyline points="21 4 21 10 15 10"/></svg>
+            </span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#1F6E33" }}>
+              Datos sincronizados desde Mi Campo — <strong style={{ fontWeight: 800 }}>{syncData.cantidad} vientres · {syncData.pctDestete}% destete</strong>
+            </span>
           </div>
         )}
 
-        <p className="text-center text-slate-400 font-semibold text-xs mb-6 uppercase tracking-widest">
-          Elegí el simulador
-        </p>
+        <h1 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "clamp(24px,3vw,32px)", letterSpacing: "-.02em", margin: "0 0 4px", color: "#163049" }}>Elegí el simulador</h1>
+        <p style={{ fontSize: 15, color: "#66767B", margin: "0 0 28px", fontWeight: 500 }}>Cinco herramientas para proyectar tu inversión.</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="dash-card">
-            <MenuCard
-              title="Poder de Compra"
-              desc="¿Si vendo X, cuántos Y puedo reponer? Triangulación con gastos comerciales incluidos."
-              icon={<DollarSign size={38} className="text-white" />}
-              iconAnim="float"
-              color="green"
-              stats={["Triangulación", "Gastos incluidos", "Relación V/C"]}
-              onClick={() => onNavigate("poder")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Proyecto Vientres"
-              desc="ROI completo de tu rodeo de cría: costos, destete, pastoreo y rentabilidad por vientre."
-              icon={<Calculator size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="multi"
-              stats={["ROI proyectado", "Costo/vientre", "Análisis IATF"]}
-              onClick={() => onNavigate("vientres")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Comp. Invernada"
-              desc="Invernada a campo vs feedlot — encontrá la opción más rentable con análisis detallado."
-              icon={<TrendingUp size={38} className="text-white" />}
-              iconAnim="bounce"
-              color="amber"
-              stats={["Campo vs Feedlot", "Precio indiferencia", "Margen/cab"]}
-              onClick={() => onNavigate("invernada")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Compra de Recría"
-              desc="Simulá la compra de terneros por lote, costos completos y rentabilidad al cierre."
-              icon={<Scale size={38} className="text-white" />}
-              iconAnim="float"
-              color="blue"
-              stats={["Por lotes", "Todos los costos", "Margen + ROI"]}
-              onClick={() => onNavigate("recria-compra")}
-            />
-          </div>
-          <div className="dash-card">
-            <MenuCard
-              title="Chacra Alimento"
-              desc="¿Producís tu forraje, lo comprás, o hacés renta y comprás? Costos de cultivo completos e impacto en el engorde."
-              icon={<Wheat size={38} className="text-white" />}
-              iconAnim="float"
-              color="green"
-              stats={["Costos detallados", "Cultivo de renta", "Break-even"]}
-              onClick={() => onNavigate("chacra")}
-            />
-          </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(286px,1fr))", gap: 18 }}>
+          {SIMULADORES.map((s) => (
+            <button key={s.id} onClick={() => onNavigate(s.ruta)} style={card}
+              onMouseEnter={(e) => hov(e, true)} onMouseLeave={(e) => hov(e, false)}>
+              <div style={{ height: 6, background: s.strip }} />
+              <div style={{ padding: 22 }}>
+                <span style={{ width: 50, height: 50, borderRadius: 15, background: s.icoBg, color: s.ico, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 15 }}><SimIcon k={s.id} /></span>
+                <h3 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, letterSpacing: "-.01em", margin: "0 0 7px", color: "#163049" }}>{s.t}</h3>
+                <p style={{ fontSize: 13.5, lineHeight: 1.5, color: "#66767B", margin: "0 0 15px", fontWeight: 500, minHeight: 60 }}>{s.d}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {s.tags.map((tag) => <span key={tag} style={chip}>{tag}</span>)}
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
+
+        <p style={{ textAlign: "center", fontSize: 12, color: "#9AA7A0", margin: "34px 0 0", fontWeight: 500 }}>Los cálculos son estimativos · Consultá con tu asesor antes de invertir</p>
       </div>
     </div>
   );
@@ -9284,113 +9243,95 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   );
 } // end MiCampo
 
-function Dashboard({ userEmail, global, gastos, simulaciones, onNavigate, onLogout }) {
-  const primerNombre = userEmail ? userEmail.split("@")[0] : null;
+function Dashboard({ userEmail, global, gastos, simulaciones = [], onNavigate, onLogout }) {
+  const primerNombre = userEmail ? userEmail.split("@")[0] : "Productor";
+  const inicial = primerNombre.charAt(0).toUpperCase();
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
 
+  const chip = {
+    fontSize: 12, fontWeight: 700, color: "#5A6B6E", background: "#F1F4F0",
+    border: "1px solid #E6EBE5", padding: "5px 11px", borderRadius: 999,
+  };
+  const cardBase = {
+    background: "#fff", border: "1px solid #E6EBE5", borderRadius: 24,
+    overflow: "hidden", boxShadow: "0 1px 2px rgba(22,48,73,.04)",
+    transition: "transform .2s, box-shadow .2s", cursor: "pointer",
+    textAlign: "left", width: "100%", padding: 0, fontFamily: SANS,
+  };
+  const hover = (e, on, shadow) => {
+    e.currentTarget.style.transform = on ? "translateY(-4px)" : "none";
+    e.currentTarget.style.boxShadow = on ? shadow : "0 1px 2px rgba(22,48,73,.04)";
+  };
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="px-6 pt-4 pb-6 md:px-12 md:pt-6 md:pb-8 max-w-6xl mx-auto">
-        <div className="text-center mb-4 md:mb-6 dash-welcome">
-          <div className="flex justify-center mb-3">
-            <img
-              src={`data:image/png;base64,${LOGO_B64}`}
-              alt="SoyPekun"
-              className="h-24 md:h-32 object-contain"
-              style={{ maxWidth: "420px" }}
-            />
+    <div style={{ minHeight: "100vh", background: "#F4F7F3", fontFamily: SANS, color: "#1B2A2E" }}>
+      {/* Header */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #E6EBE5", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 1060, margin: "0 auto", padding: "16px clamp(20px,4vw,32px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <img src={`data:image/png;base64,${LOGO_B64}`} alt="SoyPekun" style={{ height: 34, width: "auto" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#66767B" }}>Hola, <span style={{ color: "#163049", fontWeight: 800 }}>{primerNombre}</span></span>
+            <span style={{ width: 38, height: 38, borderRadius: "50%", background: "#163D44", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15 }}>{inicial}</span>
+            {onLogout && (
+              <button onClick={onLogout} style={{ background: "none", border: "1px solid #E1E7E1", cursor: "pointer", color: "#66767B", fontWeight: 700, fontSize: 12.5, fontFamily: SANS, padding: "8px 12px", borderRadius: 10 }}>Salir</button>
+            )}
           </div>
-          {primerNombre && (
-            <p className="text-slate-600 font-bold text-base md:text-lg mb-2">
-              {saludo}, <span className="text-emerald-600 font-black">{primerNombre}</span> 👋
-            </p>
-          )}
-          <p className="text-slate-400 font-bold uppercase text-xs tracking-[0.3em] mt-1">
-            Gestión Ganadera Profesional
-          </p>
-          {simulaciones.length > 0 && (
-            <span className="inline-block mt-4 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full">
-              {simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""} guardada{simulaciones.length !== 1 ? "s" : ""}
-            </span>
-          )}
-          {onLogout && (
-            <div className="mt-3">
-              <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 transition-colors font-semibold px-3 py-1 rounded-lg hover:bg-red-50">
-                Cerrar sesión
-              </button>
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* ── Subtitle ───────────────────────────────────────────────────── */}
-        <p className="text-center text-slate-400 font-semibold text-xs mb-4 md:mb-5 uppercase tracking-widest">
-          ¿A dónde querés ir hoy?
-        </p>
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "clamp(28px,4vw,44px) clamp(20px,4vw,32px) 60px" }}>
+        <h1 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "clamp(26px,3.2vw,36px)", letterSpacing: "-.02em", margin: "0 0 6px", color: "#163049" }}>{saludo}, {primerNombre} 👋</h1>
+        <p style={{ fontSize: 15.5, color: "#66767B", margin: "0 0 30px", fontWeight: 500 }}>¿A dónde querés ir hoy?</p>
 
-        {/* ── 2 big cards ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
-
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(290px,1fr))", gap: 20 }}>
           {/* Mi Campo */}
-          <div className="dash-card">
-            <button onClick={() => onNavigate("campo")}
-              className="card-campo rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-blue-900/50 hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative">
-              <div className="h-1.5 w-full card-strip-campo" />
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
-              <div className="relative p-6 md:p-8">
-                <div className="bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30 w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 shadow-lg card-icon-float">
-                  <Map size={28} className="text-white" />
-                </div>
-                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Mi Campo</h3>
-                <p className="text-blue-100 font-medium leading-relaxed text-sm mb-4">Stock de hacienda, costos de estructura y gestión de tu establecimiento.</p>
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {["Stock hacienda", "Costos estructura", "Próximamente más"].map(s => (
-                    <span key={s} className="text-xs font-bold text-blue-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">{s}</span>
-                  ))}
-                </div>
-                <div className="bg-white/20 hover:bg-white/30 text-white border border-white/40 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200">
-                  <span>Ir a Mi Campo</span>
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
-                </div>
+          <button onClick={() => onNavigate("campo")} style={cardBase}
+            onMouseEnter={(e) => hover(e, true, "0 16px 36px rgba(22,48,73,.12)")} onMouseLeave={(e) => hover(e, false)}>
+            <div style={{ height: 6, background: "linear-gradient(90deg,#163D44,#1E5059)" }} />
+            <div style={{ padding: 26 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <span style={{ width: 54, height: 54, borderRadius: 16, background: "#EAF1F0", color: "#163D44", display: "flex", alignItems: "center", justifyContent: "center" }}><IcoMap/></span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#163D44", background: "#EAF1F0", padding: "5px 11px", borderRadius: 999, letterSpacing: ".04em" }}>ESTABLECIMIENTO</span>
               </div>
-            </button>
-          </div>
+              <h3 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 23, letterSpacing: "-.01em", margin: "0 0 8px", color: "#163049" }}>Mi Campo</h3>
+              <p style={{ fontSize: 14.5, lineHeight: 1.5, color: "#66767B", margin: "0 0 18px", fontWeight: 500 }}>Stock de hacienda, costos de estructura y gestión de tu establecimiento.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 22 }}>
+                {["Tropas", "Pastaje", "Cobros"].map((s) => <span key={s} style={chip}>{s}</span>)}
+              </div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#163D44", color: "#fff", padding: "12px 18px", borderRadius: 13, fontWeight: 800, fontSize: 13.5 }}>Ir a Mi Campo <span>→</span></span>
+            </div>
+          </button>
 
           {/* Simulador */}
-          <div className="dash-card">
-            <button onClick={() => onNavigate("simulador-menu")}
-              className="card-simulador rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-purple-900/50 hover:-translate-y-4 hover:scale-[1.02] transition-all duration-300 text-left group w-full relative">
-              <div className="h-1.5 w-full card-strip-sim" />
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-16 translate-x-16 pointer-events-none" />
-              <div className="relative p-6 md:p-8">
-                <div className="bg-white/20 backdrop-blur-sm border border-white/30 group-hover:bg-white/30 w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 shadow-lg card-icon-bounce">
-                  <BarChart2 size={28} className="text-white" />
-                </div>
-                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Simulador</h3>
-                <p className="text-purple-100 font-medium leading-relaxed text-sm mb-4">Poder de Compra, Proyecto Vientres y Comparador de Invernada.</p>
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {["Poder de Compra", "Proyecto Vientres", "Comp. Invernada"].map(s => (
-                    <span key={s} className="text-xs font-bold text-purple-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">{s}</span>
-                  ))}
-                </div>
-                <div className="bg-white/20 hover:bg-white/30 text-white border border-white/40 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200">
-                  <span>Ir al Simulador</span>
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
-                </div>
+          <button onClick={() => onNavigate("simulador-menu")} style={cardBase}
+            onMouseEnter={(e) => hover(e, true, "0 16px 36px rgba(47,157,78,.16)")} onMouseLeave={(e) => hover(e, false)}>
+            <div style={{ height: 6, background: "linear-gradient(90deg,#2F9D4E,#46C266)" }} />
+            <div style={{ padding: 26 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <span style={{ width: 54, height: 54, borderRadius: 16, background: "#E9F4EC", color: "#2F9D4E", display: "flex", alignItems: "center", justifyContent: "center" }}><IcoBars/></span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#2F9D4E", background: "#E9F4EC", padding: "5px 11px", borderRadius: 999, letterSpacing: ".04em" }}>INVERSIÓN</span>
               </div>
-            </button>
-          </div>
+              <h3 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 23, letterSpacing: "-.01em", margin: "0 0 8px", color: "#163049" }}>Simulador</h3>
+              <p style={{ fontSize: 14.5, lineHeight: 1.5, color: "#66767B", margin: "0 0 18px", fontWeight: 500 }}>Poder de compra, proyecto vientres y comparador de invernada.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 22 }}>
+                {["Poder de compra", "Vientres", "Comparador"].map((s) => <span key={s} style={chip}>{s}</span>)}
+              </div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#2F9D4E", color: "#fff", padding: "12px 18px", borderRadius: 13, fontWeight: 800, fontSize: 13.5, boxShadow: "0 8px 18px rgba(47,157,78,.28)" }}>Ir al Simulador <span>→</span></span>
+            </div>
+          </button>
         </div>
 
-        {/* ── Parámetros globales ─────────────────────────────────────────── */}
+        {simulaciones.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 26, background: "#E9F4EC", border: "1px solid #CFE7D6", padding: "12px 18px", borderRadius: 14 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: "#2F9D4E", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><IcoTrend/></span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#1F6E33" }}>
+              Tenés <strong style={{ fontWeight: 800 }}>{simulaciones.length} simulación{simulaciones.length !== 1 ? "es" : ""}</strong> guardada{simulaciones.length !== 1 ? "s" : ""} — continuá donde dejaste.
+            </span>
+          </div>
+        )}
 
-        <p className="text-center text-slate-400 mt-5 text-xs font-medium">
-          Los cálculos son estimativos · Consultá con tu asesor antes de invertir
-        </p>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#9AA7A0", margin: "34px 0 0", fontWeight: 500 }}>Los cálculos son estimativos · Consultá con tu asesor antes de invertir</p>
       </div>
     </div>
   );
