@@ -7321,8 +7321,14 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         : null;
                       const pctDesteteDer  = nacidosCiclo > 0 ? Math.round((ciclo.ternerosDestetados ?? 0) / nacidosCiclo * 100) : 0;
                       // Al pie dividido M/H (compat: si no está el split, lo deriva de pctMachos)
-                      const alPieM = ciclo.ternerosAlPieMachos ?? Math.round((ciclo.ternerosAlPie ?? 0) * (ciclo.pctMachos ?? 50) / 100);
-                      const alPieH = ciclo.ternerosAlPieHembras ?? Math.max(0, (ciclo.ternerosAlPie ?? 0) - alPieM);
+                      let alPieM = ciclo.ternerosAlPieMachos ?? Math.round((ciclo.ternerosAlPie ?? 0) * (ciclo.pctMachos ?? 50) / 100);
+                      let alPieH = ciclo.ternerosAlPieHembras ?? Math.max(0, (ciclo.ternerosAlPie ?? 0) - alPieM);
+                      // Reconciliar: el split M/H SIEMPRE debe sumar el total al pie del ciclo (fuente de verdad)
+                      const _totAlPie = ciclo.ternerosAlPie ?? 0;
+                      if (alPieM + alPieH !== _totAlPie && _totAlPie > 0) {
+                        alPieM = Math.round(_totAlPie * (ciclo.pctMachos ?? 50) / 100);
+                        alPieH = _totAlPie - alPieM;
+                      }
                       const updateCiclo = (patch) => setCriaActiva(p => ({
                         ...p,
                         ciclos: (p.ciclos ?? []).map((c, i) => i === idx ? { ...c, ...patch } : c)
@@ -7451,28 +7457,33 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                 hembrasAlPie={alPieH}
                                 pctMachos={ciclo.pctMachos ?? 50}
                                 onDestetar={(cant, machos, hembras) => {
-                                  const restM = Math.max(0, alPieM - machos);
-                                  const restH = Math.max(0, alPieH - hembras);
+                                  // Tope: no se puede destetar más de lo que hay al pie (evita duplicar en recría)
+                                  const m = Math.min(Math.max(0, machos),  alPieM);
+                                  const h = Math.min(Math.max(0, hembras), alPieH);
+                                  const totalDest  = m + h;
+                                  if (totalDest < 1) { onToast("No hay terneros al pie para destetar en este ciclo.", "warn"); return; }
+                                  const restM = Math.max(0, alPieM - m);
+                                  const restH = Math.max(0, alPieH - h);
                                   const restantes = restM + restH;
                                   const pctRep     = criaDatos.pctReposicion ?? 30;
-                                  const hembrasRep = Math.round(hembras * pctRep / 100);
-                                  const hembrasVta = hembras - hembrasRep;
+                                  const hembrasRep = Math.round(h * pctRep / 100);
+                                  const hembrasVta = h - hembrasRep;
                                   // 1) Sacar del al pie + registrar el destete
                                   updateCiclo({
                                     ternerosAlPie: restantes,
                                     ternerosAlPieMachos: restM,
                                     ternerosAlPieHembras: restH,
-                                    ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + cant,
-                                    machosDestetados: (ciclo.machosDestetados ?? 0) + machos,
-                                    hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + hembras,
+                                    ternerosDestetados: (ciclo.ternerosDestetados ?? 0) + totalDest,
+                                    machosDestetados: (ciclo.machosDestetados ?? 0) + m,
+                                    hembrasDestetadas: (ciclo.hembrasDestetadas ?? 0) + h,
                                     estado: restantes === 0 ? "destetado" : "al_pie",
                                     fechaDesteReal: restantes === 0 ? new Date().toISOString().slice(0, 10) : ciclo.fechaDesteReal,
                                     transferidoRecria: true,
                                   });
-                                  // 2) Pasar ESTE lote a Recría (no desaparecen: salen de cría y entran a recría)
+                                  // 2) Pasar ESTE lote a Recría — exactamente lo que salió de cría (no se duplica)
                                   setRecriaActiva(p => ({
                                     ...p,
-                                    ternerosLiquidaMachos:  (p.ternerosLiquidaMachos  ?? 0) + machos,
+                                    ternerosLiquidaMachos:  (p.ternerosLiquidaMachos  ?? 0) + m,
                                     vaquillonaRecria:       (p.vaquillonaRecria       ?? 0) + hembrasRep,
                                     ternerosLiquidaHembras: (p.ternerosLiquidaHembras ?? 0) + hembrasVta,
                                     pesoEntradaRecria:      ciclo.pesoDesteteKg ?? p.pesoEntradaRecria ?? 187,
@@ -7487,10 +7498,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                     fecha: new Date().toISOString().slice(0, 10),
                                     anoGanadero,
                                     cicloId: ciclo.id ?? null,
-                                    machos, hembras, hembrasRep, hembrasVta,
-                                    detalle: `${cant} destetados (${machos}♂ · ${hembras}♀) → Recría`,
+                                    machos: m, hembras: h, hembrasRep, hembrasVta,
+                                    detalle: `${totalDest} destetados (${m}♂ · ${h}♀) → Recría`,
                                   }]);
-                                  onToast("✅ " + cant + " destetados y pasados a Recría — " + machos + "♂ novillos, " + hembrasRep + "♀ reposición, " + hembrasVta + "♀ venta", "success");
+                                  onToast("✅ " + totalDest + " destetados y pasados a Recría — " + m + "♂ novillos, " + hembrasRep + "♀ reposición, " + hembrasVta + "♀ venta", "success");
                                 }}
                               />
                             )}
