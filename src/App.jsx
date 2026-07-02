@@ -6841,7 +6841,22 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           ))}
         </div>
 
-        {/* ── Carga animal — EV/ha ──────────────────────────────────────── */}
+        {/* ── ¿Dónde está tu hacienda? (verificación anti-duplicados) ── */}
+        {(cabCria + cabRec + cabTerm) > 0 && (
+          <div className="mt-3 rounded-2xl p-4" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+            <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: "#5A6B6E" }}>¿Dónde está tu hacienda?</p>
+            <div className="flex items-center flex-wrap gap-2 text-sm font-black" style={{ color: "#163049" }}>
+              <span style={{ background: "#EAF1F0", padding: "6px 12px", borderRadius: 999 }}>🐄 Cría {cabCria}</span>
+              <span style={{ color: "#9DBAB0" }}>+</span>
+              <span style={{ background: "#EAF1F0", padding: "6px 12px", borderRadius: 999 }}>🐂 Recría {cabRec}</span>
+              <span style={{ color: "#9DBAB0" }}>+</span>
+              <span style={{ background: "#EAF1F0", padding: "6px 12px", borderRadius: 999 }}>🥩 Terminación {cabTerm}</span>
+              <span style={{ color: "#9DBAB0" }}>=</span>
+              <span style={{ background: "#163D44", color: "#fff", padding: "6px 14px", borderRadius: 999 }}>{cabCria + cabRec + cabTerm} cab</span>
+            </div>
+            <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "#5A6B6E" }}>Cada animal se cuenta una sola vez. Al destetar, los terneros pasan de Cría a Recría: <b>Cría baja y Recría sube</b>, el total no cambia. Si ves que Cría no baja al destetar, avisame el número de Cría antes y después.</p>
+          </div>
+        )}
         {hectareas > 0 && (() => {
           const cargaIdeal = 1.0;
           const pct     = Math.min(100, (evPorHa  / cargaIdeal) * 100);
@@ -7035,7 +7050,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐂</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
-                        <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos+(reciaDatos.vaquillonaRecria??0)+(reciaDatos.mej??0)} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarRecria}
