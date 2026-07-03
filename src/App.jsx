@@ -6340,7 +6340,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const costoViajesMes     = litrosTotalesMes * gasoil;
 
   const totalStockCampo = criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + totalTernerosAlPie + criaDatos.toros
-    + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0)
+    + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0)
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
     + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0)
     + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot
@@ -6450,7 +6450,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Costos asignados (proporcional al stock de cada actividad)
   const cabCria  = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.toros + totalTernerosAlPie + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0));
   const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0);
-  const cabTerm  = cabTermSale;
+  const cabTerm  = cabTermSale + (terminacionDatos.mejTerminacion??0) + (terminacionDatos.vacaEngorde??0) + (terminacionDatos.vaqEngorde??0);
   const totalCabAct = Math.max(1, cabCria + cabRec + cabTerm);
   const costoTotalAnual = (totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes) * 12;
   const costoCriaAnual  = costoTotalAnual * (cabCria / totalCabAct);
@@ -6830,9 +6830,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 simulator-enter">
           {[
             { label:"Total hacienda", value:`${totalStockCampo} cab`, color:"text-slate-800", icon:"🐄" },
-            { label:"Cría",           value:`${criaDatos.vacas+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)} madres`, color:"text-emerald-700", icon:"🐮" },
-            { label:"Recría",         value:`${reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos} cab`, color:"text-blue-700", icon:"🐂" },
-            { label:"Terminación",    value:`${terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} cab`, color:"text-amber-700", icon:"🥩" },
+            { label:"Cría",           value:`${cabCria} cab`, color:"text-emerald-700", icon:"🐮" },
+            { label:"Recría",         value:`${cabRec} cab`, color:"text-blue-700", icon:"🐂" },
+            { label:"Terminación",    value:`${cabTerm} cab`, color:"text-amber-700", icon:"🥩" },
           ].map((k,i) => (
             <div key={i} className="kpi-pop bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col gap-1 shadow-sm card-hover">
               <span className="text-xl">{k.icon}</span>
@@ -6994,7 +6994,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐮</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
-                        <p className="text-3xl font-black text-slate-800">{(criaDatos.vacas||0)+(criaDatos.vaquillonas1??criaDatos.vaquillonas??0)+totalTernerosAlPie+(criaDatos.toros||0)} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{cabCria} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarCria}
@@ -7051,7 +7051,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐂</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
-                        <p className="text-3xl font-black text-slate-800">{reciaDatos.ternerosLiquidaMachos+reciaDatos.ternerosLiquidaHembras+reciaDatos.ternerosCompraMachos+reciaDatos.ternerosCompraHembras+reciaDatos.novillos+(reciaDatos.vaquillonaRecria??0)+(reciaDatos.mej??0)} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{cabRec} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarRecria}
@@ -7092,7 +7092,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🥩</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
-                        <p className="text-3xl font-black text-slate-800">{terminacionDatos.novillosCampo+terminacionDatos.novillosFeedlot} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black text-slate-800">{cabTerm} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarTerminacion}
