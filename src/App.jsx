@@ -5251,7 +5251,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
 function makeActs(p) {
-  const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, terminacionDatos, fmt, fmtMoney } = p;
+  const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, precioNovInvKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, terminacionDatos, fmt, fmtMoney } = p;
   const loc = (n) => (n||0).toLocaleString("es-AR");
   const feedlotCosto = (terminacionDatos?.novillosFeedlot||0)*((terminacionDatos?.costoComidaDia||0)+(terminacionDatos?.costoHoteleriaDia||0))*365;
   const base = [
@@ -5266,7 +5266,7 @@ function makeActs(p) {
     { id: "recria", label: "\uD83D\uDC02 Recría", cab: cabRec, color: "blue", ingreso: ingresoRecria, costo: costoReposicionTotal + sanidadRec, margen: margenRec,
       desglose: [
         { label: "Ingresos", tipo: "header" },
-        { label: "Novillos invernada vendidos", valor: cabRecriaSale+" cab x "+pesoRecria+" kg x $"+loc(precioNovKg)+"/kg", total: ingresoRecria, positivo: true },
+        { label: "Novillos invernada vendidos", valor: cabRecriaSale+" cab x "+pesoRecria+" kg x $"+loc(precioNovInvKg)+"/kg", total: ingresoRecria, positivo: true },
         { label: "Costos directos", tipo: "header" },
         ...(cabCompradasRecria ? [{ label: "Compra terneros externos", valor: cabCompradasRecria+" cab x "+pesoEntradaRecria+" kg x $"+loc(precioCompraRecria)+"/kg", total: -costoReposicionExterna, positivo: false }] : []),
         ...(cabPropiaRecria ? [{ label: "Terneros propios (costo oportunidad)", valor: cabPropiaRecria+" cab x "+pesoDestete2+" kg x $"+loc(precioInvKg)+"/kg", total: -costoReposicionPropia, positivo: false }] : []),
@@ -6426,6 +6426,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // ── Margen bruto por actividad ────────────────────────────────────────────
   // Cría: produce terneros para destete, ingreso = peso destete × cab × precio nov × factor
   const precioNovKg     = global.precioNovilloInmag ?? 1800;
+  const precioNovInvKg  = global.precioNovilloInvernada ?? precioNovKg;  // novillo invernada (salida recría). Default = novillo gordo hasta setear.
   const precioInvKg     = global.precioInvernada    ?? 1600;  // terneros/invernada
   // Terneros destetados reales vs proyección:
   const cabDestetados = totalTernerosDestetados > 0
@@ -6439,7 +6440,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // Recría: produce novillos invernada, ingreso = peso × cab × precio invernada
   const cabRecriaSale   = Math.round((reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos) * (1 - (reciaDatos.pctMortandadRecria ?? 2) / 100));
   const pesoRecria      = 320; // promedio salida recría
-  const ingresoRecria   = cabRecriaSale * pesoRecria * precioNovKg;     // novillos invernada → precio novillo gordo
+  const ingresoRecria   = cabRecriaSale * pesoRecria * precioNovInvKg;  // novillos invernada → precio novillo invernada
 
   // Terminación: cab × peso final × precio
   const cabTermSale     = (terminacionDatos.novillosCampo ?? 0) + (terminacionDatos.novillosFeedlot ?? 0);
@@ -8190,7 +8191,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 margenTotal={margenBrutoTotal}
                 cabCria={cabCria} cabRec={cabRec} cabTerm={cabTerm}
                 cabDestetados={cabDestetados} pesoDestete2={pesoDestete2} precioInvKg={precioInvKg}
-                cabRecriaSale={cabRecriaSale} pesoRecria={pesoRecria} precioNovKg={precioNovKg}
+                cabRecriaSale={cabRecriaSale} pesoRecria={pesoRecria} precioNovKg={precioNovKg} precioNovInvKg={precioNovInvKg}
                 cabTermSale={cabTermSale} pesoTerm={pesoTerm}
                 costoOportunidadAnual={costoOportunidadAnual}
                 sanidadPorCabAnio={campoStore.sanidadPorCabAnio}
@@ -8855,7 +8856,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const peqCria = cabDestetados ? Math.ceil(sanidadCria / (cabDestetados * pesoDestete2)) : 0;
                 const peqCriaPct = precioInvKg ? peqCria / precioInvKg : 0;
                 const peqRec = cabRecriaSale && pesoRecria ? Math.ceil((costoReposicionTotal + sanidadRec) / (cabRecriaSale * pesoRecria)) : 0;
-                const peqRecPct = precioNovKg ? peqRec / precioNovKg : 0;
+                const peqRecPct = precioNovInvKg ? peqRec / precioNovInvKg : 0;
                 const costoTermTotal = costoFeedlotAnual + sanidadTerm;
                 const peqTerm = cabTermSale && pesoTerm ? Math.ceil(costoTermTotal / (cabTermSale * pesoTerm)) : 0;
                 const peqTermPct = precioNovKg ? peqTerm / precioNovKg : 0;
@@ -8874,7 +8875,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 };
                 const items = [
                   { label: "Cria",        emoji: "🐄", sub: "Precio min. ternero destete",  valor: "$" + fmt2(peqCria) + "/kg",        comp: "Actual: $" + fmt2(precioInvKg) + "/kg",  pct: peqCriaPct,   color: "emerald", activo: cabDestetados > 0 },
-                  { label: "Recria",      emoji: "🐂", sub: "Precio min. novillo invernada", valor: "$" + fmt2(peqRec) + "/kg",         comp: "Actual: $" + fmt2(precioNovKg) + "/kg",  pct: peqRecPct,    color: "blue",    activo: cabRecriaSale > 0 },
+                  { label: "Recria",      emoji: "🐂", sub: "Precio min. novillo invernada", valor: "$" + fmt2(peqRec) + "/kg",         comp: "Actual: $" + fmt2(precioNovInvKg) + "/kg",  pct: peqRecPct,    color: "blue",    activo: cabRecriaSale > 0 },
                   { label: "Terminacion", emoji: "🥩", sub: "Precio min. novillo gordo",     valor: "$" + fmt2(peqTerm) + "/kg",        comp: "Actual: $" + fmt2(precioNovKg) + "/kg",  pct: peqTermPct,   color: "amber",   activo: cabTermSale > 0 },
                   ...(cabHilton ? [{ label: "Hilton",  emoji: "🌎", sub: "Precio min. USD/ton res", valor: "U$S " + fmt2(peqHiltonUSD) + "/ton", comp: "Actual: U$S " + fmt2(terminacionDatos.hiltonPrecioUSDton ?? 0) + "/ton", pct: peqHiltonPct, color: "purple", activo: true }] : []),
                   ...(cabUE481 ? [{ label: "UE 481", emoji: "🏭", sub: "Precio min. USD/ton res",   valor: "U$S " + fmt2(peqUE481USD) + "/ton",  comp: "Actual: U$S " + fmt2(terminacionDatos.ue481PrecioUSDton ?? 0) + "/ton",  pct: peqUE481Pct,  color: "indigo", activo: true }] : []),
@@ -9347,7 +9348,11 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <EditField label="Precio novillo gordo ($/kg)" value={global.precioNovilloInmag ?? 1800}
                     onChange={v => { vacaStore.getState().setGlobal({ precioNovilloInmag: v }); }}
                     step={50} prefix="$" suffix="/kg"
-                    hint="Usado en Recría, Terminación y proyecciones. Precio novillo pesado." />
+                    hint="Usado en Terminación y proyecciones. Novillo pesado terminado (feedlot)." />
+                  <EditField label="Precio novillo invernada ($/kg)" value={global.precioNovilloInvernada ?? (global.precioNovilloInmag ?? 1800)}
+                    onChange={v => { vacaStore.getState().setGlobal({ precioNovilloInvernada: v }); }}
+                    step={50} prefix="$" suffix="/kg"
+                    hint="Usado en Recría. Novillo de invernada (~280-320 kg) que sale de recría." />
                   <EditField label="Precio invernada / ternero ($/kg)" value={global.precioInvernada ?? 1600}
                     onChange={v => { vacaStore.getState().setGlobal({ precioInvernada: v }); }}
                     step={50} prefix="$" suffix="/kg"
@@ -10360,6 +10365,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const precios  = localPastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, terneros: 5.5, recria: 5.5 };
   const terceros = localPastaje?.terceros ?? [];
 
+  // Dueño de una tropa: su terceroId si existe como propietario; si no (huérfana), al primero.
+  const dueñoDe = (t) => (t.terceroId && terceros.some(x => x.id === t.terceroId)) ? t.terceroId : terceros[0]?.id;
+
   const setTropas   = (fn) => updateLocal({ tropas:   typeof fn === "function" ? fn(tropas)   : fn });
   const setPeriodos = (fn) => updateLocal({ periodos: typeof fn === "function" ? fn(periodos) : fn });
   const setPrecios  = (p)  => updateLocal({ precios:  { ...precios, ...p } });
@@ -10955,7 +10963,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       if (!prop) { setPropSelec(null); return null; }
       // Tropas sin terceroId se consideran del primer propietario (migración automática)
       const tropasDelProp = tropas.filter(t => {
-        const tid = t.terceroId ?? terceros[0]?.id;
+        const tid = dueñoDe(t);
         return tid === prop.id && (t.cabActual ?? t.cab) > 0;
       });
       const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
@@ -11088,7 +11096,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       <div className="space-y-4">
         {/* Tarjetas propietarios */}
         {terceros.map(prop => {
-          const tropasDelProp = tropas.filter(t => (t.terceroId ?? terceros[0]?.id) === prop.id);
+          const tropasDelProp = tropas.filter(t => dueñoDe(t) === prop.id);
           const cabTotal = tropasDelProp.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
           const kgTotal  = tropasDelProp.reduce((s, t) => s + kgDevengados(t, null), 0);
           return (
@@ -12027,7 +12035,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           {terceros.length === 0 && <p className="text-xs text-slate-400 italic">Sin propietarios cargados</p>}
           <div className="space-y-1.5">
             {terceros.map(t => {
-              const tropasDelTercero = tropas.filter(tr => tr.terceroId === t.id);
+              const tropasDelTercero = tropas.filter(tr => dueñoDe(tr) === t.id);
               const cabTotal = tropasDelTercero.reduce((s, tr) => s + (tr.cabActual ?? tr.cab), 0);
               return (
                 <div key={t.id} className="border-b border-slate-100 last:border-0">
