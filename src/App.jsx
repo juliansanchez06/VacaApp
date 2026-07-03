@@ -284,7 +284,7 @@ function getEstadoVacio() {
     campoRecria: {
       ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0,
       ternerosCompraMachos: 0, ternerosCompraHembras: 0,
-      novillos: 0, vaquillonaRecria: 0, mej: 0,
+      novillos: 0, vaquillonaRecria: 0, mej: 0, machosEnteros: 0, machosEnteros: 0,
       pctMortandadRecria: 2, gdpNovilloInv: 0.5, gdpVaquillonaDesc: 0.5,
       precioCompraKgRecria: 0, pesoEntradaRecria: 180, cabCompradasRecria: 0,
     },
@@ -6069,7 +6069,7 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
                   <DiagNum label="🔻 A rechazo (manual)" value={d.rechazo} onChange={(v) => updDiag(d.id, { rechazo: v })} accent="rose" sub={`sugerido: ${vacias} vacías`} />
                   {!anoViendo && d.rechazo > 0 && !d.rechazoAplicado && (
                     <button onClick={() => {
-                      setCriaActiva((p) => ({ ...p, vacaCut: (p.vacaCut ?? 0) + d.rechazo }));
+                      setCriaActiva((p) => ({ ...p, vacas: Math.max(0, (p.vacas ?? 0) - d.rechazo), vacaCut: (p.vacaCut ?? 0) + d.rechazo }));
                       updDiag(d.id, { rechazoAplicado: true });
                       onToast && onToast(`🔻 ${d.rechazo} vacas pasadas a Vaca CUT (descarte)`, "success");
                     }}
@@ -6342,7 +6342,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const totalStockCampo = criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + totalTernerosAlPie + criaDatos.toros
     + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0)
     + reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos
-    + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0)
+    + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0) + (reciaDatos.machosEnteros??0)
     + terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot
     + (terminacionDatos.mejTerminacion??0) + (terminacionDatos.vacaEngorde??0) + (terminacionDatos.vaqEngorde??0);
 
@@ -6438,7 +6438,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const ingresoCria     = cabDestetados * pesoDestete2 * precioInvKg;   // terneros al destete → precio invernada
 
   // Recría: produce novillos invernada, ingreso = peso × cab × precio invernada
-  const cabRecriaSale   = Math.round((reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos) * (1 - (reciaDatos.pctMortandadRecria ?? 2) / 100));
+  const cabRecriaSale   = Math.round((reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosCompraMachos + reciaDatos.novillos + (reciaDatos.machosEnteros ?? 0)) * (1 - (reciaDatos.pctMortandadRecria ?? 2) / 100));
   const pesoRecria      = 320; // promedio salida recría
   const ingresoRecria   = cabRecriaSale * pesoRecria * precioNovInvKg;  // novillos invernada → precio novillo invernada
 
@@ -6449,7 +6449,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // Costos asignados (proporcional al stock de cada actividad)
   const cabCria  = (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0) + criaDatos.toros + totalTernerosAlPie + (criaDatos.vacias ?? 0) + (criaDatos.vacaCut??0) + (criaDatos.vaqRechazo??0));
-  const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0);
+  const cabRec   = reciaDatos.ternerosLiquidaMachos + reciaDatos.ternerosLiquidaHembras + reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras + reciaDatos.novillos + (reciaDatos.vaquillonaRecria??0) + (reciaDatos.mej??0) + (reciaDatos.machosEnteros??0);
   const cabTerm  = cabTermSale + (terminacionDatos.mejTerminacion??0) + (terminacionDatos.vacaEngorde??0) + (terminacionDatos.vaqEngorde??0);
   const totalCabAct = Math.max(1, cabCria + cabRec + cabTerm);
   const costoTotalAnual = (totalEmpleadosMes + costoMaqMes + costoRoladoMes + costoViajesMes + sanidadMes) * 12;
@@ -7738,6 +7738,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <EditField label="Terneros compra — machos" value={reciaDatos.ternerosCompraMachos} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraMachos:v}))} hint="Comprados para invernar" />
                     <EditField label="Terneros compra — hembras" value={reciaDatos.ternerosCompraHembras} onChange={v=>setRecriaActiva(p=>({...p,ternerosCompraHembras:v}))} hint="Compradas para recría" />
                     <EditField label="Novillos en recría" value={reciaDatos.novillos} onChange={v=>setRecriaActiva(p=>({...p,novillos:v}))} hint="En camino a terminación" />
+                    <EditField label="Machos enteros" value={reciaDatos.machosEnteros??0} onChange={v=>setRecriaActiva(p=>({...p,machosEnteros:v}))} hint="Toritos jóvenes sin castrar. Se venden como invernada o pasan a feedlot." />
                     <EditField label="Vaquillona Recría" value={reciaDatos.vaquillonaRecria??0} onChange={v=>setRecriaActiva(p=>({...p,vaquillonaRecria:v}))} hint="Vaquillonas en etapa de recría" />
                     <EditField label="MEJ (Mejoramiento)" value={reciaDatos.mej??0} onChange={v=>setRecriaActiva(p=>({...p,mej:v}))} hint="Animales de mejoramiento genético" />
                     <div className="sm:col-span-2 space-y-3">
