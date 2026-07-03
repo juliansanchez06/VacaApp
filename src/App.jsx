@@ -11884,6 +11884,28 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 <p className="text-sm">Sin kg a liquidar en este período</p>
               </div>
             )}
+            <button onClick={() => {
+              const montoStr = window.prompt("Cobro anterior de pastaje.\n\n¿Cuánto cobraste? (en pesos, solo el número):");
+              if (montoStr == null) return;
+              const monto = Math.round(parseFloat(String(montoStr).replace(/[^0-9.]/g, "")) || 0);
+              if (monto <= 0) { toast("Monto inválido", "warn"); return; }
+              const fecha = window.prompt("¿Qué fecha? (AAAA-MM-DD)", hoy) || hoy;
+              const nuevoCobro = {
+                id: Date.now(), tipo: "cobro-periodo",
+                propietarioId: propCobroActivo,
+                manual: true, lineas: [], kgTotal: 0,
+                precioNov: precioNov ?? 0,
+                pesos: monto, pesosSup: 0, totalPesos: monto,
+                estado: "pagado",
+                fechaCreacion: fecha, fechaDesde: fecha, fechaHasta: fecha,
+                nota: "Cobro anterior (carga manual)",
+              };
+              setPeriodos(prev => [...prev, nuevoCobro]);
+              toast("✅ Cobro anterior de $" + monto.toLocaleString("es-AR") + " registrado", "success");
+            }}
+              className="w-full mt-2 py-3 rounded-2xl border-2 border-dashed border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-black text-sm transition-all">
+              ➕ Cargar cobro anterior (monto directo)
+            </button>
           </div>
         )}
 
