@@ -6671,7 +6671,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgNovillosInv      = cabNovillosInv     * pNovilloInvernada;
   const kgNovillosFaena    = cabNovillosFaena   * pNovilloFaena;
   const kgVaquillonaDesc   = cabVaquillonaDesc  * pVaquillonaDesc;
-  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc + Math.round(kgVendidosTotal);
+  // Kg comprados (entraron de afuera, no los produjo el campo) → se restan para el rendimiento neto
+  const kgCompradosRecria  = Math.round(cabCompradasRecria * pesoEntradaRecria);
+  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc + Math.round(kgVendidosTotal) - kgCompradosRecria;
   const kgHaAct            = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
 
   // Proyección año siguiente — con GDP proyectada 12 meses completos
@@ -8551,6 +8553,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             <td className="text-right py-2.5 font-mono font-bold text-emerald-700">{hectareas>0?fmt(Math.round(r.kg/hectareas)):"-"}</td>
                           </tr>
                         ))}
+                        {kgCompradosRecria > 0 && (
+                          <tr className="border-b border-slate-50">
+                            <td className="py-2.5 pr-4 font-semibold text-amber-700">− Comprados (recría)</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-500">{fmt(cabCompradasRecria)}</td>
+                            <td className="text-right py-2.5 pr-2 font-mono text-slate-500">{fmt(pesoEntradaRecria)} kg</td>
+                            <td className="text-right py-2.5 pr-2 font-mono font-bold text-amber-700">−{fmt(kgCompradosRecria)}</td>
+                            <td className="text-right py-2.5 font-mono text-amber-600">{hectareas>0?"−"+fmt(Math.round(kgCompradosRecria/hectareas)):"-"}</td>
+                          </tr>
+                        )}
                         <tr className="border-t-2 border-emerald-200 bg-emerald-50">
                           <td className="py-3 pr-4 font-black text-emerald-800">TOTAL AÑO ACTUAL</td>
                           <td className="text-right py-3 pr-2 font-black text-emerald-800 font-mono">{fmt(cabVacasDescarte+cabTernerosInv+cabNovillosInv+cabNovillosFaena+cabVaquillonaDesc)}</td>
