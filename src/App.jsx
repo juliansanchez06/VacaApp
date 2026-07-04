@@ -545,9 +545,9 @@ const vacaStore = createStore((set, get) => ({
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
 
     set({
-      campoCria:        { ...c, vacas: nuevasVacas, vaquillonas: nuevasVaq, ternerosNoDestetados: 0, vacias: 0 },
-      campoRecria:      { ...r, ternerosLiquidaMachos: 0, ternerosLiquidaHembras: 0, ternerosCompraMachos: 0, ternerosCompraHembras: 0, novillos: r.novillos + machosSobrev },
-      campoTerminacion: { ...t, novillosCampo: 0, novillosFeedlot: 0 },
+      campoCria:        { ...c },
+      campoRecria:      { ...r },
+      campoTerminacion: { ...t },
       anoGanaderoActual: `${anioIn+1}/${anioIn+2}`,
       historialAnos: { ...historialAnos, [anoGanaderoActual]: snapshot },
     });
