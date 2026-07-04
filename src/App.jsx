@@ -6555,6 +6555,9 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     return s + cab * kgM * (dias / 30);
   }, 0);
   const devengadoPastajeHoy = kgDevengadosPastaje * precioNovPastaje;
+  // Kg de pastaje devengados del año (cobrados + por cobrar) — para el rendimiento del campo
+  const kgPastajeDevengadoAnio = Math.round(kgPastaje + kgDevengadosPastaje);
+  const kgHaPastajeDeveng = hectareas ? Math.round(kgPastajeDevengadoAnio / hectareas) : 0;
   const margenBrutoPastaje = ingresoPastaje + devengadoPastajeHoy;
   // margenBrutoExport se calcula más abajo, después de definir margenExport
   // Si precio > 0, hay compra externa. Si = 0, son del destete propio (costo = precio invernada)
@@ -8420,12 +8423,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* ── Rendimiento total campo (propio + pastaje) ── */}
-              {(ingresoPastaje > 0 || kgPastajeProducidos > 0) && (() => {
+              {(kgPastajeDevengadoAnio > 0) && (() => {
                 // Kg producidos por animales de pastaje = GDP real por categoría × días en campo
                 // Vacas y toros: GDP ≈ 0 (mantienen peso, no producen kg netos)
                 // Terneros/terneras: GDP ≈ 0.7 kg/día (crecimiento destete → recría)
                 // Use kgPastajeProducidos calculated in MiCampo scope (from stored gdpEstimado per tropa)
-                const kgHaPastajeReal = kgHaPastaje; // already computed above
+                const kgHaPastajeReal = kgHaPastajeDeveng; // kg devengados del año / ha
                 const kgHaTotal = kgHaAct + kgHaPastajeReal;
 
                 // Detail by tropa
@@ -8449,33 +8452,19 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                             <p className="text-xs text-slate-400">indicador comparable</p>
                           </div>
                         </div>
-                        {/* Pastaje — solo terneras y recría */}
+                        {/* Pastaje — kg devengados del año (todas las categorías) */}
                         {kgHaPastajeReal > 0 && (
                           <div className="py-2 border-b border-slate-100 space-y-2">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm font-black text-slate-700">🤝 Pastaje (terneros y recría de terceros)</p>
-                                <p className="text-xs text-slate-400">kg de carne producidos en tu campo por animales de terceros</p>
+                                <p className="text-sm font-black text-slate-700">🤝 Pastaje (terceros)</p>
+                                <p className="text-xs text-slate-400">kg novillo devengados en el año · cobrados + por cobrar</p>
                               </div>
                               <div className="text-right">
                                 <p className="font-mono font-black text-xl text-teal-700">+{kgHaPastajeReal} kg/ha</p>
-                                <p className="text-xs text-slate-400">{Math.round(kgPastajeProducidos).toLocaleString("es-AR")} kg totales</p>
+                                <p className="text-xs text-slate-400">{kgPastajeDevengadoAnio.toLocaleString("es-AR")} kg totales</p>
                               </div>
                             </div>
-                            {/* Desglose por tropa */}
-                            {tropasPastaje.map(t => {
-                              const cab  = t.cabActual ?? t.cab ?? 0;
-                              const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : 0.5)) || 0;
-                              const fi   = t.fechaIngreso ? new Date(t.fechaIngreso) : hoyNow;
-                              const dias = Math.max(0, Math.round((hoyNow - fi) / 86400000));
-                              const kg   = Math.round(cab * gdp * dias);
-                              return (
-                                <div key={t.id} className="flex items-center justify-between bg-teal-50 rounded-xl px-3 py-2 text-xs">
-                                  <span className="text-slate-600 font-semibold">{t.origen}</span>
-                                  <span className="text-teal-700 font-black">{cab} cab · {gdp} kg/d · {dias}d = {kg.toLocaleString("es-AR")} kg</span>
-                                </div>
-                              );
-                            })}
                           </div>
                         )}
                         {/* Total */}
@@ -8488,8 +8477,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         </div>
                       </div>
                       <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-700">
-                        <p className="font-black mb-1">💡 ¿Por qué solo terneros y recría?</p>
-                        <p>Las vacas mantienen su peso — no generan kg netos en tu campo. Los terneros y novillos en recría sí: tu pasto los hace crecer. Para editar el GDP de cada tropa, tocá el badge violeta en Pastaje → Tropas.</p>
+                        <p className="font-black mb-1">💡 ¿Qué suma el pastaje?</p>
+                        <p>Los kg novillo que fuiste devengando durante el año — lo ya cobrado más lo que falta cobrar — de todas las tropas, incluidas las que ya cerraste. Es lo que tu campo produjo en pastaje, convertido a kg de novillo.</p>
                       </div>
                     </div>
                   </div>
