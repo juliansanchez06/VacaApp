@@ -1777,25 +1777,25 @@ function Field({ label, value, onChange, unit, hint, highlight, readOnly, step, 
 
 function SectionTitle({ children, icon, color = "text-emerald-600" }) {
   return (
-    <div className="flex items-center gap-2 mb-4 mt-1 section-enter">
-      {icon && <span className="text-base">{icon}</span>}
-      <h3 className={`text-xs font-black tracking-widest uppercase ${color}`}>{children}</h3>
-      <div className="flex-1 section-accent" />
+    <div className="flex items-center gap-2.5 mb-4 mt-1 section-enter">
+      {icon && <span className="text-lg">{icon}</span>}
+      <h3 className="text-[15px] font-bold tracking-tight text-[#163049]" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif" }}>{children}</h3>
+      <div className="flex-1 h-px" style={{ background: "#E6EBE5" }} />
     </div>
   );
 }
 
 function KpiCard({ label, value, sub, color = "text-slate-800", bg = "bg-white", border = "border-slate-200", large }) {
   return (
-    <div className={`rounded-2xl border-2 p-4 flex flex-col gap-1 card-hover kpi-pop ${bg} ${border}`}>
-      <span className="text-xs font-bold tracking-wider uppercase text-slate-400">{label}</span>
-      <span className={`font-mono font-black tabular-nums value-update ${large ? "text-3xl" : "text-2xl"} ${color}`}>{value}</span>
+    <div className={`rounded-[20px] border p-4 flex flex-col gap-1 card-hover kpi-pop ${bg} ${border}`}>
+      <span className="text-[11px] font-extrabold tracking-wider uppercase text-slate-400">{label}</span>
+      <span className={`font-black tabular-nums value-update ${large ? "text-3xl" : "text-[26px]"} ${color}`} style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif" }}>{value}</span>
       {sub && <span className="text-xs text-slate-400 leading-tight">{sub}</span>}
     </div>
   );
 }
 
-function Divider() { return <div className="my-6" style={{height:'2px',background:'linear-gradient(90deg,transparent,#e2e8f0,#10b981,#e2e8f0,transparent)'}} />; }
+function Divider() { return <div className="my-6" style={{height:'1px',background:'#E6EBE5'}} />; }
 
 // ─── Botón Fijar (Guardar configuración) ──────────────────────────────────────
 function SaveButton({ onSave, saving, saved }) {
@@ -2210,21 +2210,22 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
 
   const ratio = calc.relacionVentaCompra;
   const ratioColor = ratio >= 1.3 ? "text-emerald-600" : ratio >= 1 ? "text-amber-600" : "text-red-500";
+  const ratioHex = ratio >= 1.3 ? "#5BD67C" : ratio >= 1 ? "#F4C152" : "#F08A8A";
   const comisionCompraPct = gastos.comisionCompraOn ? gastos.comisionCompra / 100 : 0;
   const fleteCompraCalc = gastos.fleteCompraOn ? gastos.kmCompra * gastos.precioKmCompra : 0;
 
   return (
-    <div className="rounded-2xl border-2 border-sky-200 p-5 md:p-6 space-y-5 shadow-lg card-hover" style={{background:"linear-gradient(135deg,#f0f9ff,#ecfeff)"}}>
+    <div className="rounded-3xl border p-5 md:p-6 space-y-5 card-hover" style={{ background: "#fff", borderColor: "#E6EBE5" }}>
       <div className="flex items-center gap-3">
-        <span className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-sm">⇄</span>
+        <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: "#E9F4EC", color: "#2F9D4E" }}>⇄</span>
         <div>
-          <p className="font-black text-sky-800 text-base tracking-tight">Poder de Compra — Triangulación Venta / Compra</p>
-          <p className="text-xs text-sky-600">¿Si vendo X, cuántos Y puedo comprar? Los gastos comerciales se aplican automáticamente.</p>
+          <p className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif", color: "#163049" }}>Poder de Compra — Triangulación Venta / Compra</p>
+          <p className="text-xs" style={{ color: "#66767B" }}>¿Si vendo X, cuántos Y puedo comprar? Los gastos comerciales se aplican automáticamente.</p>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl border p-4 space-y-3 section-sky">
-          <p className="text-xs font-black uppercase tracking-widest text-sky-700">📤 Origen — Animales que Vendo</p>
+          <p className="text-xs font-black uppercase tracking-widest" style={{ color: "#2F9D4E" }}>📤 Origen — Animales que Vendo</p>
           <div className="grid grid-cols-1 gap-3">
             <Field label="Cantidad" value={venta.cantidad} onChange={setV("cantidad")} unit="cab" />
             <Field label="Peso prom." value={venta.pesoPromedio} onChange={setV("pesoPromedio")} unit="kg" />
@@ -2244,7 +2245,7 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
           </div>
         </div>
         <div className="rounded-xl border p-4 space-y-3 section-sky">
-          <p className="text-xs font-black uppercase tracking-widest text-sky-700">📥 Destino — Animales que Compro</p>
+          <p className="text-xs font-black uppercase tracking-widest" style={{ color: "#2374B5" }}>📥 Destino — Animales que Compro</p>
           <div className="grid grid-cols-1 gap-3">
             <Field label="Peso del animal" value={compra.pesoAnimal} onChange={setC("pesoAnimal")} unit="kg" />
             <Field label="Precio compra" value={compra.precioKg} onChange={setC("precioKg")} unit="$/kg" step={50} />
@@ -2263,22 +2264,23 @@ function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
           </div>
         </div>
       </div>
-      <div className="rounded-2xl border-2 border-sky-300 bg-white p-5 flex flex-col md:flex-row items-center gap-6">
-        <div className="flex-1 text-center md:text-left">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Resultado de la Triangulación</p>
-          <p className="text-slate-600 text-sm leading-relaxed">Con la venta de <span className="font-black text-slate-800">{fmt(venta.cantidad)} novillos</span> podés reponer</p>
-          <p className={`font-mono font-black text-5xl mt-1 ${ratioColor}`}>{calc.cabezasComprables > 0 ? fmt(calc.cabezasComprables) : "—"}</p>
-          <p className="text-slate-500 text-sm mt-0.5">terneros — relación <span className={`font-black ${ratioColor}`}>{fmt(ratio, 2)}:1</span></p>
+      <div className="rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden" style={{ background: "linear-gradient(150deg,#163D44,#0F2E34)" }}>
+        <div className="absolute rounded-full" style={{ top:-30, right:-20, width:160, height:160, background:"rgba(70,194,102,.15)" }} />
+        <div className="flex-1 text-center md:text-left relative">
+          <p className="text-[11px] font-extrabold uppercase tracking-widest" style={{ color:"#9FC4C2", margin:0 }}>Resultado de la Triangulación</p>
+          <p className="text-sm" style={{ color:"#BCD2D2", margin:"4px 0 0" }}>Con la venta de <span className="font-black text-white">{fmt(venta.cantidad)} novillos</span> podés reponer</p>
+          <p className="font-black text-6xl" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color: ratioHex, margin:"4px 0", lineHeight:1 }}>{calc.cabezasComprables > 0 ? fmt(calc.cabezasComprables) : "—"}</p>
+          <p className="text-sm" style={{ color:"#BCD2D2", margin:0 }}>terneros — relación <span className="font-black" style={{ color: ratioHex }}>{fmt(ratio, 2)}:1</span></p>
         </div>
-        <div className="shrink-0 grid grid-cols-2 gap-3 w-full md:w-auto">
-          <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-center">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Sobrante</p>
-            <p className={`font-mono font-bold text-xl ${calc.sobrante >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmtMoney(calc.sobrante)}</p>
+        <div className="shrink-0 grid grid-cols-2 gap-3 w-full md:w-auto relative">
+          <div className="rounded-xl px-4 py-3 text-center" style={{ background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.14)" }}>
+            <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color:"#9FC4C2", margin:0 }}>Sobrante</p>
+            <p className="font-black text-xl" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color: calc.sobrante >= 0 ? "#5BD67C" : "#F08A8A", margin:"2px 0 0" }}>{fmtMoney(calc.sobrante)}</p>
           </div>
-          <div className="rounded-xl bg-sky-50 border border-sky-200 px-4 py-3 text-center">
-            <p className="text-xs text-sky-600 uppercase tracking-wider font-semibold">Flete compra</p>
-            <p className="font-mono font-bold text-xl text-sky-700">{fmtMoney(fleteCompraCalc)}</p>
-            <p className="text-xs text-sky-400">incluido en cálculo</p>
+          <div className="rounded-xl px-4 py-3 text-center" style={{ background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.14)" }}>
+            <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color:"#9FC4C2", margin:0 }}>Flete compra</p>
+            <p className="font-black text-xl text-white" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", margin:"2px 0 0" }}>{fmtMoney(fleteCompraCalc)}</p>
+            <p className="text-[10px]" style={{ color:"#7FA5A4", margin:"2px 0 0" }}>incluido en cálculo</p>
           </div>
         </div>
       </div>
@@ -2844,9 +2846,14 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
             </span>
           </div>
         ))}
-        <div className={`flex justify-between text-base font-black border-t-2 pt-3 mt-2 rounded-xl px-3 py-3 ${margenPositivo ? "border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50" : "border-red-300 bg-gradient-to-r from-red-50 to-rose-50"}`}>
-          <span className={margenPositivo ? "text-emerald-700" : "text-red-600"}> = Margen Neto Total</span>
-          <span className={`font-mono text-2xl ${margenPositivo ? "text-emerald-600" : "text-red-500"}`}>{fmtMoney(calc.margenNeto)}</span>
+        <div className="mt-3 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 relative overflow-hidden"
+          style={{ background: margenPositivo ? "linear-gradient(150deg,#163D44,#0F2E34)" : "linear-gradient(150deg,#7f1d1d,#450a0a)" }}>
+          <div className="absolute rounded-full" style={{ top:-30, right:-20, width:150, height:150, background: margenPositivo ? "rgba(70,194,102,.15)" : "rgba(248,113,113,.15)" }} />
+          <div className="relative">
+            <p className="text-[11px] font-extrabold tracking-widest uppercase" style={{ color: margenPositivo ? "#9FC4C2" : "#f4b4b4", margin:0 }}>= Margen Neto Total</p>
+            <p className="text-xs" style={{ color:"rgba(255,255,255,.6)", margin:"2px 0 0" }}>{fmt(inputs.cantidad)} vientres · {inputs.anosVidaUtil} años</p>
+          </div>
+          <span className="relative text-white text-3xl font-black" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif" }}>{fmtMoney(calc.margenNeto)}</span>
         </div>
       </div>
 
@@ -3662,21 +3669,21 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
         }
 
         return (
-          <div className={`rounded-2xl border-2 px-5 py-5 flex items-start gap-4 shadow-lg card-hover ${empate ? "border-slate-300 bg-gradient-to-r from-slate-50 to-white" : calc.ganadorA ? "border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 glow-green" : "border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50"}`}>
+          <div className="rounded-2xl px-5 py-5 flex items-start gap-4" style={{ background: empate ? "#F1F4F0" : "#E9F4EC", border: `1px solid ${empate ? "#DDE6DA" : "#CFE7D6"}` }}>
             <span className="text-3xl shrink-0 mt-0.5">{empate ? "⚖️" : "🏆"}</span>
             <div>
-              <p className="font-bold text-slate-800">
+              <p className="font-bold" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif", color: empate ? "#163049" : "#1F6E33", fontSize: 17, margin: 0 }}>
                 {empate
                   ? "Ambas opciones arrojan el mismo resultado"
                   : `${ganadorNombre} es la opción más rentable`}
               </p>
               {!empate && (
                 <>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    Diferencia de <span className="font-mono font-bold text-emerald-700">{fmtMoney(diff)}</span> en el margen total &nbsp;·&nbsp; <span className="font-mono font-bold text-emerald-700">{fmtMoney(diffCab)}</span> por cabeza
+                  <p className="text-sm" style={{ color: "#5A6B6E", margin: "5px 0 0" }}>
+                    Diferencia de <span className="font-bold" style={{ color: "#1F6E33" }}>{fmtMoney(diff)}</span> en el margen total &nbsp;·&nbsp; <span className="font-bold" style={{ color: "#1F6E33" }}>{fmtMoney(diffCab)}</span> por cabeza
                   </p>
-                  <p className="text-xs text-slate-500 mt-1.5 border-t border-slate-200/60 pt-1.5">
-                    <span className="font-semibold">¿Por qué?</span> {ganadorNombre} genera {why}. El {perdedorNombre} queda {calc.ganadorA ? calc.b.margen < 0 ? "en pérdida" : "por debajo" : calc.a.margen < 0 ? "en pérdida" : "por debajo"} con un margen de <span className="font-mono font-semibold">{fmtMoney(calc.ganadorA ? calc.b.margen : calc.a.margen)}</span>.
+                  <p className="text-xs" style={{ color: "#66767B", margin: "7px 0 0", paddingTop: 7, borderTop: "1px solid rgba(22,48,73,.08)" }}>
+                    <span className="font-semibold">¿Por qué?</span> {ganadorNombre} genera {why}. El {perdedorNombre} queda {calc.ganadorA ? calc.b.margen < 0 ? "en pérdida" : "por debajo" : calc.a.margen < 0 ? "en pérdida" : "por debajo"} con un margen de <span className="font-semibold">{fmtMoney(calc.ganadorA ? calc.b.margen : calc.a.margen)}</span>.
                   </p>
                 </>
               )}
@@ -4202,51 +4209,59 @@ function exportarPDF(titulo, secciones, subtitulo = "") {
   const rows = secciones.map((item) => {
     // Encabezado de grupo
     if (item.grupo) {
-      return `<tr><td colspan="2" style="padding:14px 12px 6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#10b981;border-bottom:2px solid #d1fae5">${item.grupo}</td></tr>`;
+      return `<tr><td colspan="2" style="padding:20px 4px 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2F9D4E">${item.grupo}</td></tr>`;
     }
     // Fila destacada (total, resultado)
     if (item.destacado) {
-      return `<tr><td style="padding:10px 12px;color:#0f172a;font-size:14px;font-weight:800;border-bottom:1px solid #e2e8f0;background:#f0fdf4">${item.label}</td>
-              <td style="padding:10px 12px;font-weight:800;font-family:monospace;text-align:right;font-size:15px;border-bottom:1px solid #e2e8f0;background:#f0fdf4;color:${item.color || '#065f46'}">${item.value}</td></tr>`;
+      return `<tr><td style="padding:13px 16px;color:#163049;font-size:14px;font-weight:800;background:#E9F4EC;border-radius:12px 0 0 12px">${item.label}</td>
+              <td style="padding:13px 16px;font-weight:800;font-family:'Space Grotesk',sans-serif;text-align:right;font-size:17px;background:#E9F4EC;border-radius:0 12px 12px 0;color:${item.color || '#1F6E33'}">${item.value}</td></tr>`;
     }
     // Fila normal
-    return `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9">${item.label}</td>
-            <td style="padding:6px 12px;font-weight:700;font-family:monospace;text-align:right;border-bottom:1px solid #f1f5f9;color:${item.color || '#1e293b'}">${item.value}</td></tr>`;
+    return `<tr><td style="padding:9px 16px;color:#66767B;font-size:13px;font-weight:500;border-bottom:1px solid #F0F3EF">${item.label}</td>
+            <td style="padding:9px 16px;font-weight:700;font-family:'Space Grotesk',sans-serif;text-align:right;border-bottom:1px solid #F0F3EF;color:${item.color || '#163049'}">${item.value}</td></tr>`;
   }).join("");
 
   const html = `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8">
 <title>${titulo} — SoyPekun</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  body { font-family: 'Segoe UI', sans-serif; color: #1e293b; max-width: 720px; margin: 0 auto; padding: 40px 32px; }
-  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #10b981; padding-bottom:16px; margin-bottom:20px; }
-  .titulo { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
-  .subtitulo { color:#64748b; font-size:14px; margin:0 0 4px; }
-  .fecha { color: #94a3b8; font-size: 13px; }
-  .badge { background:#ecfdf5; color:#065f46; font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:4px 10px; border-radius:20px; border:1px solid #6ee7b7; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-  th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
-  .footer { margin-top: 24px; border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; display:flex; justify-content:space-between; }
-  @media print { body { padding: 20px; } @page { margin: 1.5cm; } }
+  * { box-sizing:border-box; }
+  body { font-family:'Plus Jakarta Sans','Segoe UI',sans-serif; color:#163049; max-width:760px; margin:0 auto; padding:0 0 40px; background:#fff; }
+  .band { background:radial-gradient(130% 140% at 0% 0%, #1E5059 0%, #163D44 55%, #0F2E34 100%); color:#fff; padding:30px 36px 26px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+  .band img { height:52px; object-fit:contain; filter:brightness(0) invert(1); }
+  .badge { background:rgba(70,194,102,.18); color:#8FE3A6; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; padding:6px 13px; border-radius:999px; }
+  .body { padding:28px 36px 0; }
+  .titulo { font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0 0 5px; color:#163049; }
+  .subtitulo { color:#66767B; font-size:14px; font-weight:500; margin:0 0 4px; }
+  .fecha { color:#9AA7A0; font-size:12.5px; font-weight:500; }
+  table { width:100%; border-collapse:collapse; margin:22px 0 24px; }
+  thead th { background:#F4F7F3; padding:11px 16px; text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:#9AA7A0; font-weight:800; }
+  thead th:first-child { border-radius:10px 0 0 10px; }
+  thead th:last-child { border-radius:0 10px 10px 0; }
+  .footer { margin:24px 36px 0; border-top:1px solid #E6EBE5; padding-top:14px; font-size:11px; color:#9AA7A0; font-weight:500; display:flex; justify-content:space-between; gap:16px; }
+  @media print { body { padding:0; } @page { margin:1.2cm; } .band { -webkit-print-color-adjust:exact; print-color-adjust:exact; } table, .band { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 </style></head>
 <body>
-  <div class="header">
-    <img src="data:image/png;base64,${LOGO_B64}" style="height:72px;object-fit:contain" alt="SoyPekun"/>
+  <div class="band">
+    <img src="data:image/png;base64,${LOGO_B64}" alt="SoyPekun"/>
     <span class="badge">Simulador Económico Ganadero</span>
   </div>
-  <div class="titulo">${titulo}</div>
-  ${subtitulo ? `<div class="subtitulo">${subtitulo}</div>` : ""}
-  <div class="fecha">Generado el ${fecha} · ${hora} hs</div>
-  <br/>
-  <table>
-    <thead><tr><th>Concepto</th><th style="text-align:right">Valor</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
+  <div class="body">
+    <div class="titulo">${titulo}</div>
+    ${subtitulo ? `<div class="subtitulo">${subtitulo}</div>` : ""}
+    <div class="fecha">Generado el ${fecha} · ${hora} hs</div>
+    <table>
+      <thead><tr><th>Concepto</th><th style="text-align:right">Valor</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
   <div class="footer">
     <span>Los cálculos son estimativos. Consultá con tu asesor antes de invertir.</span>
     <span>SoyPekun — Gestión Ganadera</span>
   </div>
-  <script>window.onload=()=>{ window.print(); }<\/script>
+  <script>window.onload=()=>{ setTimeout(()=>window.print(), 350); }<\/script>
 </body></html>`;
 
   const blob = new Blob([html], { type: "text/html" });
@@ -4987,25 +5002,27 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
         <SectionTitle icon="🏁" color="text-emerald-700">Resultado — ¿qué conviene?</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {calc.opciones.map((o, i) => (
-            <div key={o.id} className={`rounded-2xl p-4 border-2 ${i === 0 ? "border-emerald-400 bg-emerald-50" : "border-slate-100 bg-white"}`}>
+            <div key={o.id} className="rounded-2xl p-4" style={{ border: i === 0 ? "2px solid #2F9D4E" : "1px solid #E6EBE5", background: "#fff" }}>
               <p className="text-[11px] uppercase tracking-widest font-black" style={{ color: o.color }}>{i === 0 ? "★ Mejor" : `${i + 1}º`}</p>
               <p className="text-sm font-black text-slate-700 mt-0.5">{o.nombre}</p>
-              <p className="text-xl font-mono font-black mt-1" style={{ color: o.neto >= 0 ? "#16a34a" : "#dc2626" }}>{fmtMoney(o.neto)}</p>
+              <p className="text-xl font-black mt-1" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif", color: o.neto >= 0 ? "#1F8A4C" : "#dc2626" }}>{fmtMoney(o.neto)}</p>
               <p className="text-[11px] text-slate-400 mt-0.5">resultado de caja del ciclo</p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-2xl bg-emerald-600 text-white p-4">
-          <p className="text-xs uppercase tracking-widest font-black opacity-80">Recomendación</p>
-          <p className="text-base font-black mt-1">
-            Conviene <span className="underline">{calc.ganador.nombre}</span>
-            {calc.ganador.id === "A" ? ` (${fLabel.toLowerCase()})` : calc.ganador.id === "C" ? ` con ${rLabel.toLowerCase()}` : ""}.
-          </p>
-          <p className="text-xs mt-1 opacity-90">
-            Le saca <b>{fmtMoney(calc.ventaja)}</b> al segundo ({calc.segundo.nombre}) en el ciclo.
-            {" "}Producir forraje {calc.convieneProducir ? "le gana" : "pierde contra"} hacer renta y comprar.
-          </p>
+        <div className="rounded-2xl p-4 flex items-start gap-3" style={{ background: "#E9F4EC", border: "1px solid #CFE7D6" }}>
+          <span className="text-2xl shrink-0">🏆</span>
+          <div>
+            <p className="text-base font-bold" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif", color: "#1F6E33", margin: 0 }}>
+              Conviene <span style={{ textDecoration: "underline" }}>{calc.ganador.nombre}</span>
+              {calc.ganador.id === "A" ? ` (${fLabel.toLowerCase()})` : calc.ganador.id === "C" ? ` con ${rLabel.toLowerCase()}` : ""}.
+            </p>
+            <p className="text-xs" style={{ color: "#3B6B47", margin: "4px 0 0" }}>
+              Le saca <b>{fmtMoney(calc.ventaja)}</b> al segundo ({calc.segundo.nombre}) en el ciclo.
+              {" "}Producir forraje {calc.convieneProducir ? "le gana" : "pierde contra"} hacer renta y comprar.
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -5337,16 +5354,16 @@ function MargenActividad(p) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
-        <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+      <div className="bg-white rounded-3xl overflow-hidden" style={{ border:"1px solid #E6EBE5", boxShadow:"0 1px 2px rgba(22,48,73,.04)" }}>
+        <div className="h-1.5" style={{ background:"linear-gradient(90deg,#163D44,#1E5059)" }} />
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-600">Margen bruto por actividad</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Margen bruto por actividad</p>
               <p className="text-xs text-slate-400 mt-0.5">Ingresos menos costos directos - sin estructura ni impuestos</p>
             </div>
             <div className="text-right">
-              <span className={margenTotal >= 0 ? "text-lg font-black text-emerald-700" : "text-lg font-black text-red-600"}>{fmtMoney(margenTotal)}</span>
+              <span className="text-lg font-black" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color: margenTotal >= 0 ? "#1F8A4C" : "#dc2626" }}>{fmtMoney(margenTotal)}</span>
               {dolar ? <p className="text-xs font-bold text-blue-600">{"U$S "+fmt(Math.round(margenTotal/dolar))}</p> : null}
             </div>
           </div>
@@ -5439,10 +5456,10 @@ function MargenActividad(p) {
         </div>
       </div>
 
-      <div className="bg-white border-2 border-slate-300 rounded-3xl overflow-hidden shadow-lg">
-        <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-purple-600" />
+      <div className="bg-white rounded-3xl overflow-hidden" style={{ border:"1px solid #E6EBE5", boxShadow:"0 1px 2px rgba(22,48,73,.04)" }}>
+        <div className="h-1.5" style={{ background:"linear-gradient(90deg,#5B6CF0,#8B5CF6)" }} />
         <div className="p-5 space-y-1">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-4">📉 Cascada economica</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">📉 Cascada economica</p>
           {cascada.map((row, i) => (
             <div key={i} className={"rounded-xl px-4 py-3 "+row.bg+(row.sep ? " border-t-2 border-slate-300 mt-2" : "")}>
               <div className="flex items-center justify-between gap-2">
@@ -5451,7 +5468,7 @@ function MargenActividad(p) {
                   <p className="text-xs text-slate-400 mt-0.5">{row.sub}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={"font-mono font-black text-lg "+row.color}>{row.val >= 0 ? "" : "-"}{fmtMoney(Math.abs(row.val))}</p>
+                  <p className="font-black text-lg " style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif" }}><span className={row.color}>{row.val >= 0 ? "" : "-"}{fmtMoney(Math.abs(row.val))}</span></p>
                   {dolar && Math.abs(row.val) ? <p className="text-xs font-bold text-blue-600">{usdV(Math.abs(row.val))}</p> : null}
                 </div>
               </div>
@@ -6991,7 +7008,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             <div className="space-y-4 sim-zoom-enter">
   
               {/* ── CRÍA — vista fija ───────────────────────────────────────── */}
-              <div className="cat-enter bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.05s"}}>
+              <div className="cat-enter bg-white rounded-3xl overflow-hidden" style={{ animationDelay:"0.05s", border:"1px solid #E6EBE5", boxShadow:"0 1px 2px rgba(22,48,73,.04)" }}>
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -6999,7 +7016,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐮</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Cría</p>
-                        <p className="text-3xl font-black text-slate-800">{cabCria} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color:"#163049" }}>{cabCria} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarCria}
@@ -7048,7 +7065,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* ── RECRÍA — vista fija ─────────────────────────────────────── */}
-              <div className="cat-enter bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.12s"}}>
+              <div className="cat-enter bg-white rounded-3xl overflow-hidden" style={{ animationDelay:"0.12s", border:"1px solid #E6EBE5", boxShadow:"0 1px 2px rgba(22,48,73,.04)" }}>
                 <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400"/>
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -7056,7 +7073,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🐂</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-blue-700">Recría</p>
-                        <p className="text-3xl font-black text-slate-800">{cabRec} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color:"#163049" }}>{cabRec} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarRecria}
@@ -7089,7 +7106,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* ── TERMINACIÓN — vista fija ────────────────────────────────── */}
-              <div className="cat-enter bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg" style={{animationDelay:"0.19s"}}>
+              <div className="cat-enter bg-white rounded-3xl overflow-hidden" style={{ animationDelay:"0.19s", border:"1px solid #E6EBE5", boxShadow:"0 1px 2px rgba(22,48,73,.04)" }}>
                 <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400"/>
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -7097,7 +7114,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       <span className="text-2xl">🥩</span>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación</p>
-                        <p className="text-3xl font-black text-slate-800">{cabTerm} <span className="text-base font-bold text-slate-400">cab</span></p>
+                        <p className="text-3xl font-black" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif", color:"#163049" }}>{cabTerm} <span className="text-base font-bold text-slate-400">cab</span></p>
                       </div>
                     </div>
                     <button onClick={entrarTerminacion}
@@ -7152,7 +7169,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               )}
 
               {criaTab === "rodeo" && (
-              <div className="bg-white border-2 border-emerald-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400" />
                 <div className="p-5 md:p-6 space-y-6">
                   <div className="flex items-center justify-between gap-2">
@@ -7733,7 +7750,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapRecria(null); }}
                 onDeshacer={deshacerRecria}
               />
-              <div className="bg-white border-2 border-blue-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400" />
                 <div className="p-5 md:p-6">
                   <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-5">Recría — detalle</p>
@@ -7852,7 +7869,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ].filter(c => reciaDatos[c.key] > 0);
 
                 return (
-                  <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden border border-[#E6EBE5]">
                     <div className="h-1.5 bg-gradient-to-r from-blue-400 to-amber-400"/>
                     <div className="p-5 space-y-4">
                       <p className="text-xs font-black uppercase tracking-widest text-slate-600">🐂 Decisión de venta / feedlot</p>
@@ -7966,7 +7983,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapTerminacion(null); }}
                 onDeshacer={deshacerTerminacion}
               />
-              <div className="bg-white border-2 border-amber-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
                 <div className="p-5 md:p-6 space-y-5">
                   <p className="text-xs font-black uppercase tracking-widest text-amber-700">Terminación — detalle</p>
@@ -8045,7 +8062,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* ── EXPORTACIÓN ─────────────────────────────────────────── */}
-              <div className="bg-white border-2 border-purple-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-purple-400 to-indigo-500"/>
                 <div className="p-5 space-y-5">
                   <div className="flex items-center gap-3">
@@ -8287,7 +8304,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 };
 
                 return (
-                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-violet-500 to-indigo-500" />
                     <div className="p-5 space-y-4">
                       <div>
@@ -8403,7 +8420,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* Hectáreas + GDP */}
-              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+              <div className="bg-white rounded-3xl p-5 border border-[#E6EBE5]">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">⚙️ Configuración rendimiento</p>
                 <EditField label="Hectáreas del campo" value={hectareas} onChange={setHectareas} step={50} suffix=" ha" minVal={1} />
               </div>
@@ -8438,7 +8455,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const hoyNow = new Date();
 
                 return (
-                  <div className="bg-white border-2 border-teal-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-teal-400 to-emerald-500" />
                     <div className="p-5 space-y-4">
                       <p className="text-xs font-black uppercase tracking-widest text-teal-700">🌾 Rendimiento total del campo — propio + pastaje</p>
@@ -8488,7 +8505,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               })()}
   
               {/* ── Gráfico ── */}
-              <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-lg">
+              <div className="bg-white rounded-3xl p-5 border border-[#E6EBE5]">
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-600">📊 Evolución kg/ha</p>
                   <div className="flex gap-4 text-xs text-slate-400">
@@ -8526,7 +8543,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* ── Tabla resumen año actual ── */}
-              <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden border border-[#E6EBE5]">
                 <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"/>
                 <div className="p-5 space-y-4">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-600">Tabla — año actual</p>
@@ -8724,7 +8741,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const mesesNeg = flujo.filter(f => f.saldo < 0).length;
                 const peorAcum = Math.min(...saldoAcum.map(f => f.acum));
                 return (
-                  <div className="bg-white border-2 border-sky-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-sky-400 to-blue-500" />
                     <div className="p-5 space-y-4">
                       <div className="flex items-center justify-between">
@@ -8793,7 +8810,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 });
                 const diff3 = proyeccion[2].vacas - criaDatos.vacas;
                 return (
-                  <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-500" />
                     <div className="p-5 space-y-4">
                       <p className="text-xs font-black uppercase tracking-widest text-violet-700">🔭 Proyección de stock — 3 años</p>
@@ -8882,7 +8899,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   ...(cabUE481 ? [{ label: "UE 481", emoji: "🏭", sub: "Precio min. USD/ton res",   valor: "U$S " + fmt2(peqUE481USD) + "/ton",  comp: "Actual: U$S " + fmt2(terminacionDatos.ue481PrecioUSDton ?? 0) + "/ton",  pct: peqUE481Pct,  color: "indigo", activo: true }] : []),
                 ].filter(i => i.activo);
                 return (
-                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-orange-400 to-red-500" />
                     <div className="p-5 space-y-4">
                       <p className="text-xs font-black uppercase tracking-widest text-slate-600">Punto de equilibrio por actividad</p>
@@ -8934,7 +8951,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 }
                 const cellCls = (m) => m > 50000000 ? "bg-emerald-200 text-emerald-900 font-black" : m > 0 ? "bg-emerald-100 text-emerald-800" : m > -20000000 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800 font-black";
                 return (
-                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-purple-400 to-indigo-500" />
                     <div className="p-5 space-y-4">
                       <p className="text-xs font-black uppercase tracking-widest text-slate-600">Sensibilidad exportacion — precio USD vs tipo de cambio</p>
@@ -9021,7 +9038,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ];
 
                 return (
-                  <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                  <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                     <div className="h-1.5 bg-gradient-to-r from-slate-600 to-slate-800" />
                     <div className="p-5 space-y-5">
                       <div>
@@ -9101,7 +9118,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               />
 
               {/* Sanidad y nutrición */}
-              <div className="bg-white border-2 border-rose-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-rose-400 to-pink-400" />
                 <div className="p-5 space-y-3">
                   <div className="flex items-center justify-between">
@@ -9119,7 +9136,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* Costo de oportunidad del capital */}
-              <div className="bg-white border-2 border-indigo-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-indigo-400 to-purple-400" />
                 <div className="p-5 space-y-3">
                   <div className="flex items-center justify-between">
@@ -9140,7 +9157,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   </div>
                 </div>
               </div>
-              <div className="bg-white border-2 border-violet-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-violet-400 to-purple-400" />
                 <div className="p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -9181,7 +9198,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* Maquinaria */}
-              <div className="bg-white border-2 border-sky-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-sky-400 to-cyan-400" />
                 <div className="p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -9200,7 +9217,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* Rolados */}
-              <div className="bg-white border-2 border-green-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-green-400 to-emerald-400" />
                 <div className="p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -9226,7 +9243,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* Viajes */}
-              <div className="bg-white border-2 border-orange-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-orange-400 to-red-400" />
                 <div className="p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -9251,8 +9268,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
   
               {/* Resumen anual */}
-              <div className="bg-white border-2 border-emerald-300 rounded-3xl p-5 shadow-xl section-lime">
-                <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-4">Resumen costos anuales</p>
+              <div className="bg-white rounded-3xl p-5 section-lime" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">Resumen costos anuales</p>
                 <div className="space-y-2 mb-4">
                   {[
                     ["👷 Empleados",           totalEmpleadosMes*12,        "violet"],
@@ -9305,7 +9322,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* Amortizaciones */}
-              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-orange-400 to-amber-500" />
                 <div className="p-5 space-y-4">
                   <p className="text-xs font-black uppercase tracking-widest text-orange-700">📉 Amortizaciones anuales</p>
@@ -9317,7 +9334,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               </div>
 
               {/* Impuestos estimados */}
-              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+              <div className="bg-white rounded-3xl overflow-hidden" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5 bg-gradient-to-r from-red-400 to-rose-500" />
                 <div className="p-5 space-y-4">
                   <p className="text-xs font-black uppercase tracking-widest text-red-700">🏛️ Impuestos estimados</p>
@@ -9342,10 +9359,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGlobal(null); }}
                 onDeshacer={deshacerGlobal}
               />
-              <div className="bg-white border-2 border-slate-200 rounded-3xl overflow-hidden shadow-lg max-w-lg">
-                <div className="h-1.5 bg-gradient-to-r from-slate-400 to-slate-600" />
+              <div className="bg-white rounded-3xl overflow-hidden max-w-lg" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
+                <div className="h-1.5" style={{ background:"linear-gradient(90deg,#163D44,#1E5059)" }} />
                 <div className="p-5 space-y-5">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-600">Variables de referencia global</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Variables de referencia global</p>
                   <EditField label="Precio novillo gordo ($/kg)" value={global.precioNovilloInmag ?? 1800}
                     onChange={v => { vacaStore.getState().setGlobal({ precioNovilloInmag: v }); }}
                     step={50} prefix="$" suffix="/kg"
@@ -9695,9 +9712,12 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-blue-600">🐂 Compra de Recría</p>
-          <p className="text-sm text-slate-400 mt-0.5">Simulá terneros por lote — costos, GDP y rentabilidad</p>
+        <div className="flex items-center gap-3">
+          <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: "#E2F0FB", color: "#2374B5" }}>🐂</span>
+          <div>
+            <p className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk','Plus Jakarta Sans',sans-serif", color: "#163049" }}>Compra de Recría</p>
+            <p className="text-sm" style={{ color: "#66767B" }}>Simulá terneros por lote — costos, GDP y rentabilidad</p>
+          </div>
         </div>
         <button onClick={() => { const l = { ...nuevoLote(), nombre: `Lote ${lotes.length + 1}` }; setLotes(p => [...p, l]); setLoteActivo(lotes.length); }}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all active:scale-95">
@@ -9733,7 +9753,7 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
         <div className="space-y-4">
 
           {/* Datos del lote */}
-          <div className="bg-white border-2 border-blue-100 rounded-3xl p-5 space-y-4">
+          <div className="bg-white rounded-3xl p-5 space-y-4 border border-[#E6EBE5]">
             <div className="flex items-center gap-3">
               <input value={lote.nombre}
                 onChange={e => setL(loteActivo, "nombre")(e.target.value)}
@@ -9767,7 +9787,7 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
           </div>
 
           {/* Costos con on/off */}
-          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-4">
+          <div className="bg-white rounded-3xl p-5 space-y-4 border border-[#E6EBE5]">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">💰 Gastos comerciales</p>
             <div className="space-y-3">
               {[
@@ -9817,16 +9837,17 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
         <div className="space-y-4">
 
           {/* Costo total */}
-          <div className="bg-slate-800 rounded-3xl p-5 space-y-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/70">Inversión total — {lote.nombre}</p>
-            <div className="flex items-end justify-between">
+          <div className="rounded-3xl p-5 space-y-3 relative overflow-hidden" style={{ background: "linear-gradient(150deg,#163D44,#0F2E34)" }}>
+            <div className="absolute rounded-full" style={{ top:-30, right:-20, width:150, height:150, background:"rgba(70,194,102,.14)" }} />
+            <p className="text-xs font-black uppercase tracking-widest relative" style={{ color:"#9FC4C2" }}>Inversión total — {lote.nombre}</p>
+            <div className="flex items-end justify-between relative">
               <div>
-                <p className="text-4xl font-black text-white">{fmtM(calc.costoTotal)}</p>
-                <p className="text-sm text-white/70 mt-0.5">{fmtM(Math.round(calc.costoTotal/lote.cabezas))}/cab</p>
+                <p className="text-4xl font-black text-white" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif" }}>{fmtM(calc.costoTotal)}</p>
+                <p className="text-sm mt-0.5" style={{ color:"#BCD2D2" }}>{fmtM(Math.round(calc.costoTotal/lote.cabezas))}/cab</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-white">{usd(calc.costoTotal)}</p>
-                <p className="text-xs text-white/70">en dólares</p>
+                <p className="text-2xl font-black text-white" style={{ fontFamily:"'Space Grotesk','Plus Jakarta Sans',sans-serif" }}>{usd(calc.costoTotal)}</p>
+                <p className="text-xs" style={{ color:"#9FC4C2" }}>en dólares</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -9896,7 +9917,7 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
           </div>
 
           {/* Desglose de costos */}
-          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 space-y-3">
+          <div className="bg-white rounded-3xl p-5 space-y-3 border border-[#E6EBE5]">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Desglose</p>
             <table className="w-full text-xs">
               <tbody>
@@ -11378,7 +11399,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
       const dibujar = (logoImg) => {
         // ── Fondo general ────────────────────────────────────────────────
-        ctx.fillStyle = "#f8fafc";
+        ctx.fillStyle = "#F4F7F3";
         ctx.fillRect(0, 0, W, H);
 
         // ── Header blanco con logo (altura 90) ───────────────────────────
@@ -11386,7 +11407,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         ctx.fillRect(0, 0, W, 90);
 
         // Línea divisoria sutil
-        ctx.strokeStyle = "#e2e8f0";
+        ctx.strokeStyle = "#E6EBE5";
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, 90); ctx.lineTo(W, 90); ctx.stroke();
 
@@ -11398,35 +11419,39 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
         // Texto derecha del header
         ctx.textAlign = "right";
-        ctx.fillStyle = "#064e3b";
-        ctx.font = "bold 13px system-ui, sans-serif";
+        ctx.fillStyle = "#163D44";
+        ctx.font = "800 12px 'Plus Jakarta Sans', system-ui, sans-serif";
         ctx.fillText("GESTIÓN GANADERA PROFESIONAL", W - padding, 40);
-        ctx.fillStyle = "#94a3b8";
+        ctx.fillStyle = "#9AA7A0";
         ctx.font = "11px system-ui, sans-serif";
         ctx.fillText("soypekun.vercel.app", W - padding, 58);
-        ctx.fillStyle = "#475569";
+        ctx.fillStyle = "#66767B";
         ctx.font = "11px system-ui, sans-serif";
         ctx.fillText(`Generado: ${fmtFecha(cobro.fechaCreacion ?? cobro.fechaHasta)}`, W - padding, 76);
         ctx.textAlign = "left";
 
-        // ── Banda verde — título ──────────────────────────────────────────
-        ctx.fillStyle = "#064e3b";
+        // ── Banda teal — título ──────────────────────────────────────────
+        const bandGrad = ctx.createLinearGradient(0, 90, W, 160);
+        bandGrad.addColorStop(0, "#1E5059");
+        bandGrad.addColorStop(0.55, "#163D44");
+        bandGrad.addColorStop(1, "#0F2E34");
+        ctx.fillStyle = bandGrad;
         ctx.fillRect(0, 90, W, 70);
 
         // Título
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 24px system-ui, sans-serif";
+        ctx.font = "700 24px 'Space Grotesk', system-ui, sans-serif";
         ctx.fillText("Liquidación de Pastaje", padding, 128);
 
         // Fecha corte
-        ctx.fillStyle = "#6ee7b7";
+        ctx.fillStyle = "#46C266";
         ctx.font = "14px system-ui, sans-serif";
         ctx.fillText(`Corte al ${fmtFecha(cobro.fechaHasta)}`, padding, 150);
 
         // Propietario
         const prop = terceros.find(t => t.id == cobro.propietarioId);
         if (prop) {
-          ctx.fillStyle = "#a7f3d0";
+          ctx.fillStyle = "#9FC4C2";
           ctx.textAlign = "right";
           ctx.font = "bold 14px system-ui, sans-serif";
           ctx.fillText(`👤 ${prop.nombre}`, W - padding, 128);
@@ -11436,14 +11461,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // ── Info de configuración ─────────────────────────────────────────
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 160, W, 36);
-        ctx.fillStyle = "#334155";
+        ctx.fillStyle = "#5A6B6E";
         ctx.font = "13px system-ui, sans-serif";
         ctx.fillText(`Índice novillo: $${fmtN(cobro.precioNov)}/kg`, padding, 183);
 
         // ── Tabla header ──────────────────────────────────────────────────
-        ctx.fillStyle = "#1e293b";
+        ctx.fillStyle = "#163D44";
         ctx.fillRect(0, 196, W, 28);
-        ctx.fillStyle = "#94a3b8";
+        ctx.fillStyle = "#9FC4C2";
         ctx.font = "bold 11px system-ui, sans-serif";
         ctx.fillText("TROPA / ORIGEN", padding + 8, 215);
         ctx.textAlign = "right";
@@ -11454,46 +11479,46 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // ── Filas de tropas ───────────────────────────────────────────────
         let y = 224;
         lineas.forEach((l, i) => {
-          ctx.fillStyle = i % 2 === 0 ? "#f8fafc" : "#ffffff";
+          ctx.fillStyle = i % 2 === 0 ? "#F4F7F3" : "#ffffff";
           ctx.fillRect(0, y, W, 68);
 
           // Borde izquierdo de color
-          ctx.fillStyle = "#10b981";
+          ctx.fillStyle = "#2F9D4E";
           ctx.fillRect(0, y, 3, 68);
 
-          ctx.fillStyle = "#0f172a";
+          ctx.fillStyle = "#163049";
           ctx.font = "bold 15px system-ui, sans-serif";
           ctx.fillText(l.origen, padding + 8, y + 20);
 
-          ctx.fillStyle = "#64748b";
+          ctx.fillStyle = "#66767B";
           ctx.font = "12px system-ui, sans-serif";
           ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 8, y + 38);
 
           if (l.tramosEnPeriodo?.length > 0) {
-            ctx.fillStyle = "#ea580c";
+            ctx.fillStyle = "#C2620E";
             ctx.font = "11px system-ui, sans-serif";
             ctx.fillText("↑ " + l.tramosEnPeriodo.map(te => `Egreso ${fmtFecha(te.fecha)}: ${te.cab} cab`).join("  "), padding + 8, y + 56);
           }
 
           // Columna kg
-          ctx.fillStyle = "#065f46";
-          ctx.font = "bold 14px system-ui, sans-serif";
+          ctx.fillStyle = "#1F6E33";
+          ctx.font = "700 14px 'Space Grotesk', system-ui, sans-serif";
           ctx.textAlign = "right";
           ctx.fillText(`${fmtN(l.kgTotal)} kg`, W - padding - 120, y + 22);
 
           if (l.supActivo && l.kgSup > 0) {
-            ctx.fillStyle = "#b45309";
+            ctx.fillStyle = "#B07A1E";
             ctx.font = "11px system-ui, sans-serif";
             ctx.fillText(`+${fmtN(l.kgSup)} sup`, W - padding - 120, y + 40);
           }
 
           // Columna monto
-          ctx.fillStyle = "#0f172a";
-          ctx.font = "bold 15px system-ui, sans-serif";
+          ctx.fillStyle = "#163049";
+          ctx.font = "700 15px 'Space Grotesk', system-ui, sans-serif";
           ctx.fillText(fmtPesos(l.pesos), W - padding - 8, y + 22);
 
           if (l.supActivo && l.kgSup > 0) {
-            ctx.fillStyle = "#b45309";
+            ctx.fillStyle = "#B07A1E";
             ctx.font = "11px system-ui, sans-serif";
             ctx.fillText(fmtPesos(l.pesosSup), W - padding - 8, y + 40);
           }
@@ -11503,7 +11528,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         });
 
         // ── Separador ─────────────────────────────────────────────────────
-        ctx.strokeStyle = "#cbd5e1";
+        ctx.strokeStyle = "#E6EBE5";
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         y += 2;
@@ -11511,39 +11536,39 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // ── Total — fondo degradado ───────────────────────────────────────
         const totalH = tieneSuplemento ? 90 : 72;
         const grad = ctx.createLinearGradient(0, y, W, y);
-        grad.addColorStop(0, "#064e3b");
-        grad.addColorStop(1, "#065f46");
+        grad.addColorStop(0, "#163D44");
+        grad.addColorStop(1, "#0F2E34");
         ctx.fillStyle = grad;
         ctx.fillRect(0, y, W, totalH);
 
         // Borde superior
-        ctx.strokeStyle = "#10b981";
+        ctx.strokeStyle = "#46C266";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
 
-        ctx.fillStyle = "#a7f3d0";
+        ctx.fillStyle = "#9FC4C2";
         ctx.font = "bold 12px system-ui, sans-serif";
         ctx.fillText("TOTAL PERÍODO", padding, y + 22);
 
-        ctx.fillStyle = "#d1fae5";
+        ctx.fillStyle = "#BCD2D2";
         ctx.font = "16px system-ui, sans-serif";
         ctx.fillText(`${fmtN(cobro.kgTotal)} kg nov pastaje`, padding, y + 44);
 
         if (tieneSuplemento) {
-          ctx.fillStyle = "#fcd34d";
+          ctx.fillStyle = "#F4C152";
           ctx.font = "13px system-ui, sans-serif";
           ctx.fillText(`+ ${fmtPesos(cobro.pesosSup)} suplemento`, padding, y + 66);
         }
 
         // Monto total — grande a la derecha
         ctx.textAlign = "right";
-        ctx.font = "bold 34px system-ui, sans-serif";
-        ctx.fillStyle = "#6ee7b7";
+        ctx.font = "700 34px 'Space Grotesk', system-ui, sans-serif";
+        ctx.fillStyle = "#5BD67C";
         ctx.fillText(fmtPesos(cobro.totalPesos ?? cobro.pesos), W - padding, y + (tieneSuplemento ? 52 : 46));
         ctx.textAlign = "left";
 
         // ── Footer ────────────────────────────────────────────────────────
-        ctx.fillStyle = "#94a3b8";
+        ctx.fillStyle = "#9AA7A0";
         ctx.font = "11px system-ui, sans-serif";
         ctx.fillText("SoyPekun · Gestión Ganadera Profesional · soypekun.vercel.app", padding, H - 12);
 
@@ -11996,7 +12021,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             { lbl: "Devengado hoy",   val: fmtN(Math.round(totalKgDev)),       suf: "kg nov", col: "text-emerald-700" },
             { lbl: "Por cobrar",      val: fmtN(Math.round(kgCobPend)),        suf: "kg nov", col: "text-amber-700" },
           ].map(k => (
-            <div key={k.lbl} className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 text-center kpi-pop">
+            <div key={k.lbl} className="bg-white border rounded-2xl p-3.5 text-center kpi-pop">
               <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">{k.lbl}</p>
               <p className={`text-2xl font-black ${k.col} mt-0.5`}>{k.val}</p>
               <p className="text-xs text-slate-400">{k.suf}</p>
@@ -12579,7 +12604,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
               <button onClick={() => setSyncData(null)} className="text-xs text-emerald-500 hover:text-red-500 font-bold transition-colors">✕ Limpiar</button>
             </div>
           )}
-          <div key={activeTab + (syncData ? "-sync" : "")} className="bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-5 md:p-8 shadow-xl sim-zoom-enter">
+          <div key={activeTab + (syncData ? "-sync" : "")} className="bg-white rounded-3xl p-3 sm:p-5 md:p-8 sim-zoom-enter" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
             {activeTab === "poder"
               ? <PoderDeCompra onGuardar={agregarSimulacion} onToast={pushToast}
                   initialVenta={syncData?.target === "poder" ? syncData.venta : undefined}
