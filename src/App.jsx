@@ -2727,6 +2727,30 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
 
         {inputs.kreepOn && (
           <div className="space-y-4">
+      {cols.length >= 1 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {METRICAS.filter(m => ["kgHaAnio", "rendimientoReal", "margenAnio", "pctDestete"].includes(m.id)).map(m => {
+            const serie = cols.map(c => { const v = m.get(c.data); return (v == null || isNaN(v)) ? null : v; });
+            const vals = serie.filter(v => v != null);
+            const last = vals.length ? vals[vals.length - 1] : null, first = vals.length ? vals[0] : null;
+            const trend = (vals.length >= 2 && first !== 0) ? (last - first) / Math.abs(first) * 100 : null;
+            const bueno = trend == null ? null : (m.invert ? trend < 0 : trend >= 0);
+            const neg = m.id === "rendimientoReal" && typeof last === "number" && last < 0;
+            return (
+              <div key={m.id} className="rounded-2xl p-3" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+                <p className="text-[11px] font-bold" style={{ color: "#66767B" }}>{m.label} <span style={{ color: "#A9B6B9" }}>{m.unit}</span></p>
+                <p className="text-lg font-black leading-tight" style={{ fontFamily: DISPLAY, color: neg ? "#D64545" : "#163049" }}>{m.fmt(last)}</p>
+                <div className="my-1.5"><Sparkline series={serie} color={neg ? "#D64545" : "#2F9D4E"} /></div>
+                {trend != null ? (
+                  <p className="text-[10px] font-bold" style={{ color: bueno ? "#2F9D4E" : "#D64545" }}>{trend >= 0 ? "▲" : "▼"} {Math.abs(Math.round(trend))}% total</p>
+                ) : (
+                  <p className="text-[10px] font-bold" style={{ color: "#A9B6B9" }}>1 solo dato</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Meses de creep" value={inputs.kreepMeses}
                 onChange={set("kreepMeses")} unit="meses" sliderMax={6} minVal={1}
@@ -6181,6 +6205,131 @@ function DiagnosticoPreniez({ criaDatos, setCriaActiva, anoViendo, onToast }) {
   );
 }
 
+
+/* ═══ Vista Histórico — comparativa de años cerrados ═══ */
+/* Mini-línea de tendencia (SVG inline) */
+function Sparkline({ series, color = "#2F9D4E" }) {
+  const w = 220, h = 40, pad = 5;
+  const idx = series.map((v, i) => ({ v, i })).filter(o => o.v != null && !isNaN(o.v));
+  if (idx.length === 0) return <svg width="100%" viewBox={`0 0 ${w} ${h}`} />;
+  const vals = idx.map(o => o.v);
+  const min = Math.min(...vals), max = Math.max(...vals), range = (max - min) || 1;
+  const n = series.length;
+  const X = (i) => pad + (n <= 1 ? (w - 2 * pad) / 2 : (i / (n - 1)) * (w - 2 * pad));
+  const Y = (v) => h - pad - ((v - min) / range) * (h - 2 * pad);
+  const pts = idx.map(o => `${X(o.i)},${Y(o.v)}`);
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: "block" }}>
+      {idx.length > 1 && <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+      {idx.map((o, k) => <circle key={k} cx={X(o.i)} cy={Y(o.v)} r={k === idx.length - 1 ? 3.5 : 2} fill={color} />)}
+    </svg>
+  );
+}
+
+function VistaHistorico({ historialAnos = {}, actual, onVerAno }) {
+  const anios = Object.keys(historialAnos).sort();
+  const cols = [
+    ...anios.map(a => ({ key: a, label: a, data: historialAnos[a], cerrado: true })),
+    ...(actual ? [{ key: "__actual", label: actual.ano, data: { balance: actual, resumen: { totalDest: actual.totalDest } }, cerrado: false }] : []),
+  ];
+  const fN = (v) => (v == null || isNaN(v)) ? "—" : Math.round(v).toLocaleString("es-AR");
+  const fM = (v) => {
+    if (v == null || isNaN(v)) return "—";
+    if (Math.abs(v) >= 1e6) return "$" + (Math.round(v / 1e5) / 10).toLocaleString("es-AR") + " M";
+    return "$" + Math.round(v).toLocaleString("es-AR");
+  };
+  const METRICAS = [
+    { id: "totalStock",      label: "Stock total",        unit: "cab",   get: (d) => d.balance && d.balance.totalStock,      fmt: fN },
+    { id: "totalDest",       label: "Destetados",         unit: "cab",   get: (d) => (d.resumen && d.resumen.totalDest),     fmt: fN },
+    { id: "pctDestete",      label: "Destete",            unit: "%",     get: (d) => d.balance && d.balance.pctDestete,      fmt: (v) => v == null || isNaN(v) ? "—" : Math.round(v) + "%" },
+    { id: "kgTotalAnio",     label: "Producción",         unit: "kg",    get: (d) => d.balance && d.balance.kgTotalAnio,     fmt: fN },
+    { id: "kgHaAnio",        label: "Producción",         unit: "kg/ha", get: (d) => d.balance && d.balance.kgHaAnio,        fmt: fN, destak: true },
+    { id: "evPorHa",         label: "Carga",              unit: "EV/ha", get: (d) => d.balance && d.balance.evPorHa,         fmt: (v) => v == null || isNaN(v) ? "—" : (Math.round(v * 100) / 100).toLocaleString("es-AR") },
+    { id: "ingresoAnio",     label: "Ingreso",            unit: "$",     get: (d) => d.balance && d.balance.ingresoAnio,     fmt: fM },
+    { id: "costoEst",        label: "Costo estructura",   unit: "$",     get: (d) => d.balance && d.balance.costoEst,        fmt: fM, invert: true },
+    { id: "margenAnio",      label: "Margen",             unit: "$",     get: (d) => d.balance && d.balance.margenAnio,      fmt: fM },
+    { id: "costoOpAnio",     label: "Costo oportunidad",  unit: "$",     get: (d) => d.balance && d.balance.costoOpAnio,     fmt: fM, invert: true },
+    { id: "rendimientoReal", label: "Resultado real",     unit: "$",     get: (d) => d.balance && d.balance.rendimientoReal, fmt: fM, destak: true },
+  ];
+  const delta = (m, idx) => {
+    if (idx === 0) return null;
+    const prev = m.get(cols[idx - 1].data), cur = m.get(cols[idx].data);
+    if (prev == null || cur == null || isNaN(prev) || isNaN(cur) || prev === 0) return null;
+    return (cur - prev) / Math.abs(prev) * 100;
+  };
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl p-5" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+        <div className="flex items-center gap-3 mb-1">
+          <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: "#E9F4EC" }}>📈</span>
+          <div>
+            <p className="text-lg font-bold tracking-tight" style={{ fontFamily: DISPLAY, color: "#163049" }}>Histórico — comparativa de ejercicios</p>
+            <p className="text-xs" style={{ color: "#66767B" }}>Cada columna es un año ganadero. Los cerrados guardan la foto real del cierre; el año en curso se calcula en vivo.</p>
+          </div>
+        </div>
+        {anios.length === 0 && (
+          <div className="mt-4 rounded-2xl p-4 text-center" style={{ background: "#F4F7F3", border: "1px dashed #C9D6CC" }}>
+            <p className="text-sm font-bold" style={{ color: "#163049" }}>Todavía no hay años cerrados para comparar.</p>
+            <p className="text-xs mt-1" style={{ color: "#66767B" }}>Cuando cierres el ejercicio (botón "Cerrar año" arriba), acá vas a ver la evolución año a año: producción, destete, márgenes y resultado. Mientras tanto, esta es la foto del año en curso.</p>
+          </div>
+        )}
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-sm" style={{ minWidth: 420 }}>
+            <thead>
+              <tr>
+                <th className="text-left py-2 pr-3 text-[11px] font-extrabold uppercase tracking-widest" style={{ color: "#8A9A9E" }}>Indicador</th>
+                {cols.map((c) => (
+                  <th key={c.key} className="text-right py-2 px-3" style={{ minWidth: 130 }}>
+                    <p className="font-black" style={{ fontFamily: DISPLAY, color: "#163049" }}>{c.label}</p>
+                    {c.cerrado ? (
+                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#EEF3EE", color: "#66767B" }}>Cerrado {c.data.fechaCierre || ""}</span>
+                        {onVerAno && (
+                          <button onClick={() => onVerAno(c.key)} className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#163D44", color: "#fff" }}>Ver</button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5" style={{ background: "#2F9D4E", color: "#fff" }}>En curso</span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {METRICAS.map((m) => (
+                <tr key={m.id} className="border-t" style={{ borderColor: "#EEF2EE", background: m.destak ? "#F4FAF5" : "transparent" }}>
+                  <td className="py-2.5 pr-3">
+                    <span className="font-bold" style={{ color: "#163049" }}>{m.label}</span>
+                    <span className="text-[11px] ml-1.5" style={{ color: "#8A9A9E" }}>{m.unit}</span>
+                  </td>
+                  {cols.map((c, idx) => {
+                    const v = m.get(c.data);
+                    const d = delta(m, idx);
+                    const bueno = d == null ? null : (m.invert ? d < 0 : d >= 0);
+                    return (
+                      <td key={c.key} className="text-right py-2.5 px-3">
+                        <span className="font-black tabular-nums" style={{ fontFamily: DISPLAY, color: m.destak ? (typeof v === "number" && v < 0 ? "#D64545" : "#1F7A3D") : "#163049" }}>{m.fmt(v)}</span>
+                        {d != null && (
+                          <span className="block text-[10px] font-bold" style={{ color: bueno ? "#2F9D4E" : "#D64545" }}>
+                            {d >= 0 ? "▲" : "▼"} {Math.abs(Math.round(d))}% vs año ant.
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {anios.length >= 1 && (
+          <p className="text-[11px] mt-3" style={{ color: "#8A9A9E" }}>Los años cerrados antes de la última actualización pueden mostrar números aproximados (se calculaban con un modelo simplificado). Desde ahora, cada cierre guarda los valores reales de la app.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, onReabrirAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
@@ -6774,6 +6923,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     { id: "costos",       label: "Costos estructura",  icon: "💰" },
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
     { id: "pastaje",      label: "Pastaje",            icon: "🤝" },
+    { id: "historico",    label: "Histórico",          icon: "📈" },
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
@@ -9434,6 +9584,33 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
           )}
 
+          {seccion === "historico" && (() => {
+            const _ingAnio = Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0));
+            const _costoEst = Math.round(costoEstructuraAnual||0);
+            const _margen = _ingAnio - _costoEst;
+            const _costoOp = Math.round(totalStockCampo * ((global.valorCabPromedio)||1500000) * ((global.tasaOportunidadUSD||5)/100));
+            const actual = {
+              ano: anoGanadero,
+              totalStock: totalStockCampo,
+              kgTotalAnio: kgTotalAct,
+              kgHaAnio: kgHaAct,
+              evPorHa: hectareas ? Math.round((evTotal/hectareas)*100)/100 : 0,
+              pctDestete: pctDesteteAgg,
+              totalDest: totalDestetadosReal,
+              ingresoAnio: _ingAnio,
+              costoEst: _costoEst,
+              margenAnio: _margen,
+              costoOpAnio: _costoOp,
+              rendimientoReal: _margen - _costoOp,
+            };
+            return (
+              <VistaHistorico
+                historialAnos={historialAnos}
+                actual={anoViendo ? null : actual}
+                onVerAno={(a) => { setAnoViendo(a); setSeccion("stock"); }}
+              />
+            );
+          })()}
           {seccion === "pastaje" && (
             <PastajeCampo
               pastaje={campoPastaje}
