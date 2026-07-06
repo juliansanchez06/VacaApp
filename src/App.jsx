@@ -613,6 +613,48 @@ function fmtPct(n, dec = 1) {
 }
 
 // ─── Global CSS (slider thumb enlarge + pastel bg) ───────────────────────────
+// ─── Respaldo de datos: descargar / restaurar todo el campo ──────────────────
+function descargarRespaldo() {
+  const s = vacaStore.getState();
+  const backup = {
+    __soypekun_backup: true,
+    version: 1,
+    fecha: new Date().toISOString(),
+    owner: s.__userEmail || null,
+    datos: {
+      global: s.global, gastos: s.gastos,
+      campoCria: s.campoCria, campoRecria: s.campoRecria,
+      campoTerminacion: s.campoTerminacion, campoPastaje: s.campoPastaje,
+      campo: s.campo, movimientos: s.movimientos, simulaciones: s.simulaciones,
+      anoGanaderoActual: s.anoGanaderoActual, historialAnos: s.historialAnos,
+    },
+  };
+  try {
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `soypekun-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } catch (e) { console.warn("descargarRespaldo:", e); return false; }
+}
+
+async function restaurarRespaldo(file) {
+  const text = await file.text();
+  const parsed = JSON.parse(text);
+  const d = parsed && parsed.datos ? parsed.datos : parsed;
+  if (!d || (!d.campoCria && !d.global)) throw new Error("El archivo no parece un respaldo de SoyPekun.");
+  const campos = ["global", "gastos", "campoCria", "campoRecria", "campoTerminacion", "campoPastaje", "campo", "movimientos", "simulaciones", "anoGanaderoActual", "historialAnos"];
+  const partial = {};
+  campos.forEach(k => { if (d[k] !== undefined) partial[k] = d[k]; });
+  vacaStore.setState(partial);
+  const email = vacaStore.getState().__userEmail;
+  if (email) { try { await guardarEstado(email); } catch (e) { console.warn("guardar tras restaurar:", e); } }
+  return true;
+}
+
 const GLOBAL_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
   /* ── Background ──────────────────────────────────────────────────── */
@@ -9548,6 +9590,40 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 onGuardar={async () => { await guardarEstado(vacaStore.getState().__userEmail); setSnapGlobal(null); }}
                 onDeshacer={deshacerGlobal}
               />
+              <div className="rounded-3xl p-5 max-w-lg" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: "#EAF1F0" }}>🛟</span>
+                  <div>
+                    <p className="text-base font-bold tracking-tight" style={{ fontFamily: DISPLAY, color: "#163049" }}>Respaldo de datos</p>
+                    <p className="text-xs" style={{ color: "#66767B" }}>Guardá una copia de todo tu campo, o restaurá una anterior.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                  <button onClick={() => { if (descargarRespaldo()) onToast?.("✅ Respaldo descargado", "success"); else onToast?.("No se pudo descargar el respaldo", "warn"); }}
+                    className="flex-1 py-3 rounded-xl font-black text-sm text-white" style={{ background: "#163D44" }}>
+                    ⬇ Descargar respaldo
+                  </button>
+                  <button onClick={() => { const el = document.getElementById("input-respaldo-soypekun"); if (el) el.click(); }}
+                    className="flex-1 py-3 rounded-xl font-black text-sm" style={{ background: "#fff", border: "1px solid #C9D6CC", color: "#163D44" }}>
+                    ⬆ Restaurar respaldo
+                  </button>
+                  <input id="input-respaldo-soypekun" type="file" accept="application/json,.json" style={{ display: "none" }}
+                    onChange={async (e) => {
+                      const file = e.target.files && e.target.files[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (!window.confirm("Restaurar este respaldo REEMPLAZA todos los datos actuales de tu campo por los del archivo. Conviene descargar un respaldo del estado actual antes, por las dudas.\n\n¿Continuar?")) return;
+                      try {
+                        await restaurarRespaldo(file);
+                        alert("✅ Respaldo restaurado. La app se va a recargar para aplicar los datos.");
+                        window.location.reload();
+                      } catch (err) {
+                        alert("❌ " + (err.message || "No se pudo restaurar el respaldo."));
+                      }
+                    }} />
+                </div>
+                <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "#8A9A9E" }}>El respaldo es un archivo .json con TODO: stock, movimientos, pastaje, años cerrados y cotizaciones. Guardalo en tu compu o mandátelo por mail. Restaurar reemplaza todo lo actual — descargá uno antes, por las dudas.</p>
+              </div>
               <div className="bg-white rounded-3xl overflow-hidden max-w-lg" style={{border:"1px solid #E6EBE5",boxShadow:"0 1px 2px rgba(22,48,73,.04)"}}>
                 <div className="h-1.5" style={{ background:"linear-gradient(90deg,#163D44,#1E5059)" }} />
                 <div className="p-5 space-y-5">
