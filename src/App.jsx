@@ -340,6 +340,7 @@ const vacaStore = createStore((set, get) => ({
     tasaDescuento:      8,
     tasaOportunidadUSD: 5,    // % anual en USD — referencia plazo fijo / LECAP en USD
     valorCabPromedio:   1500000, // $ valor promedio de cabeza para costo oportunidad
+    retencionCarne:     5,    // % derechos de exportación carne novillo (vaca = 0%)
   },
   gastos: {
     fleteCompraOn: false, kmCompra: 370, precioKmCompra: 3500,
@@ -480,7 +481,7 @@ const vacaStore = createStore((set, get) => ({
   // ════════════════════════════════════════════════════════════════════════════
   // PILAR 2 — Cerrar año con dinámica biológica real
   // ════════════════════════════════════════════════════════════════════════════
-  cerrarAnoGanadero: () => {
+  cerrarAnoGanadero: (datosVivo = null) => {
     const { campoCria: c, campoRecria: r, campoTerminacion: t, anoGanaderoActual, historialAnos, global: gl, campo: cp } = get();
     const mortCria   = c.pctMortandadCria   / 100;
     const mortRecria = r.pctMortandadRecria  / 100;
@@ -529,17 +530,26 @@ const vacaStore = createStore((set, get) => ({
     const costoOpAnio = totalStock * ((gl.valorCabPromedio)||1500000) * ((gl.tasaOportunidadUSD||5)/100);
     const rendimientoReal = margenAnio - costoOpAnio;
 
+    // Fix 4: si viene el dato del vivo (mismo cálculo que la app), usarlo → histórico comparable
+    const S_totalStock = datosVivo?.totalStock  ?? totalStock;
+    const S_kgTotal    = datosVivo?.kgTotalAnio ?? kgTotalAnio;
+    const S_kgHa       = datosVivo?.kgHaAnio     ?? kgHaAnio;
+    const S_evTotal    = datosVivo?.evTotal      ?? evTotal;
+    const S_ingreso    = datosVivo?.ingresoAnio  ?? ingresoAnio;
+    const S_margen     = S_ingreso - costoEst;
+    const S_costoOp    = S_totalStock * ((gl.valorCabPromedio)||1500000) * ((gl.tasaOportunidadUSD||5)/100);
+    const S_rendReal   = S_margen - S_costoOp;
     const snapshot = {
       ano: anoGanaderoActual,
       cria: { ...c }, recria: { ...r }, terminacion: { ...t },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
       resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev },
       balance: {
-        kgTotalAnio, kgHaAnio, ingresoAnio, costoEst, margenAnio,
-        costoOpAnio, rendimientoReal,
-        evPorHa: Math.round((evTotal / hectareas) * 100) / 100,
+        kgTotalAnio: S_kgTotal, kgHaAnio: S_kgHa, ingresoAnio: S_ingreso, costoEst, margenAnio: S_margen,
+        costoOpAnio: S_costoOp, rendimientoReal: S_rendReal,
+        evPorHa: Math.round((S_evTotal / hectareas) * 100) / 100,
         pctDestete: Math.round(totalDest / ((c.vacas + (c.vaquillonas1??c.vaquillonas??0) + (c.vaquillonas2??0)) || 1) * 100),
-        totalStock, hectareas,
+        totalStock: S_totalStock, hectareas,
       },
     };
     const [anioIn] = anoGanaderoActual.split("/").map(Number);
@@ -5268,7 +5278,7 @@ function EditField({ label, value, onChange, step = 1, prefix = "", suffix = "",
 
 // ── VistaMovimientos — componente de nivel superior para evitar hooks en IIFE ──
 function makeActs(p) {
-  const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, precioNovInvKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, terminacionDatos, fmt, fmtMoney } = p;
+  const { ingresoCria, ingresoRecria, ingresoTerm, sanidadCria, sanidadRec, sanidadTerm, margenCria, margenRec, margenTerm, costoReposicionTotal, costoReposicionExterna, costoReposicionPropia, cabCompradasRecria, pesoEntradaRecria, precioCompraRecria, cabPropiaRecria, cabCria, cabRec, cabTerm, cabDestetados, pesoDestete2, precioInvKg, cabRecriaSale, pesoRecria, precioNovKg, precioNovInvKg, cabTermSale, pesoTerm, sanidadPorCabAnio, ingresoPastaje, kgPastaje, cabPastaje, ingresoExport, costoExport, margenExport, hiltonIngresoPesos, hiltonCostoTotal, hiltonIngresoUSD, cabHilton, ue481IngresoPesos, ue481CostoTotal, ue481IngresoUSD, cabUE481, dolarExp, retencionPct, terminacionDatos, fmt, fmtMoney } = p;
   const loc = (n) => (n||0).toLocaleString("es-AR");
   const feedlotCosto = (terminacionDatos?.novillosFeedlot||0)*((terminacionDatos?.costoComidaDia||0)+(terminacionDatos?.costoHoteleriaDia||0))*365;
   const base = [
@@ -5312,12 +5322,12 @@ function makeActs(p) {
     const des = [];
     if (cabHilton) {
       des.push({ label: "Cuota Hilton", tipo: "header" });
-      des.push({ label: cabHilton+" novillos pasto", valor: "U$S "+fmt(Math.round(hiltonIngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret 9%)", total: hiltonIngresoPesos, positivo: true });
+      des.push({ label: cabHilton+" novillos pasto", valor: "U$S "+fmt(Math.round(hiltonIngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret "+(retencionPct??5)+"%)", total: hiltonIngresoPesos, positivo: true });
       des.push({ label: "Costos Hilton", valor: "Pasto + cert. SENASA", total: -hiltonCostoTotal, positivo: false });
     }
     if (cabUE481) {
       des.push({ label: "Cuota 481 UE", tipo: "header" });
-      des.push({ label: cabUE481+" novillos feedlot", valor: "U$S "+fmt(Math.round(ue481IngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret 9%)", total: ue481IngresoPesos, positivo: true });
+      des.push({ label: cabUE481+" novillos feedlot", valor: "U$S "+fmt(Math.round(ue481IngresoUSD))+" x $"+loc(dolarExp||1395)+" (s/ret "+(retencionPct??5)+"%)", total: ue481IngresoPesos, positivo: true });
       des.push({ label: "Racion + hoteleria + cert.", valor: "100+ dias feedlot", total: -ue481CostoTotal, positivo: false });
     }
     base.push({ id: "export", label: "\uD83C\uDF0E Exportación", cab: cabHilton+cabUE481, color: "purple", ingreso: ingresoExport, costo: costoExport, margen: margenExport, desglose: des });
@@ -5496,7 +5506,7 @@ function MargenActividad(p) {
 }
 
 
-function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
+function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, onAplicarStock, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
   const TIPOS_MOV = [
     { id: "venta-novillos",   label: "Venta novillos",        tipo: "venta",  emoji: "💚" },
     { id: "venta-vacas",      label: "Venta vacas descarte",  tipo: "venta",  emoji: "💚" },
@@ -5513,8 +5523,9 @@ function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, m
     const cab = Number(form.cab), kgProm = Number(form.kgProm), precioKg = Number(form.precioKg);
     const nuevo = { ...form, cab, kgProm, precioKg, id: Date.now(), tipo: tipoMov.tipo, label: tipoMov.label, anoGanadero, kgTotal: cab * kgProm, montoTotal: cab * kgProm * precioKg };
     setMovimientos(prev => [...prev, nuevo]);
+    onAplicarStock?.(nuevo, false); // mueve el stock (venta saca / compra pone)
     setShowForm(false);
-    onToast?.(`✅ ${tipoMov.label}: ${cab} cab · $${(nuevo.montoTotal).toLocaleString("es-AR")}`, "success");
+    onToast?.(`✅ ${tipoMov.label}: ${cab} cab · $${(nuevo.montoTotal).toLocaleString("es-AR")} · stock ajustado`, "success");
   };
 
   const kgProdEstimado = Math.round((totalDestete ?? 0) * 165 + ((reciaDatos?.novillos ?? 0) + (reciaDatos?.ternerosLiquidaMachos ?? 0) + (reciaDatos?.ternerosCompraMachos ?? 0)) * 320 + ((terminacionDatos?.novillosCampo ?? 0) + (terminacionDatos?.novillosFeedlot ?? 0)) * (terminacionDatos?.pesoPromedioKg ?? 420));
@@ -5678,7 +5689,7 @@ function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, m
                   <p className="text-xs text-slate-400">{fmt(Math.round(m.kgTotal))} kg</p>
                   <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtM(m.montoTotal)}</p>
                 </div>
-                <button onClick={() => { if (window.confirm("¿Eliminar este movimiento?")) setMovimientos(prev => prev.filter(x => x.id !== m.id)); }}
+                <button onClick={() => { if (window.confirm("¿Eliminar este movimiento? Se revierte el ajuste de stock.")) { onAplicarStock?.(m, true); setMovimientos(prev => prev.filter(x => x.id !== m.id)); } }}
                   className="text-slate-300 hover:text-red-500 font-black transition-colors shrink-0">✕</button>
               </div>
             );
@@ -6250,6 +6261,23 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const terminacionDatos = stockActivo ? stockActivo.terminacion : terminacion;
   const setCriaActiva   = anoViendo ? () => {} : setCria;
   const setRecriaActiva = anoViendo ? () => {} : setRecria;
+
+  // Venta/compra mueve el stock (revertir=true al borrar el movimiento). Mapeo por categoría.
+  const aplicarStockMovimiento = (mov, revertir = false) => {
+    const cab = Number(mov?.cab) || 0;
+    if (!cab) return;
+    const sVenta  = revertir ? +cab : -cab;   // venta saca al crear, devuelve al borrar
+    const sCompra = revertir ? -cab : +cab;   // compra pone al crear, saca al borrar
+    const clamp = (x) => Math.max(0, x);
+    switch (mov.tipoId) {
+      case "venta-novillos":  setRecriaActiva(p => ({ ...p, novillos: clamp((p.novillos ?? 0) + sVenta) })); break;
+      case "venta-vacas":     setCriaActiva(p => ({ ...p, vacaCut: clamp((p.vacaCut ?? 0) + sVenta) })); break;
+      case "venta-terneros":  setRecriaActiva(p => ({ ...p, ternerosLiquidaMachos: clamp((p.ternerosLiquidaMachos ?? 0) + sVenta) })); break;
+      case "compra-terneros": setRecriaActiva(p => ({ ...p, ternerosCompraMachos: clamp((p.ternerosCompraMachos ?? 0) + sCompra) })); break;
+      case "compra-novillos": setTermActiva(p => ({ ...p, novillosCampo: clamp((p.novillosCampo ?? 0) + sCompra) })); break;
+      default: break;
+    }
+  };
   const setTermActiva   = anoViendo ? () => {} : setTerminacion;
 
   // ── Helpers para ciclos de parición ──────────────────────────────────────
@@ -6504,7 +6532,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgHaPastaje = hectareas ? Math.round(kgPastajeProducidos / hectareas) : 0;
 
   // ── Reposicion recria (ANTES del margen bruto) ─────────────────────────
-  const cabCompradasRecria  = reciaDatos.cabCompradasRecria  ?? 0;
+  const cabCompradasRecria  = (reciaDatos.ternerosCompraMachos ?? 0) + (reciaDatos.ternerosCompraHembras ?? 0); // derivado: comprados = machos + hembras comprados
   const precioCompraRecria  = reciaDatos.precioCompraKgRecria ?? 0;
   const pesoEntradaRecria   = reciaDatos.pesoEntradaRecria   ?? 180;
   // Costo compra externa: cab × kg entrada × precio compra
@@ -6518,7 +6546,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // ── Exportación — Cuota Hilton y UE 481 ──────────────────────────────────
   const dolarExp    = global.dolar ?? 1395; // dólar oficial para liquidación exportaciones
-  const retencion   = 0.09; // 9% retenciones carne vacuna Argentina
+  const retencion   = (global.retencionCarne ?? 5) / 100; // derechos exportación (novillo). Editable en Cotizaciones.
+  const retencionPct = global.retencionCarne ?? 5;
 
   // Hilton
   const cabHilton   = terminacionDatos.novillosHilton ?? 0;
@@ -6690,7 +6719,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgVaquillonaDesc   = cabVaquillonaDesc  * pVaquillonaDesc;
   // Kg comprados (entraron de afuera, no los produjo el campo) → se restan para el rendimiento neto
   const kgCompradosRecria  = Math.round(cabCompradasRecria * pesoEntradaRecria);
-  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc + Math.round(kgVendidosTotal) - kgCompradosRecria;
+  const kgTotalAct         = kgVacasDescarte + kgTernerosInv + kgNovillosInv + kgNovillosFaena + kgVaquillonaDesc + Math.round(kgVendidosTotal) - kgCompradosRecria - Math.round(kgCompradosTotal);
   const kgHaAct            = hectareas > 0 ? Math.round(kgTotalAct / hectareas) : 0;
 
   // Proyección año siguiente — con GDP proyectada 12 meses completos
@@ -6808,7 +6837,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             )}
             {!anoViendo && (
               <button onClick={() => {
-                if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno();
+                if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno({
+                  totalStock: totalStockCampo, kgTotalAnio: kgTotalAct, kgHaAnio: kgHaAct, evTotal: evTotal,
+                  ingresoAnio: Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)),
+                });
               }}
                 className="text-xs font-bold text-slate-400 hover:text-orange-500 border border-dashed border-slate-200 hover:border-orange-300 px-3 py-1 rounded-full transition-all">
                 Cerrar año →
@@ -7805,10 +7837,16 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
                     <p className="text-xs font-black uppercase tracking-widest text-amber-700">🔄 Reposición — compra de terneros</p>
                     <p className="text-xs text-amber-600">Cargá cuántos terneros compraste externamente y a qué precio para cerrar el ciclo anual. Impacta directamente en el margen de Recría.</p>
-                    <EditField label="Cabezas compradas" value={reciaDatos.cabCompradasRecria??0} onChange={v=>setRecriaActiva(p=>({...p,cabCompradasRecria:Math.max(0,v)}))} step={1} hint="0 si todos vienen del destete propio" />
+                    <div className="rounded-xl px-3 py-2.5 flex justify-between items-center" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+                      <div>
+                        <p className="text-xs font-bold text-slate-600">Cabezas compradas</p>
+                        <p className="text-[10px] text-slate-400">= Terneros compra machos + hembras (arriba)</p>
+                      </div>
+                      <p className="text-2xl font-black text-amber-700 font-mono">{cabCompradasRecria}</p>
+                    </div>
                     <EditField label="Peso entrada (kg/cab)" value={reciaDatos.pesoEntradaRecria??180} onChange={v=>setRecriaActiva(p=>({...p,pesoEntradaRecria:Math.max(100,v)}))} step={5} suffix="kg" hint="Peso promedio al ingreso a recría" />
                     <EditField label="Precio de compra ($/kg)" value={reciaDatos.precioCompraKgRecria??0} onChange={v=>setRecriaActiva(p=>({...p,precioCompraKgRecria:Math.max(0,v)}))} step={50} prefix="$" hint="Precio ternero entrada · 0 = solo destete propio" />
-                    {(reciaDatos.cabCompradasRecria??0) > 0 && (reciaDatos.precioCompraKgRecria??0) > 0 && (
+                    {cabCompradasRecria > 0 && (reciaDatos.precioCompraKgRecria??0) > 0 && (
                       <div className="bg-white rounded-xl px-3 py-2 flex justify-between items-center border border-amber-200">
                         <span className="text-xs text-amber-700 font-bold">Costo reposición total</span>
                         <span className="font-black text-amber-800">${Math.round((reciaDatos.cabCompradasRecria??0) * (reciaDatos.pesoEntradaRecria??180) * (reciaDatos.precioCompraKgRecria??0)).toLocaleString("es-AR")}</span>
@@ -8069,7 +8107,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     <span className="text-2xl">🌎</span>
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-purple-700">Exportación</p>
-                      <p className="text-xs text-slate-400">Dólar oficial: ${fmtMoney(dolarExp).replace("$","")} · Retenciones: 9%</p>
+                      <p className="text-xs text-slate-400">Dólar oficial: ${fmtMoney(dolarExp).replace("$","")} · Retenciones: {retencionPct}%</p>
                     </div>
                   </div>
 
@@ -8145,6 +8183,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               movimientos={movimientos}
               setMovimientos={setMovimientos}
               onDeshacerMovimiento={anoViendo ? null : deshacerMovimiento}
+              onAplicarStock={anoViendo ? null : aplicarStockMovimiento}
               movimientosAnio={movimientosAnio}
               kgVendidosTotal={kgVendidosTotal}
               ingresoVentas={ingresoVentas}
@@ -8243,7 +8282,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 ue481CostoTotal={ue481CostoTotal}
                 ue481IngresoUSD={ue481IngresoUSD}
                 cabUE481={cabUE481}
-                dolarExp={dolarExp}
+                dolarExp={dolarExp} retencionPct={retencionPct}
                 // Cascada margen neto
                 costoEstructuraAnual={costoEstructuraAnual}
                 amortTotal={amortTotal}
@@ -9375,7 +9414,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                     onChange={v => { vacaStore.getState().setGlobal({ precioInvernada: v }); }}
                     step={50} prefix="$" suffix="/kg"
                     hint="Usado en Cría (terneros al destete). Precio ternero destete / invernada liviana." />
-                  <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Dólar oficial — se usa para exportación de carne (liquidación al tipo de cambio oficial + 9% retenciones)" />
+                  <EditField label="Cotización del dólar ($/USD)" value={dolar} onChange={setDolar} step={10} prefix="$" hint="Dólar oficial — se usa para exportación de carne (liquidación al tipo de cambio oficial)" />
+                  <EditField label="Retenciones exportación (%)" value={global.retencionCarne ?? 5}
+                    onChange={v => { vacaStore.getState().setGlobal({ retencionCarne: v }); }}
+                    step={0.5} suffix="%" hint="Derechos de exportación sobre novillo (Hilton/UE481). Novillo: 5% · Vaca conserva: 0%." />
                   <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ejemplo de conversiones</p>
@@ -12328,9 +12370,9 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   };
 
   // ── Cerrar año ganadero ───────────────────────────────────────────────────
-  const handleCerrarAno = () => {
+  const handleCerrarAno = (datosVivo) => {
     // PILAR 2: usa la action del store que hace el envejecimiento biológico real
-    const snap = vacaStore.getState().cerrarAnoGanadero();
+    const snap = vacaStore.getState().cerrarAnoGanadero(datosVivo);
     const r = snap.resumen;
     pushToast(
       `✅ Año ${snap.ano} cerrado → ${r.totalDest} terneros · ${r.vacasDescarte} vacas descarte · ${r.hembrasRepos} vaquillonas reposición`,
