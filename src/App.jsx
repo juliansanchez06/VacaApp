@@ -341,6 +341,8 @@ const vacaStore = createStore((set, get) => ({
     tasaOportunidadUSD: 5,    // % anual en USD — referencia plazo fijo / LECAP en USD
     valorCabPromedio:   1500000, // $ valor promedio de cabeza para costo oportunidad
     retencionCarne:     5,    // % derechos de exportación carne novillo (vaca = 0%)
+    pctComercializacion: 4,   // % comisión + flete + guías sobre ventas de hacienda
+    alquilerKgHaAnio:    0,    // costo oportunidad tierra: kg novillo/ha/año (alquiler equivalente zona)
   },
   gastos: {
     fleteCompraOn: false, kmCompra: 370, precioKmCompra: 3500,
@@ -2236,8 +2238,8 @@ function PlanPago({ montoTotal, inflacionMensual = 4, color = "emerald" }) {
 function PoderDeCompra({ onGuardar, onToast, initialVenta, onAgregarAlCampo }) {
   const gastos = useGastos(); // lee del store global — reactivo
   const inflacionMensual = useStore(vacaStore, s => s.global?.inflacionMensual ?? 4);
-  const [venta, setVenta] = useState(initialVenta || { cantidad: 100, pesoPromedio: 430, precioKg: 2200 });
-  const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: 1800 });
+  const [venta, setVenta] = useState(initialVenta || { cantidad: 100, pesoPromedio: 430, precioKg: (vacaStore.getState().global.precioNovilloInmag ?? 2200) });
+  const [compra, setCompra] = useState({ pesoAnimal: 200, precioKg: (vacaStore.getState().global.precioInvernada ?? 1800) });
   const setV = (k) => (v) => setVenta((p) => ({ ...p, [k]: v }));
   const setC = (k) => (v) => setCompra((p) => ({ ...p, [k]: v }));
 
@@ -2455,7 +2457,7 @@ function ProyectoVientres({ onDescarte, onGuardar, onToast, initialInputs, onAgr
   const [inputs, setInputs] = useState(initialInputs || {
     cantidad: 50,
     pesoCompra: 180,
-    precioKgCompra: 1800,
+    precioKgCompra: (vacaStore.getState().global.precioInvernada ?? 1800),
     precioBulto: 350000,
     mesesRecriaPreServicio: 15,
     anosVidaUtil: 6,
@@ -3242,7 +3244,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
   const [opA, setOpA] = useState({
     gpvDiaria: 0.6,
     mesesRecria: 8,
-    precioVentaKg: 2100,
+    precioVentaKg: (vacaStore.getState().global.precioNovilloInvernada ?? vacaStore.getState().global.precioNovilloInmag ?? 2100),
     mesesSuplementActivos: [],
     costoSuplementoMensual: 15000,
   });
@@ -3252,7 +3254,7 @@ function ComparadorInvernada({ descarteData, onGuardar, onToast, initialBase, on
     diasEncierre: 90,
     costoRacionDiaria: 3000,
     costoHoteleriadiaria: 500,
-    precioVentaKg: 2250,
+    precioVentaKg: (vacaStore.getState().global.precioNovilloInmag ?? 2250),
   });
 
   const setB = (k) => (v) => setBase((p) => ({ ...p, [k]: v }));
@@ -4117,12 +4119,92 @@ const TAB_COLORS = {
   invernada: { bg: "bg-emerald-50",border: "border-emerald-200",badge: "bg-emerald-600",text: "text-emerald-700",icon: "⚖️" },
 };
 
+
+/* ═══ Comparador de simulaciones guardadas ═══ */
+function ComparadorSims({ sims }) {
+  const parseNum = (s) => {
+    const str = String(s ?? "");
+    if (str.includes(":") || str.includes("\u00b7")) return null;
+    const m = str.replace(/[^0-9.,-]/g, "");
+    if (!m) return null;
+    const v = parseFloat(m.replace(/\./g, "").replace(",", "."));
+    return isNaN(v) ? null : v;
+  };
+  const dirDe = (label) => {
+    const l = String(label).toLowerCase();
+    if (/(costo|inversi|gasto|flete|comisi|precio compra)/.test(l)) return "min";
+    if (/(roi|margen|ganancia|ingreso|retorno|sobrante|comprable|cabeza|rinde|neto|kpi)/.test(l)) return "max";
+    return null;
+  };
+  const labelsDe = (key) => { const out = []; sims.forEach(s => (s[key] || []).forEach(p => { if (!out.includes(p.label)) out.push(p.label); })); return out; };
+  const celda = (s, key, label) => { const f = (s[key] || []).find(p => p.label === label); return f ? f.value : "\u2014"; };
+  const mejorIdx = (key, label) => {
+    const d = dirDe(label); if (!d) return -1;
+    const vals = sims.map(s => parseNum(celda(s, key, label)));
+    if (vals.some(v => v == null)) return -1;
+    const t = d === "max" ? Math.max(...vals) : Math.min(...vals);
+    return vals.filter(v => v === t).length === 1 ? vals.indexOf(t) : -1;
+  };
+  const fechaDe = (id) => { try { return new Date(id).toLocaleDateString("es-AR"); } catch (e) { return ""; } };
+  const Fila = ({ label, cells, best, strong }) => (
+    <tr className="border-t" style={{ borderColor: "#EEF2EE", background: strong ? "#F4FAF5" : "transparent" }}>
+      <td className="py-2 pr-3 text-xs font-bold" style={{ color: "#163049" }}>{label}</td>
+      {cells.map((c, i) => (
+        <td key={i} className="py-2 px-2 text-right text-xs font-black tabular-nums" style={{ color: "#163049", background: best === i ? "#E9F4EC" : "transparent", borderRadius: 8 }}>
+          {c}{best === i ? " \u2713" : ""}
+        </td>
+      ))}
+    </tr>
+  );
+  const kpiIguales = new Set(sims.map(x => x.kpiLabel)).size === 1;
+  const kpiBest = (() => {
+    if (!kpiIguales) return -1;
+    const vals = sims.map(s => parseNum(s.kpiValue));
+    if (vals.some(v => v == null)) return -1;
+    const d = dirDe(sims[0].kpiLabel) || "max";
+    const t = d === "max" ? Math.max(...vals) : Math.min(...vals);
+    return vals.filter(v => v === t).length === 1 ? vals.indexOf(t) : -1;
+  })();
+  return (
+    <div className="rounded-2xl p-4 overflow-x-auto" style={{ background: "#fff", border: "2px solid #163D44" }}>
+      <p className="text-sm font-black mb-1" style={{ fontFamily: DISPLAY, color: "#163049" }}>\u2696 Frente a frente</p>
+      <p className="text-[11px] mb-2" style={{ color: "#8A9A9E" }}>El \u2713 marca el mejor valor de cada fila (solo cuando los n\u00fameros son comparables). Es m\u00e1s \u00fatil entre simulaciones del mismo tipo.</p>
+      <table className="w-full" style={{ minWidth: 460 }}>
+        <thead>
+          <tr>
+            <th></th>
+            {sims.map(s => (
+              <th key={s.id} className="text-right px-2 pb-1">
+                <p className="text-xs font-black leading-tight" style={{ fontFamily: DISPLAY, color: "#163049" }}>{String(s.nombre || "").slice(0, 44)}</p>
+                <p className="text-[10px] font-bold" style={{ color: "#8A9A9E" }}>{s.tab} \u00b7 {fechaDe(s.id)}</p>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <Fila label={"\u2b50 " + (kpiIguales ? (sims[0].kpiLabel || "KPI") : "KPI")} cells={sims.map(s => (kpiIguales ? "" : (s.kpiLabel ? s.kpiLabel + ": " : "")) + (s.kpiValue ?? "\u2014"))} best={kpiBest} strong />
+          {labelsDe("params").length > 0 && (
+            <tr><td colSpan={sims.length + 1} className="pt-3 pb-1 text-[10px] font-black uppercase tracking-widest" style={{ color: "#8A9A9E" }}>Supuestos</td></tr>
+          )}
+          {labelsDe("params").map(l => <Fila key={"p" + l} label={l} cells={sims.map(s => celda(s, "params", l))} best={mejorIdx("params", l)} />)}
+          {labelsDe("detalle").length > 0 && (
+            <tr><td colSpan={sims.length + 1} className="pt-3 pb-1 text-[10px] font-black uppercase tracking-widest" style={{ color: "#8A9A9E" }}>Resultados</td></tr>
+          )}
+          {labelsDe("detalle").map(l => <Fila key={"d" + l} label={l} cells={sims.map(s => celda(s, "detalle", l))} best={mejorIdx("detalle", l)} />)}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
   const [expandida, setExpandida] = useState(null);
   const [seccion, setSeccion] = useState({}); // { [id]: "resultados" | "params" }
 
   const getSec = (id) => seccion[id] || "resultados";
   const setSec = (id, v) => setSeccion((p) => ({ ...p, [id]: v }));
+  const [compareOn, setCompareOn] = useState(false);
+  const [compSel, setCompSel] = useState([]);
 
   if (simulaciones.length === 0) {
     return (
@@ -4151,6 +4233,20 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
         </button>
       </div>
 
+      {/* Comparador */}
+      <div className="px-4 py-2 flex items-center justify-between gap-2 border-b border-slate-100" style={{ background: "#F4FAF5" }}>
+        <p className="text-[11px] font-bold" style={{ color: "#5A6B6E" }}>{compareOn ? ("Eleg\u00ed 2 o 3 para comparar (" + compSel.length + "/3)") : "Pon\u00e9 tus simulaciones frente a frente"}</p>
+        <button onClick={() => { setCompareOn(v => !v); setCompSel([]); }}
+          className="text-xs font-black px-3 py-1.5 rounded-full shrink-0"
+          style={compareOn ? { background: "#163D44", color: "#fff" } : { background: "#fff", border: "1px solid #C9D6CC", color: "#163D44" }}>
+          \u2696 {compareOn ? "Cerrar comparador" : "Comparar"}
+        </button>
+      </div>
+      {compareOn && compSel.length >= 2 && (
+        <div className="px-3 py-3" style={{ background: "#F4FAF5" }}>
+          <ComparadorSims sims={simulaciones.filter(s => compSel.includes(s.id))} />
+        </div>
+      )}
       {/* List */}
       <div className="divide-y divide-slate-100">
         {simulaciones.map((sim) => {
@@ -4162,6 +4258,11 @@ function SimulacionesPanel({ simulaciones, onBorrar, onBorrarTodas }) {
             <div key={sim.id} className={`${c.bg} transition-all`}>
               {/* Row header */}
               <div className="flex items-center gap-3 px-4 py-3">
+                {compareOn && (
+                  <input type="checkbox" checked={compSel.includes(sim.id)}
+                    onChange={() => setCompSel(p => p.includes(sim.id) ? p.filter(x => x !== sim.id) : (p.length >= 3 ? p : [...p, sim.id]))}
+                    style={{ width: 18, height: 18, accentColor: "#163D44", flexShrink: 0 }} />
+                )}
                 {/* Category badge */}
                 <div className="flex flex-col items-center gap-0.5 shrink-0">
                   <span className={`w-7 h-7 rounded-lg ${c.badge} text-white text-sm flex items-center justify-center`}>
@@ -4923,7 +5024,7 @@ function ChacraAlimento({ onGuardar, onToast, onAgregarAlCampo }) {
     precioRenta: CULTIVOS_RENTA.soja.precio,
     gastosComercPct: 12,
     costosRenta: tmplCostos("soja"),
-    precioNovilloGordo: 4350,
+    precioNovilloGordo: (vacaStore.getState().global.precioNovilloInmag ?? 4350),
   });
   const set = (k) => (v) => setInp((p) => ({ ...p, [k]: v }));
   const elegirForraje = (id) => setInp((p) => ({ ...p, cultivoForraje: id, rindeForraje: CULTIVOS_FORRAJE[id].rinde, costosForraje: tmplCostos(id) }));
@@ -5402,7 +5503,7 @@ function makeActs(p) {
 }
 
 function MargenActividad(p) {
-  const { margenTotal, margenNeto, margenNetoReal, costoEstructuraAnual, amortTotal, ebitda, ebit, iibbEstimado, inmobiliario, tasas, gananciasEstimado, impuestosTotal, costoOportunidadAnual, dolar, hectareas, fmtMoney } = p;
+  const { margenTotal, margenNeto, margenNetoReal, costoEstructuraAnual, amortTotal, ebitda, ebit, iibbEstimado, inmobiliario, tasas, gananciasEstimado, impuestosTotal, costoOportunidadAnual, gastoComercial, costoTierraAnual, pctComercial, alquilerKgHa, dolar, hectareas, fmtMoney } = p;
   const [expandedAct, setExpandedAct] = React.useState(null);
   const fmt = (n) => Math.round(n).toLocaleString("es-AR");
   const usdV = (v) => dolar ? ("U$S "+fmt(Math.round(v/dolar))) : "";
@@ -5419,12 +5520,14 @@ function MargenActividad(p) {
   const cascada = [
     { label: "Margen bruto total",           val: margenTotal,            sub: "Ingresos menos costos directos de cada actividad",                     color: margenTotal >= 0 ? "text-emerald-700" : "text-red-600",    bg: "bg-white",        sep: false },
     { label: "Menos costos de estructura",   val: -costoEstructuraAnual,  sub: "Empleados, maquinaria, rolado, viajes",                                color: "text-red-600",                                             bg: "bg-slate-50",     sep: false },
+    { label: "Menos comercialización",        val: -(gastoComercial||0),    sub: "Comisión + flete + guías ("+(pctComercial??4)+"% de ventas)" },
     { label: "= EBITDA",                     val: ebitda,                 sub: "Margen antes de amortizaciones e impuestos",                           color: ebitda >= 0 ? "text-emerald-700" : "text-red-600",         bg: "bg-slate-100",    sep: true  },
     { label: "Menos amortizaciones",         val: -amortTotal,            sub: "Mejoras, hacienda reproductora, maquinaria",                           color: "text-red-600",                                             bg: "bg-slate-50",     sep: false },
     { label: "= EBIT",                       val: ebit,                   sub: "Resultado operativo antes de impuestos",                               color: ebit >= 0 ? "text-blue-700" : "text-red-600",              bg: "bg-blue-50",      sep: true  },
     { label: "Menos impuestos estimados",    val: -impuestosTotal,        sub: "IIBB "+fmtMoney(iibbEstimado)+" | Ganancias "+fmtMoney(gananciasEstimado)+" | Otros "+fmtMoney(inmobiliario+tasas), color: "text-red-600", bg: "bg-slate-50", sep: false },
     { label: "= Margen neto",                val: margenNeto,             sub: "Resultado neto despues de impuestos",                                  color: margenNeto >= 0 ? "text-emerald-700" : "text-red-600",     bg: "bg-emerald-50",   sep: true  },
     { label: "Menos costo de oportunidad",   val: -costoOportunidadAnual, sub: "Capital inmovilizado x 5% USD vs alternativa financiera",              color: "text-orange-600",                                         bg: "bg-orange-50",    sep: false },
+    { label: "Menos alquiler tierra",        val: -(costoTierraAnual||0),  sub: "Costo oportunidad de la tierra ("+(alquilerKgHa||0)+" kg nov/ha/año)" },
     { label: "= Rentabilidad economica real",val: margenNetoReal,         sub: "La ganaderia gana mas que una alternativa financiera?",                color: margenNetoReal >= 0 ? "text-emerald-800" : "text-red-700", bg: margenNetoReal >= 0 ? "bg-emerald-100" : "bg-red-50", sep: true },
   ];
 
@@ -6697,7 +6800,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // ── Ingreso pastaje (debe calcularse ANTES del margen bruto) ─────────────
   const periodosPastaje = campoPastaje?.periodos ?? [];
-  const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo");
+  const cobrosPastaje   = periodosPastaje.filter(p => p.tipo === "cobro-periodo" && (p.anoGanadero === anoGanadero || !p.anoGanadero));
   const ingresoPastaje  = cobrosPastaje.reduce((s, p) => s + (p.totalPesos ?? p.pesos ?? 0), 0);
   const kgPastaje       = cobrosPastaje.reduce((s, p) => s + (p.kgTotal ?? 0), 0);
   const cabPastaje      = campoPastaje?.tropas?.reduce((s, t) => s + (t.cabActual ?? t.cab ?? 0), 0) ?? 0;
@@ -6778,7 +6881,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const margenBrutoRec  = ingresoRecria - costoReposicionTotal - sanidadRec;
   const margenBrutoTerm = ingresoTerm - costoFeedlotAnual - sanidadTerm;
   // Devengado de pastaje hasta hoy (kg × precio novillo) — incluye lo cobrado + lo pendiente
-  const precioNovPastaje = campoPastaje?.precioNov ?? precioNovilloGlobal ?? 4300;
+  const precioNovPastaje = (campoPastaje?.precioNov || precioNovilloGlobal || 4300);
   const hoyPast = new Date().toISOString().slice(0, 10);
   const diasEntrePast2 = (desde, hasta) => {
     if (!desde) return 0;
@@ -6808,7 +6911,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const amortHacienda   = campoStore.amorHaciendaReproductora ?? 0;
   const amortMaquinaria = campoStore.amorMaquinaria ?? 0;
   const amortTotal      = amortMejoras + amortHacienda + amortMaquinaria;
-  const ebitda          = margenBrutoTotal - costoEstructuraAnual;
+  // Gastos de comercialización (comisión + flete + guías) sobre ventas de hacienda (no pastaje)
+  const pctComercial    = global.pctComercializacion ?? 4;
+  const gastoComercial  = Math.round((ingresoCria + ingresoRecria + ingresoTerm + ingresoExport) * pctComercial / 100);
+  const ebitda          = margenBrutoTotal - costoEstructuraAnual - gastoComercial;
   const ebit            = ebitda - amortTotal;
   const ingresosTotales = ingresoCria + ingresoRecria + ingresoTerm + ingresoPastaje + ingresoExport;
   const pctIIBB         = campoStore.pctIIBB ?? 3;
@@ -6820,7 +6926,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const gananciasEstimado = gananciasBase * (pctGanancias / 100);
   const impuestosTotal  = iibbEstimado + inmobiliario + tasas + gananciasEstimado;
   const margenNeto      = ebit - impuestosTotal;
-  const margenNetoReal  = margenNeto - costoOportunidadAnual;
+  // Costo de oportunidad de la tierra (alquiler equivalente de la zona, en kg novillo/ha/año)
+  const alquilerKgHa    = global.alquilerKgHaAnio ?? 0;
+  const costoTierraAnual = Math.round(alquilerKgHa * hectareas * precioNovKg);
+  const margenNetoReal  = margenNeto - costoOportunidadAnual - costoTierraAnual;
 
   // Aliases para compatibilidad
   const margenTotal = margenBrutoTotal;
@@ -6835,8 +6944,8 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   const datosSync = {
     cantidad: (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0),
-    pctDestete: Math.round(totalTernerosAlPie / (criaDatos.vacas + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0) + (criaDatos.vaquillonas2??0)) * 100),
-    pesoTerneroDestetado: 165,
+    pctDestete: pctDesteteAgg,
+    pesoTerneroDestetado: Math.round(pesoDestete2 || 187),
     anosVidaUtil: 6,
   };
 
@@ -7031,7 +7140,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               <button onClick={() => {
                 if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno({
                   totalStock: totalStockCampo, kgTotalAnio: kgTotalAct, kgHaAnio: kgHaAct, evTotal: evTotal,
-                  ingresoAnio: Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)),
+                  ingresoAnio: Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)+(ingresoVentas||0)),
                 });
               }}
                 className="text-xs font-bold text-slate-400 hover:text-orange-500 border border-dashed border-slate-200 hover:border-orange-300 px-3 py-1 rounded-full transition-all">
@@ -7931,7 +8040,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                       inputs: {
                         cantidad: (criaDatos.vacas||0) + (criaDatos.vaquillonas1??criaDatos.vaquillonas??0),
                         pesoCompra: 380,
-                        precioKgCompra: 1800,
+                        precioKgCompra: (vacaStore.getState().global.precioInvernada ?? 1800),
                         precioBulto: 350000,
                         mesesRecriaPreServicio: 15,
                         anosVidaUtil: 6,
@@ -8077,7 +8186,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         venta: {
                           cantidad: Math.max(1, reciaDatos.ternerosCompraMachos + reciaDatos.ternerosCompraHembras),
                           pesoPromedio: 180,
-                          precioKg: 2200,
+                          precioKg: (vacaStore.getState().global.precioNovilloInvernada ?? vacaStore.getState().global.precioNovilloInmag ?? 2200),
                         }
                       })}
                       className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
@@ -8136,7 +8245,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                                 onClick={() => onSincronizar({
                                   target: "poder",
                                   descripcion: `Venta ${total} ${cat.label} ${cat.peso}kg → simular reposición`,
-                                  venta: { cantidad: total, pesoPromedio: cat.peso, precioKg: 2200 },
+                                  venta: { cantidad: total, pesoPromedio: cat.peso, precioKg: (vacaStore.getState().global.precioNovilloInvernada ?? vacaStore.getState().global.precioNovilloInmag ?? 2200) },
                                 })}
                                 className="flex items-center justify-center gap-1.5 bg-white border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-black text-xs px-3 py-2.5 rounded-xl transition-all active:scale-95 group">
                                 <RefreshCw size={12} className="group-hover:rotate-180 transition-transform"/>
@@ -8252,7 +8361,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                         venta: {
                           cantidad: terminacionDatos.novillosCampo + terminacionDatos.novillosFeedlot,
                           pesoPromedio: terminacionDatos.pesoPromedioKg,
-                          precioKg: 2200,
+                          precioKg: (vacaStore.getState().global.precioNovilloInvernada ?? vacaStore.getState().global.precioNovilloInmag ?? 2200),
                         }
                       })}
                       className="flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-black text-xs px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95 group">
@@ -8447,7 +8556,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 cabDestetados={cabDestetados} pesoDestete2={pesoDestete2} precioInvKg={precioInvKg}
                 cabRecriaSale={cabRecriaSale} pesoRecria={pesoRecria} precioNovKg={precioNovKg} precioNovInvKg={precioNovInvKg}
                 cabTermSale={cabTermSale} pesoTerm={pesoTerm}
-                costoOportunidadAnual={costoOportunidadAnual}
+                costoOportunidadAnual={costoOportunidadAnual} gastoComercial={gastoComercial} costoTierraAnual={costoTierraAnual} pctComercial={pctComercial} alquilerKgHa={alquilerKgHa}
                 sanidadPorCabAnio={campoStore.sanidadPorCabAnio}
                 totalCabAct={totalCabAct}
                 terminacionDatos={terminacionDatos}
@@ -9644,6 +9753,12 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                   <EditField label="Retenciones exportación (%)" value={global.retencionCarne ?? 5}
                     onChange={v => { vacaStore.getState().setGlobal({ retencionCarne: v }); }}
                     step={0.5} suffix="%" hint="Derechos de exportación sobre novillo (Hilton/UE481). Novillo: 5% · Vaca conserva: 0%." />
+                  <EditField label="Gastos de comercialización (%)" value={global.pctComercializacion ?? 4}
+                    onChange={v => { vacaStore.getState().setGlobal({ pctComercializacion: v }); }}
+                    step={0.5} suffix="%" hint="Comisión del consignatario + flete + guías sobre las ventas de hacienda. Típico 3-5%." />
+                  <EditField label="Alquiler equivalente (kg nov/ha/año)" value={global.alquilerKgHaAnio ?? 0}
+                    onChange={v => { vacaStore.getState().setGlobal({ alquilerKgHaAnio: v }); }}
+                    step={5} suffix="kg" hint="Costo de oportunidad de la tierra: lo que te pagarían de alquiler por ha, en kg de novillo. 0 = no lo contás." />
                   <EditField label="Precio del gasoil ($/L)" value={gasoil} onChange={setGasoil} step={10} prefix="$" usdVal={usd(gasoil)} hint="Se usa para calcular rolados y viajes" />
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ejemplo de conversiones</p>
@@ -9661,7 +9776,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
           )}
 
           {seccion === "historico" && (() => {
-            const _ingAnio = Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0));
+            const _ingAnio = Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)+(ingresoVentas||0));
             const _costoEst = Math.round(costoEstructuraAnual||0);
             const _margen = _ingAnio - _costoEst;
             const _costoOp = Math.round(totalStockCampo * ((global.valorCabPromedio)||1500000) * ((global.tasaOportunidadUSD||5)/100));
@@ -9691,7 +9806,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             <PastajeCampo
               pastaje={campoPastaje}
               setPastaje={setCampoPastaje}
-              precioNovillo={precioNovilloGlobal}
+              precioNovillo={precioNovilloGlobal} anoGanadero={anoGanadero}
               stockPropio={{ cria, recria, terminacion }}
               onToast={onToast || ((msg) => {})}
             />
@@ -9854,7 +9969,7 @@ function CompraRecria({ onGuardar, onToast, onAgregarAlCampo }) {
     comisionVenta: 3,              // %
     // Venta
     modalidadVenta: "invernada",   // invernada | feedlot
-    precioVentaKg: 2800,           // $/kg
+    precioVentaKg: (vacaStore.getState().global.precioNovilloInmag ?? 2800),           // $/kg
     diasFeedlot: 60,
     gdpFeedlot: 1.1,
     costoFeedlotCab: 4500,         // $/cab/día
@@ -10623,7 +10738,7 @@ function TropaEditorFields({ tropa, onSave }) {
   );
 }
 
-function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast }) {
+function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, onToast, anoGanadero }) {
   const [vista, setVista] = useState("tropas");
   const [modal, setModal] = useState(null);
   const [tropaEgreso, setTropaEgreso] = useState(null);
@@ -11634,7 +11749,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       if (preview.length === 0) { toast("No hay kg a liquidar en este período", "warn"); return; }
       // Crear el registro de cobro
       const nuevoCobro = {
-        id: Date.now(), tipo: "cobro-periodo",
+        id: Date.now(), tipo: "cobro-periodo", anoGanadero,
         propietarioId: propCobroActivo,
         modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta: fechaHastaEfectiva,
         lineas: preview,
@@ -12211,7 +12326,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               if (monto <= 0) { toast("Monto inválido", "warn"); return; }
               const fecha = window.prompt("¿Qué fecha? (AAAA-MM-DD)", hoy) || hoy;
               const nuevoCobro = {
-                id: Date.now(), tipo: "cobro-periodo",
+                id: Date.now(), tipo: "cobro-periodo", anoGanadero,
                 propietarioId: propCobroActivo,
                 manual: true, lineas: [], kgTotal: 0,
                 precioNov: precioNov ?? 0,
