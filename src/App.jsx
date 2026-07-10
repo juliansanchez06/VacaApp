@@ -203,7 +203,7 @@ async function cargarEstado(userEmail, intentos = 3) {
     if (data.simulaciones)      vacaStore.setState({ simulaciones: data.simulaciones });
     if (data.historialAnos)     vacaStore.setState({ historialAnos: data.historialAnos });
     if (data.anoGanaderoActual) vacaStore.setState({ anoGanaderoActual: data.anoGanaderoActual });
-    vacaStore.setState({ firestoreCargado: true });
+    vacaStore.setState({ firestoreCargado: true, __dataVersion: 3 });
   }
 
   // Aplica el estado vacío (campo en cero) — para usuarios nuevos
@@ -545,6 +545,7 @@ const vacaStore = createStore((set, get) => ({
       ano: anoGanaderoActual,
       cria: { ...c }, recria: { ...r }, terminacion: { ...t },
       fechaCierre: new Date().toLocaleDateString("es-AR"),
+      nota: (datosVivo && datosVivo.nota) || "",
       resumen: { totalDest, hembrasDest, hembrasRepos, vacasDescarte: c.vacias||0, machosSobrev },
       balance: {
         kgTotalAnio: S_kgTotal, kgHaAnio: S_kgHa, ingresoAnio: S_ingreso, costoEst, margenAnio: S_margen,
@@ -6371,7 +6372,7 @@ function Sparkline({ series, color = "#2F9D4E" }) {
   );
 }
 
-function VistaHistorico({ historialAnos = {}, actual, onVerAno }) {
+function VistaHistorico({ historialAnos = {}, actual, onVerAno, onEditarNota }) {
   const anios = Object.keys(historialAnos).sort();
   const cols = [
     ...anios.map(a => ({ key: a, label: a, data: historialAnos[a], cerrado: true })),
@@ -6467,6 +6468,21 @@ function VistaHistorico({ historialAnos = {}, actual, onVerAno }) {
             </tbody>
           </table>
         </div>
+        {cols.some(c => c.cerrado) && (
+          <div className="mt-4 pt-3 border-t" style={{ borderColor: "#EEF2EE" }}>
+            <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: "#8A9A9E" }}>📝 Bitácora de ejercicios</p>
+            {cols.filter(c => c.cerrado).map(c => (
+              <div key={c.key} className="flex items-start gap-2 py-1.5">
+                <span className="text-xs font-black shrink-0" style={{ fontFamily: DISPLAY, color: "#163049", minWidth: 82 }}>{c.label}</span>
+                <p className="flex-1 text-xs leading-relaxed" style={{ color: c.data.nota ? "#3D4E52" : "#B4C0C3", fontStyle: c.data.nota ? "normal" : "italic" }}>{c.data.nota || "Sin notas de este ejercicio."}</p>
+                {onEditarNota && (
+                  <button onClick={() => { const n = window.prompt("📝 Notas del ejercicio " + c.label + ":", c.data.nota || ""); if (n !== null) onEditarNota(c.key, n); }}
+                    className="text-[10px] font-black px-2 py-1 rounded-full shrink-0" style={{ background: "#EEF3EE", color: "#163D44" }}>✏ Editar</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         {anios.length >= 1 && (
           <p className="text-[11px] mt-3" style={{ color: "#8A9A9E" }}>Los años cerrados antes de la última actualización pueden mostrar números aproximados (se calculaban con un modelo simplificado). Desde ahora, cada cierre guarda los valores reales de la app.</p>
         )}
@@ -7139,6 +7155,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
             {!anoViendo && (
               <button onClick={() => {
                 if (window.confirm(`¿Cerrar el año ${anoGanadero} y abrir el siguiente? El stock se mantiene.`)) onCerrarAno({
+                  nota: window.prompt("📝 Notas del ejercicio " + anoGanadero + " (opcional): clima, ventas, decisiones que quieras recordar...", "") || "",
                   totalStock: totalStockCampo, kgTotalAnio: kgTotalAct, kgHaAnio: kgHaAct, evTotal: evTotal,
                   ingresoAnio: Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)+(ingresoVentas||0)),
                 });
@@ -9799,6 +9816,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 historialAnos={historialAnos}
                 actual={anoViendo ? null : actual}
                 onVerAno={(a) => { setAnoViendo(a); setSeccion("stock"); }}
+                onEditarNota={(a, nota) => { const h = { ...historialAnos }; if (h[a]) { h[a] = { ...h[a], nota }; vacaStore.setState({ historialAnos: h }); } }}
               />
             );
           })()}
@@ -12741,6 +12759,7 @@ function EstrategiaComercial({ userEmail, onLogout }) {
   const handleCerrarAno = (datosVivo) => {
     // PILAR 2: usa la action del store que hace el envejecimiento biológico real
     const snap = vacaStore.getState().cerrarAnoGanadero(datosVivo);
+    if (snap) { try { descargarRespaldo(); } catch (e) { console.warn("auto-respaldo:", e); } }
     const r = snap.resumen;
     pushToast(
       `✅ Año ${snap.ano} cerrado → ${r.totalDest} terneros · ${r.vacasDescarte} vacas descarte · ${r.hembrasRepos} vaquillonas reposición`,
