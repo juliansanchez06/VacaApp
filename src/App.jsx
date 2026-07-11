@@ -6491,6 +6491,57 @@ function VistaHistorico({ historialAnos = {}, actual, onVerAno, onEditarNota }) 
   );
 }
 
+
+/* ═══ Semáforo del negocio — indicadores con umbrales ganaderos ═══ */
+function SemaforoNegocio({ indicadores }) {
+  const COL = {
+    verde:    { bg: "#E9F4EC", bd: "#9FD4AC", txt: "#1F7A3D", dot: "#2F9D4E", lab: "Bien" },
+    amarillo: { bg: "#FCF6E3", bd: "#EAD79A", txt: "#8A6D12", dot: "#E0A800", lab: "Atención" },
+    rojo:     { bg: "#FBEAEA", bd: "#E7A9A9", txt: "#C23B3B", dot: "#D64545", lab: "Revisar" },
+    info:     { bg: "#EAF1F0", bd: "#9DBAB0", txt: "#2C5A55", dot: "#3D8B7F", lab: "Señal" },
+  };
+  const cnt = (e) => indicadores.filter(i => i.estado === e).length;
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl p-5" style={{ background: "#fff", border: "1px solid #E6EBE5" }}>
+        <div className="flex items-center gap-3 mb-1">
+          <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: "#E9F4EC" }}>🚦</span>
+          <div>
+            <p className="text-lg font-bold tracking-tight" style={{ fontFamily: DISPLAY, color: "#163049" }}>Semáforo del negocio</p>
+            <p className="text-xs" style={{ color: "#66767B" }}>Cómo viene tu campo, indicador por indicador. Verde = bien · Amarillo = atención · Rojo = revisar.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3 text-xs font-black">
+          <span style={{ background: COL.verde.bg, color: COL.verde.txt, padding: "4px 12px", borderRadius: 999 }}>🟢 {cnt("verde")} bien</span>
+          <span style={{ background: COL.amarillo.bg, color: COL.amarillo.txt, padding: "4px 12px", borderRadius: 999 }}>🟡 {cnt("amarillo")} atención</span>
+          <span style={{ background: COL.rojo.bg, color: COL.rojo.txt, padding: "4px 12px", borderRadius: 999 }}>🔴 {cnt("rojo")} revisar</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {indicadores.map((ind, i) => {
+          const c = COL[ind.estado] || COL.info;
+          return (
+            <div key={i} className="rounded-2xl p-4" style={{ background: c.bg, border: "1px solid " + c.bd }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{ind.icon}</span>
+                  <p className="text-sm font-black" style={{ color: "#163049" }}>{ind.label}</p>
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0" style={{ background: "#fff", color: c.txt }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 99, background: c.dot, display: "inline-block" }}></span>{c.lab}
+                </span>
+              </div>
+              <p className="text-2xl font-black mt-1 leading-none" style={{ fontFamily: DISPLAY, color: c.txt }}>{ind.valor}<span className="text-sm ml-1 font-bold" style={{ color: "#8A9A9E" }}>{ind.unidad}</span></p>
+              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: "#3D4E52" }}>{ind.detalle}</p>
+              {ind.umbral && <p className="text-[10px] mt-1.5" style={{ color: "#8A9A9E" }}>Referencia: {ind.umbral}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, terminacion, setTerminacion, anoGanadero, historialAnos, onCerrarAno, onReabrirAno, campoPastaje, setCampoPastaje, precioNovilloGlobal, movimientos = [], setMovimientos, onToast }) {
   const global = useGlobal();
   const [seccion,    setSeccion]    = useState("stock");
@@ -7091,6 +7142,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     { id: "config",       label: "Cotizaciones",       icon: "💲" },
     { id: "pastaje",      label: "Pastaje",            icon: "🤝" },
     { id: "historico",    label: "Histórico",          icon: "📈" },
+    { id: "semaforo",     label: "Semáforo",           icon: "🚦" },
   ];
 
   // ── Mini helper: campo editable con +/- ─────────────────────────────────
@@ -9792,6 +9844,61 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
           )}
 
+          {seccion === "semaforo" && (() => {
+            const inds = [];
+            const est = (v, ok, mid) => v == null ? "info" : (v >= ok ? "verde" : v >= mid ? "amarillo" : "rojo");
+            // 1) Preñez
+            inds.push({ icon: "🐄", label: "% Preñez", valor: pctPreniezAgg == null ? "—" : pctPreniezAgg, unidad: pctPreniezAgg == null ? "" : "%",
+              estado: pctPreniezAgg == null ? "info" : est(pctPreniezAgg, 90, 82),
+              detalle: pctPreniezAgg == null ? "Cargá un tacto/eco para medir la preñez." : pctPreniezAgg >= 90 ? "Preñez muy buena, el rodeo está fértil." : pctPreniezAgg >= 82 ? "Aceptable, pero hay margen para mejorar (nutrición, sanidad, toros)." : "Baja. Revisá condición corporal, toros y sanidad reproductiva.",
+              umbral: "≥90% muy bien · 82-90% aceptable · <82% baja" });
+            // 2) Destete
+            inds.push({ icon: "🐮", label: "% Destete", valor: pctDesteteAgg == null ? "—" : pctDesteteAgg, unidad: "%",
+              estado: est(pctDesteteAgg, 85, 75),
+              detalle: pctDesteteAgg >= 85 ? "Muy buena eficiencia: la mayoría de lo preñado llega al destete." : pctDesteteAgg >= 75 ? "Aceptable. Ojo con mortandad perinatal y manejo del ternero." : "Baja. Se pierden terneros entre parición y destete.",
+              umbral: "≥85% muy bien · 75-85% aceptable · <75% baja" });
+            // 3) Carga EV/ha
+            const cargaHa = hectareas > 0 ? evTotal / hectareas : 0;
+            const cargaEst = cargaHa >= 0.8 && cargaHa <= 1.1 ? "verde" : (cargaHa >= 0.6 && cargaHa < 1.3) ? "amarillo" : "rojo";
+            inds.push({ icon: "🌱", label: "Carga animal", valor: Math.round(cargaHa * 100) / 100, unidad: "EV/ha",
+              estado: cargaEst,
+              detalle: cargaHa < 0.6 ? "Campo subutilizado: podés cargar más hacienda o tomar pastaje." : cargaHa > 1.3 ? "Sobrecarga: riesgo de faltante de pasto y pérdida de estado." : "Carga en zona óptima para la receptividad típica.",
+              umbral: "≈1,0 EV/ha (zona templada). Ajustá a tu receptividad real" });
+            // 4) Estructura / ingreso
+            const pctEstr = ingresosTotales > 0 ? Math.round(costoEstructuraAnual / ingresosTotales * 100) : null;
+            inds.push({ icon: "🏗️", label: "Estructura / ingreso", valor: pctEstr == null ? "—" : pctEstr, unidad: "%",
+              estado: pctEstr == null ? "info" : (pctEstr <= 25 ? "verde" : pctEstr <= 40 ? "amarillo" : "rojo"),
+              detalle: pctEstr == null ? "Cargá ingresos y costos de estructura." : pctEstr <= 25 ? "Estructura liviana respecto a lo que factura el campo." : pctEstr <= 40 ? "Estructura media. Vigilá que no crezca más que el ingreso." : "Estructura pesada: se come buena parte del ingreso.",
+              umbral: "<25% liviana · 25-40% media · >40% pesada" });
+            // 5) Resultado real / ha vs alquiler
+            const resHa = hectareas > 0 ? Math.round(margenNetoReal / hectareas) : 0;
+            const alquilerHa = (alquilerKgHa || 0) * precioNovKg;
+            const resEst = margenNetoReal < 0 ? "rojo" : (alquilerHa > 0 ? (resHa >= alquilerHa ? "verde" : "amarillo") : (resHa > 0 ? "verde" : "rojo"));
+            inds.push({ icon: "💰", label: "Resultado real / ha", valor: "$" + (resHa || 0).toLocaleString("es-AR"), unidad: "/ha",
+              estado: resEst,
+              detalle: margenNetoReal < 0 ? "El negocio no cubre el costo de oportunidad (capital + tierra): destruye valor." : alquilerHa > 0 ? (resHa >= alquilerHa ? "La ganadería le gana al alquilar el campo. Bien parado." : "Da positivo pero rinde menos que alquilar la tierra.") : (resHa > 0 ? "Resultado real positivo tras costo de capital." : "Resultado real negativo."),
+              umbral: alquilerHa > 0 ? ("Alquiler equivalente: $" + Math.round(alquilerHa).toLocaleString("es-AR") + "/ha") : "Cargá el alquiler de tu zona en Cotizaciones para comparar" });
+            // 6) Relación toro / vaca
+            const nVacas = (criaDatos.vacas || 0), nToros = (criaDatos.toros || 0);
+            const pctToro = nVacas > 0 ? Math.round(nToros / nVacas * 1000) / 10 : null;
+            inds.push({ icon: "🐂", label: "Relación toro / vaca", valor: pctToro == null ? "—" : pctToro, unidad: "%",
+              estado: pctToro == null ? "info" : (pctToro >= 3 && pctToro <= 5 ? "verde" : (pctToro >= 2 && pctToro < 7) ? "amarillo" : "rojo"),
+              detalle: pctToro == null ? "Cargá vacas y toros." : pctToro < 2 ? "Faltan toros para el servicio: riesgo de baja preñez." : pctToro > 7 ? "Sobran toros: capital ocioso, podés vender alguno." : "Relación de servicio correcta (~1 toro cada 25-30 vacas).",
+              umbral: "3-5% (1 toro cada 20-33 vacas)" });
+            // 7) Mortandad cría
+            const mort = criaDatos.pctMortandadCria ?? 2;
+            inds.push({ icon: "⚠️", label: "Mortandad cría", valor: mort, unidad: "%",
+              estado: mort <= 3 ? "verde" : mort <= 6 ? "amarillo" : "rojo",
+              detalle: mort <= 3 ? "Mortandad baja, dentro de lo esperado." : mort <= 6 ? "Algo alta: revisá sanidad y manejo de parición." : "Alta: hay un problema sanitario o de manejo que atacar.",
+              umbral: "<3% normal · 3-6% atención · >6% alta" });
+            // 8) Relación flaco / gordo (señal de mercado)
+            const ratioFG = precioNovKg > 0 ? Math.round((precioInvKg / precioNovKg) * 100) / 100 : null;
+            inds.push({ icon: "⚖️", label: "Relación flaco / gordo", valor: ratioFG == null ? "—" : ratioFG, unidad: "x",
+              estado: "info",
+              detalle: ratioFG == null ? "Cargá los precios en Cotizaciones." : ratioFG >= 1.35 ? "El ternero está caro respecto al gordo: conviene retener/vender flaco y no comprar para recriar." : ratioFG <= 1.1 ? "El ternero está barato: buen momento para comprar y recriar." : "Relación flaco/gordo en niveles normales.",
+              umbral: "Ternero ÷ novillo gordo ($/kg). Alto = flaco caro" });
+            return <SemaforoNegocio indicadores={inds} />;
+          })()}
           {seccion === "historico" && (() => {
             const _ingAnio = Math.round((ingresoCria||0)+(ingresoRecria||0)+(ingresoTerm||0)+(ingresoPastaje||0)+(hiltonIngresoPesos||0)+(ue481IngresoPesos||0)+(ingresoVentas||0));
             const _costoEst = Math.round(costoEstructuraAnual||0);
