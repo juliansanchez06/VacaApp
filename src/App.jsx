@@ -7279,6 +7279,15 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
               <span style={{ color: "#9DBAB0" }}>=</span>
               <span style={{ background: "#163D44", color: "#fff", padding: "6px 14px", borderRadius: 999 }}>{cabCria + cabRec + cabTerm} cab</span>
             </div>
+            {cabPastaje > 0 && (
+              <div className="flex items-center flex-wrap gap-2 text-sm font-black mt-2 pt-2 border-t" style={{ color: "#163049", borderColor: "#EEF2EE" }}>
+                <span style={{ background: "#EAF1F0", padding: "6px 12px", borderRadius: 999 }}>Tuyos {cabCria + cabRec + cabTerm}</span>
+                <span style={{ color: "#9DBAB0" }}>+</span>
+                <span style={{ background: "#FFF1E6", color: "#B45309", padding: "6px 12px", borderRadius: 999 }}>🤝 Pastaje (terceros) {cabPastaje}</span>
+                <span style={{ color: "#9DBAB0" }}>=</span>
+                <span style={{ background: "#2F9D4E", color: "#fff", padding: "6px 14px", borderRadius: 999 }}>{cabCria + cabRec + cabTerm + cabPastaje} cab en el campo</span>
+              </div>
+            )}
             <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "#5A6B6E" }}>Cada animal se cuenta una sola vez. Al destetar, los terneros pasan de Cría a Recría: <b>Cría baja y Recría sube</b>, el total no cambia. Si ves que Cría no baja al destetar, avisame el número de Cría antes y después.</p>
           </div>
         )}
@@ -7304,14 +7313,17 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 <div className="text-center">
                   <p className="text-xs text-slate-400">EV propio</p>
                   <p className="font-mono font-black text-xl text-slate-700">{Math.round(totalEV)}</p>
+                  <p className="text-[11px] font-bold text-slate-500">{totalStockCampo} cab</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-slate-400">EV pastaje</p>
                   <p className="font-mono font-black text-xl text-orange-500">{Math.round(evPastaje)}</p>
+                  <p className="text-[11px] font-bold text-orange-500">{cabPastaje} cab</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-slate-400">EV/ha total</p>
                   <p className="font-mono font-black text-2xl" style={{ color: estado.bar }}>{evPorHa.toFixed(2)}</p>
+                  <p className="text-[11px] font-bold" style={{ color: estado.bar }}>{totalStockCampo + cabPastaje} cab en el campo</p>
                 </div>
               </div>
               {/* Barra apilada: propio (azul) + pastaje (naranja) */}
