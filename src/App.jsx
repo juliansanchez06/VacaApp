@@ -5676,6 +5676,16 @@ function MargenActividad(p) {
 }
 
 
+// ─── Movimientos multi-línea: normalización (compat con los viejos de 1 categoría) ───
+function lineasMov(m) {
+  if (!m) return [];
+  if (Array.isArray(m.lineas) && m.lineas.length) return m.lineas;
+  return [{ tipoId: m.tipoId, label: m.label, cab: m.cab, kgProm: m.kgProm, precioKg: m.precioKg }];
+}
+function cabDeMov(m)   { return lineasMov(m).reduce((s, l) => s + (Number(l.cab) || 0), 0); }
+function kgDeMov(m)    { return lineasMov(m).reduce((s, l) => s + (Number(l.cab) || 0) * (Number(l.kgProm) || 0), 0); }
+function pesosDeMov(m) { return lineasMov(m).reduce((s, l) => s + (Number(l.cab) || 0) * (Number(l.kgProm) || 0) * (Number(l.precioKg) || 0), 0); }
+
 function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, onAplicarStock, movimientosAnio, kgVendidosTotal, ingresoVentas, costoCompras, kgHaAct, totalDestete, reciaDatos, terminacionDatos, hectareas, anoGanadero, hoy, global, onToast }) {
   const TIPOS_MOV = [
     { id: "venta-novillos",   label: "Venta novillos",        tipo: "venta",  emoji: "💚" },
@@ -5686,16 +5696,54 @@ function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, o
   ];
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ tipoId: "venta-novillos", fecha: hoy, cab: 10, kgProm: 330, precioKg: global?.precioNovilloInmag ?? 1800, obs: "" });
+  const pesoSugerido   = (tid) => tid === "venta-vacas" ? 420 : (String(tid).includes("terneros") ? 180 : 330);
+  const precioSugerido = (tid) => {
+    const g = global || {};
+    if (String(tid).includes("terneros")) return g.precioInvernada ?? 1600;
+    if (tid === "venta-novillos")         return g.precioNovilloInvernada ?? g.precioNovilloInmag ?? 1800;
+    return g.precioNovilloInmag ?? 1800;
+  };
+  const lineaNueva = (tid) => ({ tipoId: tid, cab: 1, kgProm: pesoSugerido(tid), precioKg: precioSugerido(tid) });
+
+  const [form, setForm] = useState({ tipo: "venta", fecha: hoy, obs: "", lineas: [{ tipoId: "venta-novillos", cab: 10, kgProm: 330, precioKg: global?.precioNovilloInmag ?? 1800 }] });
+
+  const setLinea     = (i, patch) => setForm(p => ({ ...p, lineas: p.lineas.map((l, k) => k === i ? { ...l, ...patch } : l) }));
+  const quitarLinea  = (i) => setForm(p => ({ ...p, lineas: p.lineas.filter((_, k) => k !== i) }));
+  const agregarLinea = () => setForm(p => {
+    const def = TIPOS_MOV.find(t => t.tipo === p.tipo);
+    return { ...p, lineas: [...p.lineas, lineaNueva(def.id)] };
+  });
+  const cambiarOperacion = (tipo) => setForm(p => {
+    const def = TIPOS_MOV.find(t => t.tipo === tipo);
+    return { ...p, tipo, lineas: p.lineas.map(l => {
+      const t = TIPOS_MOV.find(x => x.id === l.tipoId);
+      return (t && t.tipo === tipo) ? l : { ...l, tipoId: def.id, kgProm: pesoSugerido(def.id), precioKg: precioSugerido(def.id) };
+    }) };
+  });
+  const totalForm = form.lineas.reduce((s, l) => s + (Number(l.cab)||0) * (Number(l.kgProm)||0) * (Number(l.precioKg)||0), 0);
+  const cabForm   = form.lineas.reduce((s, l) => s + (Number(l.cab)||0), 0);
 
   const agregarMovimiento = () => {
-    const tipoMov = TIPOS_MOV.find(t => t.id === form.tipoId);
-    const cab = Number(form.cab), kgProm = Number(form.kgProm), precioKg = Number(form.precioKg);
-    const nuevo = { ...form, cab, kgProm, precioKg, id: Date.now(), tipo: tipoMov.tipo, label: tipoMov.label, anoGanadero, kgTotal: cab * kgProm, montoTotal: cab * kgProm * precioKg };
+    const lineas = form.lineas.map(l => {
+      const t = TIPOS_MOV.find(x => x.id === l.tipoId);
+      const cab = Number(l.cab)||0, kgProm = Number(l.kgProm)||0, precioKg = Number(l.precioKg)||0;
+      return { tipoId: l.tipoId, label: t?.label ?? "", cab, kgProm, precioKg, monto: cab * kgProm * precioKg };
+    }).filter(l => l.cab > 0);
+    if (!lineas.length) { onToast?.("Cargá al menos una categoría con cabezas.", "warn"); return; }
+    const montoTotal = lineas.reduce((s, l) => s + l.monto, 0);
+    const cabTotal   = lineas.reduce((s, l) => s + l.cab, 0);
+    const resumen = lineas.map(l => l.cab + " " + String(l.label).replace(/^(Venta|Compra)\s+/i, "")).join(" + ");
+    const nuevo = {
+      id: Date.now(), tipo: form.tipo, fecha: form.fecha, obs: form.obs, anoGanadero,
+      lineas, montoTotal, cab: cabTotal, kgTotal: lineas.reduce((s, l) => s + l.cab * l.kgProm, 0),
+      tipoId: lineas[0].tipoId,
+      label: (form.tipo === "venta" ? "Venta" : "Compra") + ": " + resumen,
+    };
     setMovimientos(prev => [...prev, nuevo]);
     onAplicarStock?.(nuevo, false); // mueve el stock (venta saca / compra pone)
     setShowForm(false);
-    onToast?.(`✅ ${tipoMov.label}: ${cab} cab · $${(nuevo.montoTotal).toLocaleString("es-AR")} · stock ajustado`, "success");
+    setForm(p => ({ ...p, obs: "" }));
+    onToast?.("✅ " + nuevo.label + " · $" + montoTotal.toLocaleString("es-AR") + " · stock ajustado", "success");
   };
 
   const kgProdEstimado = Math.round((totalDestete ?? 0) * 165 + ((reciaDatos?.novillos ?? 0) + (reciaDatos?.ternerosLiquidaMachos ?? 0) + (reciaDatos?.ternerosCompraMachos ?? 0)) * 320 + ((terminacionDatos?.novillosCampo ?? 0) + (terminacionDatos?.novillosFeedlot ?? 0)) * (terminacionDatos?.pesoPromedioKg ?? 420));
@@ -5776,42 +5824,79 @@ function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, o
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">Nuevo movimiento</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500">Tipo</label>
-              <select value={form.tipoId} onChange={e => setForm(p => ({...p, tipoId: e.target.value}))}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400">
-                {TIPOS_MOV.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
-              </select>
+              <label className="text-xs font-bold text-slate-500">Operación</label>
+              <div className="mt-1 flex gap-2">
+                {[{ id: "venta", label: "💚 Venta" }, { id: "compra", label: "🔴 Compra" }].map(o => (
+                  <button key={o.id} onClick={() => cambiarOperacion(o.id)}
+                    className="flex-1 py-2 rounded-xl text-sm font-black transition-all"
+                    style={form.tipo === o.id ? { background: "#163D44", color: "#fff" } : { background: "#fff", border: "1px solid #C9D6CC", color: "#5A6B6E" }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500">Fecha</label>
-              <input type="date" value={form.fecha} onChange={e => setForm(p => ({...p, fecha: e.target.value}))}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+              <input type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500">Cabezas</label>
-              <input type="number" min="1" value={form.cab} onChange={e => setForm(p => ({...p, cab: e.target.value}))}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500">Peso promedio (kg/cab)</label>
-              <input type="number" min="1" value={form.kgProm} onChange={e => setForm(p => ({...p, kgProm: e.target.value}))}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500">Precio ($/kg vivo)</label>
-              <input type="number" min="1" value={form.precioKg} onChange={e => setForm(p => ({...p, precioKg: e.target.value}))}
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500">Categorías — podés cargar varias en el mismo movimiento</label>
+            {form.lineas.map((l, i) => (
+              <div key={i} className="rounded-xl p-2.5" style={{ background: "#F7FAF7", border: "1px solid #E6EBE5" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <select value={l.tipoId}
+                    onChange={e => setLinea(i, { tipoId: e.target.value, kgProm: pesoSugerido(e.target.value), precioKg: precioSugerido(e.target.value) })}
+                    className="flex-1 border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none">
+                    {TIPOS_MOV.filter(t => t.tipo === form.tipo).map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+                  </select>
+                  {form.lineas.length > 1 && (
+                    <button onClick={() => quitarLinea(i)} className="text-slate-300 hover:text-red-500 font-black px-1 shrink-0">✕</button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">Cabezas</label>
+                    <input type="number" min="0" value={l.cab} onChange={e => setLinea(i, { cab: e.target.value })}
+                      className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">kg/cab</label>
+                    <input type="number" min="0" value={l.kgProm} onChange={e => setLinea(i, { kgProm: e.target.value })}
+                      className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">$/kg vivo</label>
+                    <input type="number" min="0" value={l.precioKg} onChange={e => setLinea(i, { precioKg: e.target.value })}
+                      className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none" />
+                  </div>
+                </div>
+                <p className="text-right text-xs font-black mt-1.5" style={{ color: form.tipo === "venta" ? "#1F7A3D" : "#C23B3B" }}>
+                  {fmt(Math.round((Number(l.cab)||0) * (Number(l.kgProm)||0)))} kg · {fmtM((Number(l.cab)||0) * (Number(l.kgProm)||0) * (Number(l.precioKg)||0))}
+                </p>
+              </div>
+            ))}
+            <button onClick={agregarLinea}
+              className="w-full py-2 rounded-xl border-2 border-dashed text-sm font-black transition-all"
+              style={{ borderColor: "#9DBAB0", color: "#163D44", background: "#fff" }}>
+              + Agregar categoría
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-500">Total estimado</label>
-              <div className="mt-1 w-full border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 font-black text-emerald-700">
-                {fmtM(Number(form.cab) * Number(form.kgProm) * Number(form.precioKg))}
+              <div className="mt-1 w-full border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 font-black"
+                style={{ color: form.tipo === "venta" ? "#1F7A3D" : "#C23B3B" }}>
+                {fmtM(totalForm)} <span className="text-xs font-bold text-slate-400">· {cabForm} cab</span>
               </div>
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <label className="text-xs font-bold text-slate-500">Observaciones (opcional)</label>
-              <input type="text" value={form.obs} onChange={e => setForm(p => ({...p, obs: e.target.value}))} placeholder="Ej: Feria Liniers, Campo La Loma…"
-                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-400" />
+              <input type="text" value={form.obs} onChange={e => setForm(p => ({ ...p, obs: e.target.value }))} placeholder="Ej: Feria Liniers, Campo La Loma..."
+                className="mt-1 w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
             </div>
           </div>
           <button onClick={agregarMovimiento}
@@ -5852,12 +5937,15 @@ function VistaMovimientos({ movimientos, setMovimientos, onDeshacerMovimiento, o
                 <span className="text-2xl">{tipoInfo.emoji ?? (esVenta ? "💚" : "🔴")}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-sm text-slate-800">{m.label}</p>
-                  <p className="text-xs text-slate-500 truncate">{m.fecha} · {m.cab} cab · {fmt(m.kgProm)} kg/cab · ${fmt(m.precioKg)}/kg</p>
+                  <p className="text-xs text-slate-500">{m.fecha} · {cabDeMov(m)} cab</p>
+                  {lineasMov(m).map((l, k) => (
+                    <p key={k} className="text-[11px] text-slate-400 truncate">• {l.cab} {String(l.label || "").replace(/^(Venta|Compra)\s+/i, "")} · {fmt(l.kgProm)} kg/cab · ${fmt(l.precioKg)}/kg</p>
+                  ))}
                   {m.obs && <p className="text-xs text-slate-400 italic truncate">{m.obs}</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-slate-400">{fmt(Math.round(m.kgTotal))} kg</p>
-                  <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtM(m.montoTotal)}</p>
+                  <p className="text-xs text-slate-400">{fmt(Math.round(kgDeMov(m)))} kg</p>
+                  <p className={`font-black text-sm ${esVenta ? "text-emerald-700" : "text-red-700"}`}>{esVenta ? "+" : "−"}{fmtM(pesosDeMov(m))}</p>
                 </div>
                 <button onClick={() => { if (window.confirm("¿Eliminar este movimiento? Se revierte el ajuste de stock.")) { onAplicarStock?.(m, true); setMovimientos(prev => prev.filter(x => x.id !== m.id)); } }}
                   className="text-slate-300 hover:text-red-500 font-black transition-colors shrink-0">✕</button>
@@ -6625,12 +6713,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
 
   // Venta/compra mueve el stock (revertir=true al borrar el movimiento). Mapeo por categoría.
   const aplicarStockMovimiento = (mov, revertir = false) => {
-    const cab = Number(mov?.cab) || 0;
+    const clamp = (x) => Math.max(0, x);
+    lineasMov(mov).forEach((linea) => {
+    const cab = Number(linea?.cab) || 0;
     if (!cab) return;
     const sVenta  = revertir ? +cab : -cab;   // venta saca al crear, devuelve al borrar
     const sCompra = revertir ? -cab : +cab;   // compra pone al crear, saca al borrar
-    const clamp = (x) => Math.max(0, x);
-    switch (mov.tipoId) {
+    switch (linea.tipoId) {
       case "venta-novillos":  setRecriaActiva(p => ({ ...p, novillos: clamp((p.novillos ?? 0) + sVenta) })); break;
       case "venta-vacas":     setCriaActiva(p => ({ ...p, vacaCut: clamp((p.vacaCut ?? 0) + sVenta) })); break;
       case "venta-terneros":  setRecriaActiva(p => ({ ...p, ternerosLiquidaMachos: clamp((p.ternerosLiquidaMachos ?? 0) + sVenta) })); break;
@@ -6638,6 +6727,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
       case "compra-novillos": setTermActiva(p => ({ ...p, novillosCampo: clamp((p.novillosCampo ?? 0) + sCompra) })); break;
       default: break;
     }
+    });
   };
   const setTermActiva   = anoViendo ? () => {} : setTerminacion;
 
@@ -6756,10 +6846,10 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const movimientosAnio = movimientos.filter(m => m.anoGanadero === anoGanadero || !m.anoGanadero);
   const ventas   = movimientosAnio.filter(m => m.tipo === "venta");
   const compras  = movimientosAnio.filter(m => m.tipo === "compra");
-  const kgVendidosTotal  = ventas.reduce((s, m) => s + (m.cab * m.kgProm), 0);
-  const kgCompradosTotal = compras.reduce((s, m) => s + (m.cab * m.kgProm), 0);
-  const ingresoVentas    = ventas.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
-  const costoCompras     = compras.reduce((s, m) => s + (m.cab * m.kgProm * m.precioKg), 0);
+  const kgVendidosTotal  = ventas.reduce((s, m) => s + kgDeMov(m), 0);
+  const kgCompradosTotal = compras.reduce((s, m) => s + kgDeMov(m), 0);
+  const ingresoVentas    = ventas.reduce((s, m) => s + pesosDeMov(m), 0);
+  const costoCompras     = compras.reduce((s, m) => s + pesosDeMov(m), 0);
 
   // Deshacer un movimiento registrado (revierte el efecto y lo saca del log)
   const deshacerMovimiento = (mov) => {
