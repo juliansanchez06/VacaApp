@@ -11080,7 +11080,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     const cab = tropa.cabActual ?? tropa.cab;
     if (cab <= 0) return 0;
     const kgMes = precios[tropa.cat] ?? 6;
-    return cab * kgMes * (diasEntre(tropa.fechaIngreso, hasta) / 30);
+    // Sincronizado con la liquidación: se devenga desde el último cobro (o el ingreso si nunca se cobró).
+    return cab * kgMes * (diasEntre(tropa.ultimoCobro || tropa.fechaIngreso, hasta) / 30);
   };
   const kgTotalesHoy = tropas.reduce((s, t) => s + kgDevengados(t, null), 0);
   const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
@@ -12805,7 +12806,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         <div>
           <h2 className="font-black text-slate-800 text-xl tracking-tight">🤝 Pastaje</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            {totalCabPastaje} cab · devengado: <span className="font-bold text-emerald-700">{fmtN(Math.round(kgTotalesHoy))} kg nov</span>
+            {totalCabPastaje} cab · <span className="text-slate-400">por cobrar:</span> <span className="font-bold text-emerald-700">{fmtN(Math.round(kgTotalesHoy))} kg nov</span>
             {kgPendientes > 0 && <> · <span className="text-amber-600 font-bold">{fmtN(Math.round(kgPendientes))} kg por cobrar</span></>}
           </p>
         </div>
