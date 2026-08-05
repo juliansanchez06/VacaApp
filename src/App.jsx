@@ -11604,8 +11604,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   <div key={m} className={`flex items-center gap-3 rounded-xl px-3 py-2 border transition-all ${activo ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
                     <span className={`text-xs font-black w-8 ${activo ? "text-amber-700" : "text-slate-400"}`}>{lbl}</span>
                     <input
-                      type="number" step="0.1" min="0" value={kg === 0 ? "" : kg}
-                      placeholder="0"
+                      type="number" step="any" min="0" inputMode="decimal" value={kg === 0 ? "" : kg}
+                      placeholder="0,000"
                       onChange={e => setKgMes(m, e.target.value)}
                       className={`w-20 border rounded-lg px-2 py-1 text-sm font-mono font-black text-center focus:outline-none transition-all ${activo ? "border-amber-300 bg-white text-amber-800 focus:border-amber-500" : "border-slate-200 bg-white text-slate-500 focus:border-slate-400"}`}
                     />
@@ -12053,6 +12053,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
+    // Agrupa las líneas de la liquidación por categoría (vacas, toros, terneros, terneras, novillos)
+    const CAT_LABEL_COBRO = { vacas: "Vacas / Vaquillonas", toros: "Toros", terneros: "Terneros", terneras: "Terneras", recria: "Novillos / Recría" };
+    const agruparPorCat = (arr) => {
+      const map = {};
+      arr.forEach(l => {
+        if (!map[l.cat]) map[l.cat] = { cat: l.cat, tropaId: l.cat, origen: CAT_LABEL_COBRO[l.cat] || l.cat, cabActual: 0, cab: 0, kgTotal: 0, pesos: 0, kgSup: 0, pesosSup: 0, totalPesos: 0, desde: l.desde, diasTotalesPeriodo: 0 };
+        const g = map[l.cat];
+        g.cabActual += l.cabActual || 0; g.cab += l.cabActual || 0;
+        g.kgTotal += l.kgTotal || 0; g.pesos += l.pesos || 0;
+        g.kgSup += l.kgSup || 0; g.pesosSup += l.pesosSup || 0; g.totalPesos += l.totalPesos || 0;
+        if (l.desde && l.desde < g.desde) g.desde = l.desde;
+        g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
+      });
+      return Object.values(map).map(g => ({ ...g, kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => b.kgTotal - a.kgTotal);
+    };
+    const previewPorCat = agruparPorCat(preview);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
@@ -12073,7 +12089,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         id: Date.now(), tipo: "cobro-periodo", anoGanadero,
         propietarioId: propCobroActivo,
         modo: modoCobro, fechaDesde: fechaDesdeAuto, fechaHasta: fechaHastaEfectiva,
-        lineas: preview,
+        lineas: previewPorCat,
         kgTotal: Math.round(kgPreview * 10) / 10,
         precioNov, pesos: pesosPreview,
         pesosSup: supPreview,
@@ -12546,64 +12562,25 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             {/* Preview de la liquidación */}
             {preview.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Preview por tropa</p>
-                {preview.map((l, i) => {
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Por categoría</p>
+                {previewPorCat.map((l, i) => {
                   const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
                   return (
-                    <div key={i} className={`rounded-xl border ${col.bg} ${col.border} overflow-hidden`}>
-                      <div className="p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              desde {fmtFecha(l.desde)} · {l.diasTotalesPeriodo} días
-                              {l.tramosEnPeriodo?.length > 0 && <span className="text-orange-600 font-semibold ml-1">+ {l.tramosEnPeriodo.length} egreso(s)</span>}
-                            </p>
-                            {l.tramosEnPeriodo?.length > 0 && (
-                              <p className="text-xs text-orange-600 italic mt-0.5">
-                                {l.tramosEnPeriodo.map(te => `${te.cab} cab egr. ${fmtFecha(te.fecha)} (${te.dias}d)`).join(" · ")}
-                              </p>
-                            )}
-                            {l.cabActual > 0 && (
-                              <p className="text-xs text-slate-400 italic mt-0.5">
-                                {l.cabActual} cab en campo × {diasEntre(l.tramosEnPeriodo?.length > 0 ? l.tramosEnPeriodo.slice().sort((a,b)=>a.fecha>b.fecha?1:-1).at(-1).fecha : l.desde, l.hasta)} días
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg pastaje</p>
-                            <p className="text-slate-600 font-bold text-sm">{fmtPesos(l.pesos)}</p>
-                          </div>
+                    <div key={i} className={`rounded-xl border ${col.bg} ${col.border} p-3`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{l.cabActual} cab</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg nov</p>
+                          <p className="text-slate-600 font-bold text-sm">{fmtPesos(l.pesos)}</p>
+                          {l.pesosSup > 0 && <p className="text-xs text-amber-600 font-bold">+ 💊 {fmtPesos(l.pesosSup)}</p>}
                         </div>
                       </div>
-                      {/* Suplemento discriminado */}
-                      {l.supActivo && l.kgSup > 0 && (
-                        <div className="bg-amber-50 border-t border-amber-200 px-3 py-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-black text-amber-700">💊 Suplemento · {l.diasConSup} días</span>
-                            <span className="font-black text-sm text-amber-700">{fmtPesos(l.pesosSup)}</span>
-                          </div>
-                          {l.detallesMes?.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {l.detallesMes.map((dm, j) => (
-                                <span key={j} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                                  {dm.label}: {dm.kgDia} kg/día × {dm.dias}d
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-xs text-amber-600 mt-1">{fmtN(l.kgSup)} kg × {fmtPesos(l.supPrecio)}/kg</p>
-                        </div>
-                      )}
-                      {/* Total por tropa */}
-                      {l.supActivo && l.kgSup > 0 && (
-                        <div className="bg-slate-100 border-t border-slate-200 px-3 py-1.5 flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-600">Total tropa</span>
-                          <span className="font-black text-sm text-slate-800">{fmtPesos(l.totalPesos)}</span>
-                        </div>
-                      )}
                     </div>
                   );
+                })}
                 })}
                 {/* Total */}
                 <div className="bg-slate-800 text-white rounded-2xl p-4 space-y-2">
@@ -12871,18 +12848,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 const cab = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
                 const kg  = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + kgDevengados(t, null), 0);
                 if (!cab) return null;
-                return { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg" };
+                return { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
               }).filter(Boolean),
-              { label: "─ Por origen ─", value: "─" },
-              ...porOrigen.map(o => ({
-                label: o.origen + " (" + o.cab + " cab)",
-                value: fmtN(Math.round(o.kgDev)) + " kg · $" + fmtK1(o.kgDev * precioNov)
-              })),
-              { label: "─ Tropas activas ─", value: "─" },
-              ...tropas.map(t => ({
-                label: t.origen + " (" + (t.cabActual ?? t.cab) + " cab · desde " + (t.fechaIngreso ?? "-") + ")",
-                value: fmtN(Math.round(kgDevengados(t, null))) + " kg devengados"
-              })),
+              { label: "─────────────", value: "─" },
+              { label: "TOTAL", value: totalCab + " cab · " + fmtN(Math.round(totalKgDev)) + " kg nov · $" + fmtK1(totalKgDev * precioNov) },
             ]
           );
         }} className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm transition-all active:scale-95 flex items-center justify-center gap-2">
