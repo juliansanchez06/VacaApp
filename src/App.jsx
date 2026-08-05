@@ -11439,6 +11439,95 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     );
   };
 
+  // Salidas múltiples (venta/traslado): descuenta cada tropa y guarda el tramo
+  // con su fecha, para que el próximo cobro prorratee los días correctamente.
+  const ModalEgresosMulti = ({ onClose }) => {
+    const hoy2 = new Date().toISOString().slice(0, 10);
+    const tropasConCab = tropas.filter(t => (t.cabActual ?? t.cab) > 0);
+    const lineaNueva = () => ({ tropaId: tropasConCab[0]?.id ?? "", cantidad: 1, fecha: hoy2, tipo: "venta", obs: "" });
+    const [lineas, setLineas] = useState([lineaNueva()]);
+    const setLin = (i, patch) => setLineas(ls => ls.map((l, k) => k === i ? { ...l, ...patch } : l));
+    const addLin = () => setLineas(ls => [...ls, lineaNueva()]);
+    const delLin = (i) => setLineas(ls => ls.filter((_, k) => k !== i));
+    const kgTramoDe = (l) => {
+      const t = tropas.find(x => String(x.id) === String(l.tropaId));
+      if (!t) return 0;
+      const dias = diasEntre(t.ultimoCobro || t.fechaIngreso, l.fecha);
+      return (Number(l.cantidad) || 0) * (precios[t.cat] ?? 6) * (dias / 30);
+    };
+    const guardar = () => {
+      const porTropa = {};
+      lineas.forEach(l => {
+        const cab = Number(l.cantidad) || 0;
+        if (cab <= 0) return;
+        const t = tropas.find(x => String(x.id) === String(l.tropaId));
+        if (!t) return;
+        const ult = t.ultimoCobro || t.fechaIngreso;
+        const dias = diasEntre(ult, l.fecha);
+        const kgTramo = Math.round(cab * (precios[t.cat] ?? 6) * (dias / 30) * 10) / 10;
+        if (!porTropa[t.id]) porTropa[t.id] = { total: 0, tramos: [], eventos: [] };
+        porTropa[t.id].total += cab;
+        porTropa[t.id].tramos.push({ fecha: l.fecha, cab, desdeCorte: ult, dias, kgTramo, motivo: l.tipo, obs: l.obs });
+        porTropa[t.id].eventos.push({ id: Date.now() + Math.floor(Math.random() * 1e6), tipo: "evento", subtipo: "egreso", tropaOrigen: t.origen, cat: t.cat, cab, fecha: l.fecha, motivo: l.tipo, obs: l.obs, kgTramoInfo: kgTramo, estado: "registrado" });
+      });
+      const ids = Object.keys(porTropa);
+      if (!ids.length) { toast("Cargá al menos una salida con cantidad.", "warn"); return; }
+      for (const id of ids) {
+        const t = tropas.find(x => String(x.id) === String(id));
+        const disp = t.cabActual ?? t.cab;
+        if (porTropa[id].total > disp) { toast("No podés sacar " + porTropa[id].total + " de " + t.origen + " (hay " + disp + ").", "warn"); return; }
+      }
+      setTropas(prev => prev.map(t => {
+        const p = porTropa[t.id];
+        if (!p) return t;
+        return { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - p.total), tramosEgreso: [...(t.tramosEgreso || []), ...p.tramos] };
+      }));
+      setPeriodos(prev => [...prev, ...ids.flatMap(id => porTropa[id].eventos)]);
+      const totCab = ids.reduce((s, id) => s + porTropa[id].total, 0);
+      toast("✅ " + ids.reduce((s, id) => s + porTropa[id].eventos.length, 0) + " salida(s) · " + totCab + " cab registradas", "success");
+      onClose();
+    };
+    return (
+      <ModalWrapper titulo="Sacar animales (venta / traslado)" onClose={onClose} onGuardar={guardar}>
+        <div className="space-y-2">
+          {tropasConCab.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No hay tropas con animales para sacar.</p>}
+          {lineas.map((l, i) => (
+            <div key={i} className="rounded-xl p-2.5" style={{ background: "#F7FAF7", border: "1px solid #E6EBE5" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <select value={l.tropaId} onChange={e => setLin(i, { tropaId: e.target.value })} className="flex-1 border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none">
+                  {tropasConCab.map(t => <option key={t.id} value={t.id}>{t.origen} ({t.cabActual ?? t.cab} cab)</option>)}
+                </select>
+                {lineas.length > 1 && <button onClick={() => delLin(i)} className="text-slate-300 hover:text-red-500 font-black px-1 shrink-0">✕</button>}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400">Cantidad</label>
+                  <input type="number" min="0" value={l.cantidad} onChange={e => setLin(i, { cantidad: e.target.value })} className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400">Fecha</label>
+                  <input type="date" value={l.fecha} onChange={e => setLin(i, { fecha: e.target.value })} className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400">Tipo</label>
+                  <select value={l.tipo} onChange={e => setLin(i, { tipo: e.target.value })} className="mt-0.5 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none">
+                    <option value="venta">💚 Venta</option>
+                    <option value="traslado">🚚 Traslado</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-right text-[11px] mt-1" style={{ color: "#8A9A9E" }}>Cobra ~{fmtN(Math.round(kgTramoDe(l)))} kg nov por estos días</p>
+            </div>
+          ))}
+          {tropasConCab.length > 0 && (
+            <button onClick={addLin} className="w-full py-2 rounded-xl border-2 border-dashed text-sm font-black" style={{ borderColor: "#9DBAB0", color: "#163D44", background: "#fff" }}>+ Agregar salida</button>
+          )}
+          <p className="text-[11px] leading-relaxed" style={{ color: "#8A9A9E" }}>Cada salida descuenta las cabezas de su tropa y guarda los días que estuvieron, para que el próximo cobro los prorratee bien aunque salgan a mitad de período.</p>
+        </div>
+      </ModalWrapper>
+    );
+  };
+
   // ── Modal Suplemento ─────────────────────────────────────────────────────
   const MESES_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const ModalSuplemento = ({ tropa, onClose }) => {
@@ -11839,10 +11928,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
     return (
       <div className="space-y-3">
-        <div className="flex justify-end">
-          <button onClick={() => setModal("evento")}
+        <div className="flex justify-end gap-2 flex-wrap">
+          <button onClick={() => setModal("egresos")}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-black text-xs shadow-md hover:bg-emerald-700 transition-all active:scale-95">
-            + Nuevo evento
+            ➖ Sacar animales
+          </button>
+          <button onClick={() => setModal("evento")}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs transition-all active:scale-95" style={{ background: "#fff", border: "1px solid #C9D6CC", color: "#163D44" }}>
+            📋 Otro evento
           </button>
         </div>
         {eventos.length === 0 && (
@@ -12846,6 +12939,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       </div>
       {modal === "tropa"   && <ModalNuevaTropa   onClose={() => setModal(null)} />}
       {modal === "evento"  && <ModalEvento        onClose={() => setModal(null)} />}
+      {modal === "egresos" && <ModalEgresosMulti  onClose={() => setModal(null)} />}
       {modal === "tercero" && <ModalTercero        onClose={() => setModal(null)} />}
       {tropaEgreso         && <ModalEgreso tropa={tropaEgreso} onClose={() => setTropaEgreso(null)} />}
       {tropaSuplemento     && <ModalSuplemento tropa={tropaSuplemento} onClose={() => setTropaSuplemento(null)} />}
