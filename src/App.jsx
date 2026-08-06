@@ -12049,7 +12049,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           // total general = pastaje + suplemento
           totalPesos: Math.round(kgTotal * precioNov) + Math.round(pesosSup),
         };
-      }).filter(l => l.kgTotal > 0 || l.kgSup > 0);
+      }).filter(l => l.cabActual > 0 || l.kgTotal > 0 || l.kgSup > 0);
     };
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
@@ -12581,7 +12581,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                     </div>
                   );
                 })}
-                })}
                 {/* Total */}
                 <div className="bg-slate-800 text-white rounded-2xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
@@ -12740,16 +12739,27 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Por categoría</p>
           <div className="space-y-2">
             {CATS.map(c => {
-              const cab = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-              const kg  = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + kgDevengados(t, null), 0);
+              const tropasCat = tropas.filter(t => t.cat === c.id);
+              const cab = tropasCat.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+              const kg  = tropasCat.reduce((s, t) => s + kgDevengados(t, null), 0);
               if (cab === 0) return null;
+              const sup = tropasCat.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
               const col = CAT_COLORS[c.id];
               return (
-                <div key={c.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${col.bg} ${col.border}`}>
-                  <span>{c.emoji}</span>
-                  <span className={`flex-1 text-sm font-bold ${col.text}`}>{c.label}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${col.border} ${col.bg} ${col.text}`}>{cab} cab</span>
-                  <span className={`font-black text-sm ${col.text}`}>{fmtN(Math.round(kg))} kg</span>
+                <div key={c.id} className={`rounded-xl border px-3 py-2.5 ${col.bg} ${col.border}`}>
+                  <div className="flex items-center gap-3">
+                    <span>{c.emoji}</span>
+                    <span className={`flex-1 text-sm font-bold ${col.text}`}>{c.label}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${col.border} bg-white ${col.text}`}>{cab} cab</span>
+                    <span className={`font-black text-sm ${col.text}`}>{fmtN(Math.round(kg))} kg</span>
+                  </div>
+                  {sup.kg > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5 pt-1.5 text-xs" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                      <span className="text-amber-600">💊 Suplemento</span>
+                      <span className="flex-1 text-amber-600">{fmtN(Math.round(sup.kg))} kg consumidos</span>
+                      <span className="font-black text-amber-700">{fmtPesos(sup.pesos)}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -12845,14 +12855,23 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               { label: "Por cobrar",      value: fmtN(Math.round(kgCobPend)) + " kg nov" },
               { label: "─ Por categoría ─", value: "─" },
               ...CATS.map(c => {
-                const cab = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-                const kg  = tropas.filter(t => t.cat === c.id).reduce((s, t) => s + kgDevengados(t, null), 0);
+                const tropasCat = tropas.filter(t => t.cat === c.id);
+                const cab = tropasCat.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+                const kg  = tropasCat.reduce((s, t) => s + kgDevengados(t, null), 0);
                 if (!cab) return null;
-                return { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
-              }).filter(Boolean),
+                const sup = tropasCat.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
+                const base = { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
+                return sup.kg > 0
+                  ? [base, { label: "   💊 Suplemento", value: fmtN(Math.round(sup.kg)) + " kg · $" + fmtK1(sup.pesos) }]
+                  : [base];
+              }).filter(Boolean).flat(),
               { label: "─────────────", value: "─" },
+              (() => {
+                const supTot = tropas.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
+                return supTot.kg > 0 ? { label: "💊 Suplemento total", value: fmtN(Math.round(supTot.kg)) + " kg · $" + fmtK1(supTot.pesos) } : null;
+              })(),
               { label: "TOTAL", value: totalCab + " cab · " + fmtN(Math.round(totalKgDev)) + " kg nov · $" + fmtK1(totalKgDev * precioNov) },
-            ]
+            ].filter(Boolean)
           );
         }} className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm transition-all active:scale-95 flex items-center justify-center gap-2">
           🖨️ Exportar resumen del campo PDF
