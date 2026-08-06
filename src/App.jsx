@@ -11983,13 +11983,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     // propCobro elevado a PastajeCampo — se inicializa al primer propietario si está null
     const propCobroActivo = propCobro ?? terceros[0]?.id ?? null;
 
-    // Tropas del propietario seleccionado
-    // Si ninguna tropa tiene terceroId (datos viejos), mostrar todas bajo el primer propietario
-    const algunaTieneId = tropas.some(t => t.terceroId != null);
-    const tropasDelProp = algunaTieneId
-      // eslint-disable-next-line eqeqeq
-      ? tropas.filter(t => (t.terceroId != null ? t.terceroId : terceros[0]?.id) == propCobroActivo)
-      : (propCobroActivo == terceros[0]?.id ? tropas : []);
+    // Tropas del propietario seleccionado — usa dueñoDe: las huérfanas (terceroId
+    // inválido) caen al primer propietario, igual que en el resto de la app.
+    const tropasDelProp = tropas.filter(t => dueñoDe(t) === propCobroActivo);
 
     const calcLiquidacion = (fHasta) => {
       return tropasDelProp.map(tropa => {
