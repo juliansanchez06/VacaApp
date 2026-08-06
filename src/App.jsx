@@ -12443,6 +12443,27 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       <div className="space-y-4">
 
         {/* Selector de propietario */}
+        {(() => {
+          const totalCabTodas = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+          const invalidas = tropas.filter(t => t.terceroId && !terceros.some(x => x.id === t.terceroId));
+          const sinId = tropas.filter(t => !t.terceroId);
+          const sinDueno = tropas.filter(t => !terceros.some(x => x.id === dueñoDe(t)));
+          const cabDe = (arr) => arr.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+          return (
+            <div style={{ background: "#FFF8E1", border: "2px solid #E0A800", borderRadius: 14, padding: 14, fontSize: 12, lineHeight: 1.7 }}>
+              <p style={{ fontWeight: 900, marginBottom: 4 }}>🔍 Diagnóstico temporal (lo sacamos después)</p>
+              <p><b>Tropas totales:</b> {tropas.length} · <b>Cab total:</b> {totalCabTodas}</p>
+              <p><b>Propietarios ({terceros.length}):</b> {terceros.map(t => t.nombre + " [" + String(t.id).slice(-4) + "]").join(" · ") || "ninguno"}</p>
+              <p style={{ fontWeight: 800, marginTop: 4 }}>Reparto por dueño (dueñoDe):</p>
+              {terceros.map((ter, i) => {
+                const ts = tropas.filter(t => dueñoDe(t) === ter.id);
+                return <p key={ter.id}>{i === 0 ? "① " : "• "}{ter.nombre}: <b>{cabDe(ts)} cab</b>, {ts.length} tropas {i === 0 ? "(recibe huérfanas)" : ""}</p>;
+              })}
+              <p style={{ color: "#C23B3B", marginTop: 4 }}><b>Sin dueño válido:</b> {cabDe(sinDueno)} cab, {sinDueno.length} tropas</p>
+              <p><b>terceroId inválido:</b> {invalidas.length} tropas ({cabDe(invalidas)} cab) · <b>Sin terceroId:</b> {sinId.length} tropas ({cabDe(sinId)} cab)</p>
+            </div>
+          );
+        })()}
         {terceros.length > 0 && (
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Propietario a cobrar</p>
