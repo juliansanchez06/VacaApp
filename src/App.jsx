@@ -10928,7 +10928,7 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar, machos
     </div>
   );
 }
-function TropaEditorFields({ tropa, onSave }) {
+function TropaEditorFields({ tropa, onSave, cats }) {
   const defaultPeso = parseFloat(tropa.pesoEntradaKg ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 180 : tropa.cat === "recria" ? 200 : 380)) || 0;
   const defaultGdp  = parseFloat(tropa.gdpEstimado  ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 0.6  : tropa.cat === "recria" ? 0.5  : 0))   || 0;
   const [peso, setPeso] = React.useState(defaultPeso);
@@ -10938,6 +10938,13 @@ function TropaEditorFields({ tropa, onSave }) {
   const saveGdp  = (e) => { e.stopPropagation(); const v = parseFloat(gdp);  if (v >= 0) onSave({ gdpEstimado: v }); };
   return (
     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+      <div className="col-span-2">
+        <p className="text-xs text-slate-500 font-bold mb-1">🏷️ Categoría</p>
+        <select value={tropa.cat} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); onSave({ cat: e.target.value }); }}
+          className="w-full text-sm font-black text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none">
+          {(cats || []).map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+        </select>
+      </div>
       <div className="bg-emerald-50 rounded-xl px-3 py-2">
         <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
         <input
@@ -11811,6 +11818,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                           {(t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vacas" || t.cat === "vaquillonas" || t.cat === "toros") && (
                             <TropaEditorFields
                               tropa={t}
+                              cats={CATS}
                               onSave={fields => setTropas(prev => prev.map(x => x.id === t.id ? { ...x, ...fields } : x))}
                             />
                           )}
