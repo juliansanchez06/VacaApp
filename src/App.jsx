@@ -6973,7 +6973,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     return Math.max(0, Math.round((d2 - d1) / 86400000));
   };
   const kgPastajeProducidos = tropas
-    .filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria")
+    .filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vaquillonas")
     .reduce((s, t) => {
       const cab  = t.cabActual ?? t.cab ?? 0;
       const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : 0.5)) || 0;
@@ -8962,7 +8962,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const kgHaTotal = kgHaAct + kgHaPastajeReal;
 
                 // Detail by tropa
-                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria");
+                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vaquillonas");
                 const hoyNow = new Date();
 
                 return (
@@ -10933,7 +10933,7 @@ function TropaEditorFields({ tropa, onSave }) {
   const defaultGdp  = parseFloat(tropa.gdpEstimado  ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 0.6  : tropa.cat === "recria" ? 0.5  : 0))   || 0;
   const [peso, setPeso] = React.useState(defaultPeso);
   const [gdp,  setGdp]  = React.useState(defaultGdp);
-  const isGainCat = tropa.cat === "terneras" || tropa.cat === "terneros" || tropa.cat === "recria";
+  const isGainCat = tropa.cat === "terneras" || tropa.cat === "terneros" || tropa.cat === "recria" || tropa.cat === "vaquillonas";
   const savePeso = (e) => { e.stopPropagation(); const v = parseFloat(peso); if (v > 0) onSave({ pesoEntradaKg: v }); };
   const saveGdp  = (e) => { e.stopPropagation(); const v = parseFloat(gdp);  if (v >= 0) onSave({ gdpEstimado: v }); };
   return (
