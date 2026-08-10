@@ -446,7 +446,7 @@ const vacaStore = createStore((set, get) => ({
     tropas:   [],
     periodos: [],
     terceros: [],
-    precios:  { vacas: 6, toros: 5.5, terneras: 5.5, recria: 5.5 },
+    precios:  { vacas: 6, vaquillonas: 5.5, toros: 5.5, terneras: 5.5, recria: 5.5 },
   },
   movimientos: [], // registro de compras y ventas del año ganadero
   __userEmail: "",         // email del usuario logueado para auto-guardado
@@ -6897,7 +6897,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   // EV en feedlot no cuenta porque no consume del campo
 
   // ── EV pastaje — animales de terceros que pastan en el campo ─────────────
-  const EV_CAT = { vacas: 1.0, toros: 1.3, terneros: 0.55, terneras: 0.55, recria: 0.7 };
+  const EV_CAT = { vacas: 1.0, vaquillonas: 0.85, toros: 1.3, terneros: 0.55, terneras: 0.55, recria: 0.7 };
   const evPastaje = (campoPastaje?.tropas ?? []).reduce((s, t) => {
     const cab = t.cabActual ?? t.cab ?? 0;
     const ev  = EV_CAT[t.cat] ?? 0.7;
@@ -11021,7 +11021,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   const tropas   = localPastaje?.tropas   ?? [];
   const periodos = localPastaje?.periodos ?? [];
-  const precios  = localPastaje?.precios  ?? { vacas: 6, toros: 5.5, terneras: 5.5, terneros: 5.5, recria: 5.5 };
+  const precios  = localPastaje?.precios  ?? { vacas: 6, vaquillonas: 5.5, toros: 5.5, terneras: 5.5, terneros: 5.5, recria: 5.5 };
   const terceros = localPastaje?.terceros ?? [];
 
   // Dueño de una tropa: su terceroId si existe como propietario; si no (huérfana), al primero.
@@ -11033,7 +11033,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const setTerceros = (fn) => updateLocal({ terceros: typeof fn === "function" ? fn(terceros) : fn });
 
   const CATS = [
-    { id: "vacas",    label: "Vacas / Vaquillonas",       emoji: "🐄", color: "emerald" },
+    { id: "vacas",    label: "Vacas",                     emoji: "🐄", color: "emerald" },
+    { id: "vaquillonas", label: "Vaquillonas",            emoji: "🐄", color: "teal"    },
     { id: "toros",    label: "Toros",                      emoji: "🐂", color: "blue"    },
     { id: "terneros", label: "Terneros (machos)",           emoji: "🐃", color: "sky"     },
     { id: "terneras", label: "Terneras (hembras)",          emoji: "🐃", color: "amber"   },
@@ -11041,6 +11042,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   ];
   const CAT_COLORS = {
     vacas:    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", strip: "bg-emerald-500",  dot: "#10b981" },
+    vaquillonas: { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-800", strip: "bg-teal-500", dot: "#14b8a6" },
     toros:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-500",      dot: "#0ea5e9" },
     terneros: { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-400",      dot: "#38bdf8" },
     terneras: { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   strip: "bg-amber-400",    dot: "#f59e0b" },
@@ -11181,7 +11183,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
   // ── Modal Nueva Tropa ─────────────────────────────────────────────────────
   const ModalNuevaTropa = ({ onClose }) => {
-    const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, toros: 0.4 };
+    const GDP_DEFAULTS  = { terneros: 0.6, terneras: 0.6, recria: 0.5, vacas: 0.3, vaquillonas: 0.4, toros: 0.4 };
     const PESO_DEFAULTS = { terneros: 180, terneras: 180, recria: 200, vacas: 380, toros: 450 };
     const [form, setForm] = useState({ cat: "vacas", cab: 10, origen: "", terceroId: terceros[0]?.id ?? "", fechaIngreso: new Date().toISOString().slice(0, 10), servicio: "ninguno", pesoEntradaKg: 380, gdpEstimado: 0.3, tropaOrigenId: "", tropaOrigenNombre: "" });
     const set = (k) => (e) => {
@@ -12050,7 +12052,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
     // Agrupa las líneas de la liquidación por categoría (vacas, toros, terneros, terneras, novillos)
-    const CAT_LABEL_COBRO = { vacas: "Vacas / Vaquillonas", toros: "Toros", terneros: "Terneros", terneras: "Terneras", recria: "Novillos / Recría" };
+    const CAT_LABEL_COBRO = { vacas: "Vacas", vaquillonas: "Vaquillonas", toros: "Toros", terneros: "Terneros", terneras: "Terneras", recria: "Novillos / Recría" };
     const agruparPorCat = (arr) => {
       const map = {};
       arr.forEach(l => {
@@ -12080,7 +12082,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
     const confirmarLiquidacion = () => {
       if (preview.length === 0) { toast("No hay kg a liquidar en este período", "warn"); return; }
+      // Detalle del suplemento del período: kg por mes + $/kg (agregado de las tropas)
+      const supDetalle = (() => {
+        const porMes = {}; let precioKg = 0, totalKg = 0, totalPesos = 0;
+        tropasDelProp.forEach(t => {
+          const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, fechaHastaEfectiva);
+          if (!s.kgSup || s.kgSup <= 0) return;
+          const cab = t.cabActual ?? t.cab;
+          totalKg += s.kgSup; totalPesos += s.pesosSup;
+          if (t.suplemento?.precioPorKg) precioKg = t.suplemento.precioPorKg;
+          (s.detallesMes || []).forEach(dm => { porMes[dm.mes] = (porMes[dm.mes] || 0) + cab * dm.kgTotal; });
+        });
+        const meses = Object.keys(porMes).map(Number).sort((a, b) => a - b).map(m => ({ label: MESES_LABELS[m - 1], kg: Math.round(porMes[m] * 10) / 10 }));
+        return totalKg > 0 ? { totalKg: Math.round(totalKg * 10) / 10, totalPesos: Math.round(totalPesos), precioKg, meses } : null;
+      })();
       // Crear el registro de cobro
+      const tropasSnapshot = tropasDelProp.map(t => ({ id: t.id, ultimoCobroPrev: t.ultimoCobro ?? null, tramosEgresoPrev: t.tramosEgreso || [] }));
       const nuevoCobro = {
         id: Date.now(), tipo: "cobro-periodo", anoGanadero,
         propietarioId: propCobroActivo,
@@ -12089,9 +12106,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         kgTotal: Math.round(kgPreview * 10) / 10,
         precioNov, pesos: pesosPreview,
         pesosSup: supPreview,
+        supDetalle,
         totalPesos: totalPreview,
         estado: "pendiente",
         fechaCreacion: hoy,
+        tropasSnapshot,
       };
       setPeriodos(prev => [...prev, nuevoCobro]);
       // Actualizar ultimoCobro en cada tropa: guardar el día SIGUIENTE al corte
@@ -12114,6 +12133,24 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       toast(`✅ Liquidación: ${fmtN(Math.round(kgPreview))} kg pastaje + ${fmtPesos(supPreview)} suplemento = ${fmtPesos(totalPreview)} total`, "success");
     };
 
+    // Anular un cobro: restaura el devengado de las tropas al estado anterior y lo elimina.
+    const anularCobro = (c) => {
+      setTropas(prev => prev.map(t => {
+        const snap = c.tropasSnapshot?.find(s => String(s.id) === String(t.id));
+        if (snap) {
+          return { ...t, ultimoCobro: snap.ultimoCobroPrev ?? null, tramosEgreso: snap.tramosEgresoPrev ?? (t.tramosEgreso || []) };
+        }
+        const esDelCobro = c.propietarioId ? dueñoDe(t) === c.propietarioId : true;
+        if (esDelCobro && c.fechaDesde && (!t.ultimoCobro || t.ultimoCobro >= c.fechaDesde)) {
+          const restaurar = (c.fechaDesde > (t.fechaIngreso || "")) ? c.fechaDesde : null;
+          return { ...t, ultimoCobro: restaurar };
+        }
+        return t;
+      }));
+      setPeriodos(prev => prev.filter(p => p.id !== c.id));
+      toast("Cobro anulado — devengado restaurado", "success");
+    };
+
 
     const marcarPagado = (id) => {
       setPeriodos(prev => prev.map(p => p.id === id ? { ...p, estado: "pagado", fechaPago: hoy } : p));
@@ -12128,7 +12165,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const W = 800, padding = 40;
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
-      const H = 320 + lineas.length * 72 + (tieneSuplemento ? 160 : 120);
+      const supDet = cobro.supDetalle;
+      const H = 320 + lineas.length * 72 + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
@@ -12276,7 +12314,34 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         y += 2;
 
-        // ── Total — fondo degradado ───────────────────────────────────────
+        // ── Detalle de suplemento (kg por mes + $/kg) ─────────────────────
+        if (supDet) {
+          const boxH = 44 + supDet.meses.length * 26;
+          ctx.fillStyle = "#FFF8E8";
+          ctx.fillRect(0, y, W, boxH);
+          ctx.fillStyle = "#B8860B";
+          ctx.font = "bold 13px system-ui, sans-serif";
+          ctx.fillText("💊 SUPLEMENTO — " + fmtN(supDet.totalKg) + " kg" + (supDet.precioKg > 0 ? " · $" + fmtN(supDet.precioKg) + "/kg" : ""), padding, y + 26);
+          ctx.textAlign = "right";
+          ctx.fillStyle = "#8A6D12";
+          ctx.font = "bold 13px system-ui, sans-serif";
+          ctx.fillText(fmtPesos(supDet.totalPesos), W - padding, y + 26);
+          ctx.textAlign = "left";
+          let yy = y + 44;
+          supDet.meses.forEach(mm => {
+            ctx.fillStyle = "#9A7B1A";
+            ctx.font = "13px system-ui, sans-serif";
+            ctx.fillText("   " + mm.label, padding + 8, yy + 4);
+            ctx.textAlign = "right";
+            ctx.fillText(fmtN(mm.kg) + " kg", W - padding, yy + 4);
+            ctx.textAlign = "left";
+            yy += 26;
+          });
+          y += boxH;
+          ctx.strokeStyle = "#E6EBE5"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
+
         const totalH = tieneSuplemento ? 90 : 72;
         const grad = ctx.createLinearGradient(0, y, W, y);
         grad.addColorStop(0, "#163D44");
@@ -12366,12 +12431,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 </button>
               )}
               <button onClick={() => {
-                if (!window.confirm("¿Eliminar este cobro? Esta acción no se puede deshacer.")) return;
-                setPeriodos(prev => prev.filter(p => p.id !== c.id));
-                toast("🗑 Cobro eliminado", "warn");
+                if (!window.confirm("¿Anular este cobro?\n\nSe elimina el cobro Y se restaura el devengado (kg por cobrar) de las tropas al estado que tenían antes de generarlo.")) return;
+                anularCobro(c);
               }}
                 className="px-3 text-xs font-black py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all active:scale-95">
-                ✕
+                ↩ Anular
               </button>
             </div>
           </div>
@@ -12443,27 +12507,6 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       <div className="space-y-4">
 
         {/* Selector de propietario */}
-        {(() => {
-          const totalCabTodas = tropas.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-          const invalidas = tropas.filter(t => t.terceroId && !terceros.some(x => x.id === t.terceroId));
-          const sinId = tropas.filter(t => !t.terceroId);
-          const sinDueno = tropas.filter(t => !terceros.some(x => x.id === dueñoDe(t)));
-          const cabDe = (arr) => arr.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-          return (
-            <div style={{ background: "#FFF8E1", border: "2px solid #E0A800", borderRadius: 14, padding: 14, fontSize: 12, lineHeight: 1.7 }}>
-              <p style={{ fontWeight: 900, marginBottom: 4 }}>🔍 Diagnóstico temporal (lo sacamos después)</p>
-              <p><b>Tropas totales:</b> {tropas.length} · <b>Cab total:</b> {totalCabTodas}</p>
-              <p><b>Propietarios ({terceros.length}):</b> {terceros.map(t => t.nombre + " [" + String(t.id).slice(-4) + "]").join(" · ") || "ninguno"}</p>
-              <p style={{ fontWeight: 800, marginTop: 4 }}>Reparto por dueño (dueñoDe):</p>
-              {terceros.map((ter, i) => {
-                const ts = tropas.filter(t => dueñoDe(t) === ter.id);
-                return <p key={ter.id}>{i === 0 ? "① " : "• "}{ter.nombre}: <b>{cabDe(ts)} cab</b>, {ts.length} tropas {i === 0 ? "(recibe huérfanas)" : ""}</p>;
-              })}
-              <p style={{ color: "#C23B3B", marginTop: 4 }}><b>Sin dueño válido:</b> {cabDe(sinDueno)} cab, {sinDueno.length} tropas</p>
-              <p><b>terceroId inválido:</b> {invalidas.length} tropas ({cabDe(invalidas)} cab) · <b>Sin terceroId:</b> {sinId.length} tropas ({cabDe(sinId)} cab)</p>
-            </div>
-          );
-        })()}
         {terceros.length > 0 && (
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Propietario a cobrar</p>
