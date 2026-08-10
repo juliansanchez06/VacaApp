@@ -10961,6 +10961,18 @@ function TropaEditorFields({ tropa, onSave }) {
         />
         <p className="text-xs text-slate-400 mt-1">{!isGainCat ? "0 = peso estable" : tropa.cat === "recria" ? "típico 0.5" : "típico 0.6"}</p>
       </div>
+      {tropa.ultimoCobro && (
+        <div className="col-span-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "#FCF6E3", border: "1px solid #EAD79A" }} onClick={e => e.stopPropagation()}>
+          <div>
+            <p className="text-xs font-bold" style={{ color: "#8A6D12" }}>🧾 Último cobro: {tropa.ultimoCobro}</p>
+            <p className="text-[10px]" style={{ color: "#9A7B1A" }}>El devengado por cobrar cuenta desde esta fecha</p>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); if (window.confirm("¿Borrar el último cobro de esta tropa?\n\nEl devengado (kg por cobrar) se va a recalcular desde el ingreso (" + (tropa.fechaIngreso || "-") + "). Usalo si un cobro se anuló o se perdió y necesitás recuperar los kg.")) onSave({ ultimoCobro: null }); }}
+            className="text-[11px] font-black px-2.5 py-1.5 rounded-lg shrink-0" style={{ background: "#fff", border: "1px solid #EAD79A", color: "#8A6D12" }}>
+            ↩ Borrar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -11796,7 +11808,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                             </div>
                           </div>
                           {/* ── Peso entrada y GDP editables ── */}
-                          {(t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vacas" || t.cat === "toros") && (
+                          {(t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vacas" || t.cat === "vaquillonas" || t.cat === "toros") && (
                             <TropaEditorFields
                               tropa={t}
                               onSave={fields => setTropas(prev => prev.map(x => x.id === t.id ? { ...x, ...fields } : x))}
