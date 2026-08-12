@@ -6973,7 +6973,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
     return Math.max(0, Math.round((d2 - d1) / 86400000));
   };
   const kgPastajeProducidos = tropas
-    .filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vaquillonas")
+    .filter(t => tropaGanaPeso(t))
     .reduce((s, t) => {
       const cab  = t.cabActual ?? t.cab ?? 0;
       const gdp  = parseFloat(t.gdpEstimado ?? (t.cat === "terneras" || t.cat === "terneros" ? 0.6 : 0.5)) || 0;
@@ -8962,7 +8962,7 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
                 const kgHaTotal = kgHaAct + kgHaPastajeReal;
 
                 // Detail by tropa
-                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vaquillonas");
+                const tropasPastaje = (campoPastaje?.tropas ?? []).filter(t => tropaGanaPeso(t));
                 const hoyNow = new Date();
 
                 return (
@@ -10928,12 +10928,19 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar, machos
     </div>
   );
 }
+// En pastaje: una tropa con suplemento activo se trata como categoría joven (ternera/ternero) que engorda.
+function tropaTieneSuplemento(t) {
+  return !!(t && t.suplemento && t.suplemento.activo && t.suplemento.precioPorKg > 0);
+}
+function tropaGanaPeso(t) {
+  return t.cat === "terneras" || t.cat === "terneros" || t.cat === "recria" || t.cat === "vaquillonas" || tropaTieneSuplemento(t);
+}
 function TropaEditorFields({ tropa, onSave, cats }) {
   const defaultPeso = parseFloat(tropa.pesoEntradaKg ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 180 : tropa.cat === "recria" ? 200 : 380)) || 0;
   const defaultGdp  = parseFloat(tropa.gdpEstimado  ?? (tropa.cat === "terneras" || tropa.cat === "terneros" ? 0.6  : tropa.cat === "recria" ? 0.5  : 0))   || 0;
   const [peso, setPeso] = React.useState(defaultPeso);
   const [gdp,  setGdp]  = React.useState(defaultGdp);
-  const isGainCat = tropa.cat === "terneras" || tropa.cat === "terneros" || tropa.cat === "recria" || tropa.cat === "vaquillonas";
+  const isGainCat = tropaGanaPeso(tropa);
   const savePeso = (e) => { e.stopPropagation(); const v = parseFloat(peso); if (v > 0) onSave({ pesoEntradaKg: v }); };
   const saveGdp  = (e) => { e.stopPropagation(); const v = parseFloat(gdp);  if (v >= 0) onSave({ gdpEstimado: v }); };
   return (
