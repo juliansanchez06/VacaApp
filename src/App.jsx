@@ -10928,6 +10928,16 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar, machos
     </div>
   );
 }
+// Grupo de cobro del pastaje: 3 categorías generales elegibles a mano por tropa.
+const GRUPO_COBRO_LABEL = { vacas: "Vacas", jovenes: "Terneros/as", toros: "Toros" };
+const GRUPO_COBRO_EMOJI = { vacas: "🐄", jovenes: "🐃", toros: "🐂" };
+function grupoCobroDe(o) {
+  if (o && o.grupoCobro) return o.grupoCobro;
+  const c = o && o.cat;
+  if (c === "toros") return "toros";
+  if (c === "vacas") return "vacas";
+  return "jovenes";
+}
 // En pastaje: una tropa con suplemento activo se trata como categoría joven (ternera/ternero) que engorda.
 function tropaTieneSuplemento(t) {
   return !!(t && t.suplemento && t.suplemento.activo && t.suplemento.precioPorKg > 0);
@@ -10951,6 +10961,21 @@ function TropaEditorFields({ tropa, onSave, cats }) {
           className="w-full text-sm font-black text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none">
           {(cats || []).map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
         </select>
+      </div>
+      <div className="col-span-2">
+        <p className="text-xs text-slate-500 font-bold mb-1">💰 Grupo de cobro</p>
+        <div className="flex gap-1.5">
+          {["vacas", "jovenes", "toros"].map(g => {
+            const activo = grupoCobroDe(tropa) === g;
+            return (
+              <button key={g} onClick={e => { e.stopPropagation(); onSave({ grupoCobro: g }); }}
+                className="flex-1 py-1.5 rounded-lg text-xs font-black transition-all"
+                style={activo ? { background: "#163D44", color: "#fff" } : { background: "#fff", border: "1px solid #C9D6CC", color: "#5A6B6E" }}>
+                {GRUPO_COBRO_EMOJI[g]} {GRUPO_COBRO_LABEL[g]}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="bg-emerald-50 rounded-xl px-3 py-2">
         <p className="text-xs text-slate-500 font-bold mb-1">⚖️ Peso entrada (kg)</p>
@@ -11069,6 +11094,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
   const CAT_COLORS = {
     vacas:    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", strip: "bg-emerald-500",  dot: "#10b981" },
     vaquillonas: { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-800", strip: "bg-teal-500", dot: "#14b8a6" },
+    jovenes:  { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-500",      dot: "#0ea5e9" },
     toros:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-500",      dot: "#0ea5e9" },
     terneros: { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     strip: "bg-sky-400",      dot: "#38bdf8" },
     terneras: { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   strip: "bg-amber-400",    dot: "#f59e0b" },
@@ -12053,6 +12079,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           tropaId: tropa.id,
           origen: tropa.origen,
           cat: tropa.cat,
+          grupoCobro: tropa.grupoCobro,
           cabIniciales: tropa.cab,
           cabActual,
           desde,
@@ -12078,20 +12105,21 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     };
 
     const preview       = calcLiquidacion(fechaHastaEfectiva);
-    // Agrupa las líneas de la liquidación por categoría (vacas, toros, terneros, terneras, novillos)
-    const CAT_LABEL_COBRO = { vacas: "Vacas", vaquillonas: "Vaquillonas", toros: "Toros", terneros: "Terneros", terneras: "Terneras", recria: "Novillos / Recría" };
+    // Agrupa las líneas de la liquidación por grupo de cobro (Vacas, Terneros/as, Toros)
     const agruparPorCat = (arr) => {
       const map = {};
       arr.forEach(l => {
-        if (!map[l.cat]) map[l.cat] = { cat: l.cat, tropaId: l.cat, origen: CAT_LABEL_COBRO[l.cat] || l.cat, cabActual: 0, cab: 0, kgTotal: 0, pesos: 0, kgSup: 0, pesosSup: 0, totalPesos: 0, desde: l.desde, diasTotalesPeriodo: 0 };
-        const g = map[l.cat];
+        const gk = grupoCobroDe(l);
+        if (!map[gk]) map[gk] = { cat: gk, tropaId: gk, origen: GRUPO_COBRO_LABEL[gk] || gk, cabActual: 0, cab: 0, kgTotal: 0, pesos: 0, kgSup: 0, pesosSup: 0, totalPesos: 0, desde: l.desde, diasTotalesPeriodo: 0 };
+        const g = map[gk];
         g.cabActual += l.cabActual || 0; g.cab += l.cabActual || 0;
         g.kgTotal += l.kgTotal || 0; g.pesos += l.pesos || 0;
         g.kgSup += l.kgSup || 0; g.pesosSup += l.pesosSup || 0; g.totalPesos += l.totalPesos || 0;
         if (l.desde && l.desde < g.desde) g.desde = l.desde;
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
-      return Object.values(map).map(g => ({ ...g, kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => b.kgTotal - a.kgTotal);
+      const orden = { vacas: 0, jovenes: 1, toros: 2 };
+      return Object.values(map).map(g => ({ ...g, kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
     };
     const previewPorCat = agruparPorCat(preview);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
@@ -12825,18 +12853,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         <div className="bg-white rounded-2xl border-2 border-slate-200 p-4">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Por categoría</p>
           <div className="space-y-2">
-            {CATS.map(c => {
-              const tropasCat = tropas.filter(t => t.cat === c.id);
-              const cab = tropasCat.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-              const kg  = tropasCat.reduce((s, t) => s + kgDevengados(t, null), 0);
+            {["vacas", "jovenes", "toros"].map(gk => {
+              const tropasG = tropas.filter(t => grupoCobroDe(t) === gk);
+              const cab = tropasG.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+              const kg  = tropasG.reduce((s, t) => s + kgDevengados(t, null), 0);
               if (cab === 0) return null;
-              const sup = tropasCat.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
-              const col = CAT_COLORS[c.id];
+              const sup = tropasG.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
+              const col = CAT_COLORS[gk] || CAT_COLORS.vacas;
               return (
-                <div key={c.id} className={`rounded-xl border px-3 py-2.5 ${col.bg} ${col.border}`}>
+                <div key={gk} className={`rounded-xl border px-3 py-2.5 ${col.bg} ${col.border}`}>
                   <div className="flex items-center gap-3">
-                    <span>{c.emoji}</span>
-                    <span className={`flex-1 text-sm font-bold ${col.text}`}>{c.label}</span>
+                    <span>{GRUPO_COBRO_EMOJI[gk]}</span>
+                    <span className={`flex-1 text-sm font-bold ${col.text}`}>{GRUPO_COBRO_LABEL[gk]}</span>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${col.border} bg-white ${col.text}`}>{cab} cab</span>
                     <span className={`font-black text-sm ${col.text}`}>{fmtN(Math.round(kg))} kg</span>
                   </div>
@@ -12941,13 +12969,13 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               { label: "Devengado hoy",   value: fmtN(Math.round(totalKgDev)) + " kg nov · $" + fmtK1(totalKgDev * precioNov) },
               { label: "Por cobrar",      value: fmtN(Math.round(kgCobPend)) + " kg nov" },
               { label: "─ Por categoría ─", value: "─" },
-              ...CATS.map(c => {
-                const tropasCat = tropas.filter(t => t.cat === c.id);
-                const cab = tropasCat.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
-                const kg  = tropasCat.reduce((s, t) => s + kgDevengados(t, null), 0);
+              ...["vacas", "jovenes", "toros"].map(gk => {
+                const tropasG = tropas.filter(t => grupoCobroDe(t) === gk);
+                const cab = tropasG.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
+                const kg  = tropasG.reduce((s, t) => s + kgDevengados(t, null), 0);
                 if (!cab) return null;
-                const sup = tropasCat.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
-                const base = { label: c.emoji + " " + c.label, value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
+                const sup = tropasG.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
+                const base = { label: GRUPO_COBRO_EMOJI[gk] + " " + GRUPO_COBRO_LABEL[gk], value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
                 return sup.kg > 0
                   ? [base, { label: "   💊 Suplemento", value: fmtN(Math.round(sup.kg)) + " kg · $" + fmtK1(sup.pesos) }]
                   : [base];
