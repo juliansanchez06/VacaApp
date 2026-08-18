@@ -12110,12 +12110,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const map = {};
       arr.forEach(l => {
         const gk = grupoCobroDe(l);
-        if (!map[gk]) map[gk] = { cat: gk, tropaId: gk, origen: GRUPO_COBRO_LABEL[gk] || gk, cabActual: 0, cab: 0, kgTotal: 0, pesos: 0, kgSup: 0, pesosSup: 0, totalPesos: 0, desde: l.desde, diasTotalesPeriodo: 0 };
+        if (!map[gk]) map[gk] = { cat: gk, tropaId: gk, origen: GRUPO_COBRO_LABEL[gk] || gk, cabActual: 0, cab: 0, kgTotal: 0, pesos: 0, kgSup: 0, pesosSup: 0, totalPesos: 0, desde: l.desde, desdeMax: l.desde, nTropas: 0, diasTotalesPeriodo: 0 };
         const g = map[gk];
         g.cabActual += l.cabActual || 0; g.cab += l.cabActual || 0;
         g.kgTotal += l.kgTotal || 0; g.pesos += l.pesos || 0;
         g.kgSup += l.kgSup || 0; g.pesosSup += l.pesosSup || 0; g.totalPesos += l.totalPesos || 0;
         if (l.desde && l.desde < g.desde) g.desde = l.desde;
+        if (l.desde && l.desde > g.desdeMax) g.desdeMax = l.desde;
+        g.nTropas += 1;
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
       const orden = { vacas: 0, jovenes: 1, toros: 2 };
@@ -12328,7 +12330,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
 
           ctx.fillStyle = "#66767B";
           ctx.font = "12px system-ui, sans-serif";
-          ctx.fillText(`${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`, padding + 8, y + 38);
+          ctx.fillText(
+            (l.desdeMax && l.desde && l.desdeMax !== l.desde)
+              ? `${l.cabActual} cab · ${l.nTropas} tropas · ingresos ${fmtFecha(l.desde)} a ${fmtFecha(l.desdeMax)}`
+              : `${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`,
+            padding + 8, y + 38);
 
           if (l.tramosEnPeriodo?.length > 0) {
             ctx.fillStyle = "#C2620E";
