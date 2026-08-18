@@ -12251,8 +12251,11 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const supDet = cobro.supDetalle;
       const extraDias = lineas.reduce((s, l) => s + ((l.diasDetalle || []).length > 1 ? 16 + l.diasDetalle.length * 17 : 0), 0);
       const H = 320 + lineas.length * 72 + extraDias + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
-      canvas.width = W; canvas.height = H;
+      const SCALE = 3; // alta resolución: se comparte sin pixelarse
+      canvas.width = W * SCALE; canvas.height = H * SCALE;
+      canvas.style.width = W + "px"; canvas.style.height = H + "px";
       const ctx = canvas.getContext("2d");
+      ctx.scale(SCALE, SCALE);
 
       const doDownload = () => {
         const link = document.createElement("a");
