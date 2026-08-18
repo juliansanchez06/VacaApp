@@ -11827,6 +11827,24 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                                     toast(`✅ Fecha de ${t.origen} actualizada a ${fmtFecha(nueva)}`, "success");
                                   }} className="sr-only" />
                                 </label>
+                                {(() => {
+                                  const corte = t.ultimoCobro || t.fechaIngreso;
+                                  const d = Math.round(diasEntre(corte, null));
+                                  const dsTodas = tropas.filter(x => (x.cabActual ?? x.cab) > 0).map(x => Math.round(diasEntre(x.ultimoCobro || x.fechaIngreso, null)));
+                                  const maxD = dsTodas.length ? Math.max(...dsTodas) : d;
+                                  const minD = dsTodas.length ? Math.min(...dsTodas) : d;
+                                  const igual = maxD === minD;
+                                  const est = igual ? { bg: "#EEF3EE", fg: "#5A6B6E", txt: "" }
+                                    : d === maxD ? { bg: "#E9F4EC", fg: "#1F7A3D", txt: " · la que más" }
+                                    : d === minD ? { bg: "#FCF6E3", fg: "#8A6D12", txt: " · la que menos" }
+                                    : { bg: "#EEF3EE", fg: "#5A6B6E", txt: " · " + (maxD - d) + "d menos que la mayor" };
+                                  return (
+                                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: est.bg, color: est.fg }}
+                                      title={"Devenga desde " + fmtFecha(corte) + (t.ultimoCobro ? " (último cobro)" : " (ingreso)")}>
+                                      ⏱ {d} días{est.txt}
+                                    </span>
+                                  );
+                                })()}
                                 {svcLabel[t.servicio] && <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${svcColor[t.servicio]}`}>{svcLabel[t.servicio]}</span>}
                                 {t.cab !== cabAct && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-semibold">orig {t.cab} → {cabAct}</span>}
                                 {t.tropaOrigenNombre && (
