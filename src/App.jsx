@@ -12945,6 +12945,21 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                       <span className="font-black text-amber-700">{fmtPesos(sup.pesos)}</span>
                     </div>
                   )}
+                  <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px dashed rgba(0,0,0,0.10)" }}>
+                    {tropasG.filter(t => (t.cabActual ?? t.cab) > 0)
+                      .sort((a, b) => kgDevengados(b, null) - kgDevengados(a, null))
+                      .map(t => {
+                        const corte = t.ultimoCobro || t.fechaIngreso;
+                        const d = Math.round(diasEntre(corte, null));
+                        return (
+                          <div key={t.id} className="flex items-center gap-2 text-[11px] py-0.5" style={{ color: "#5A6B6E" }}>
+                            <span className="flex-1 truncate">• {t.origen} <span style={{ color: "#A9B6B9" }}>({t.cabActual ?? t.cab} cab · desde {fmtFecha(corte)})</span></span>
+                            <span className="font-bold shrink-0" style={{ color: "#8A9A9E" }}>{d} días</span>
+                            <span className={`font-black shrink-0 ${col.text}`} style={{ minWidth: 62, textAlign: "right" }}>{fmtN(Math.round(kgDevengados(t, null)))} kg</span>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               );
             })}
@@ -13046,9 +13061,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 if (!cab) return null;
                 const sup = tropasG.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
                 const base = { label: GRUPO_COBRO_EMOJI[gk] + " " + GRUPO_COBRO_LABEL[gk], value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
-                return sup.kg > 0
-                  ? [base, { label: "   💊 Suplemento", value: fmtN(Math.round(sup.kg)) + " kg · $" + fmtK1(sup.pesos) }]
-                  : [base];
+                // Detalle de cada tropa del grupo: nombre, desde cuándo devenga, días y kg
+                const detalle = tropasG
+                  .filter(t => (t.cabActual ?? t.cab) > 0)
+                  .sort((a, b) => kgDevengados(b, null) - kgDevengados(a, null))
+                  .map(t => {
+                    const corte = t.ultimoCobro || t.fechaIngreso;
+                    const d = Math.round(diasEntre(corte, null));
+                    const k = kgDevengados(t, null);
+                    return { label: "   • " + String(t.origen || "Tropa") + " (" + (t.cabActual ?? t.cab) + " cab)", value: fmtN(Math.round(k)) + " kg · " + d + " días · desde " + fmtFecha(corte) };
+                  });
+                const supLine = sup.kg > 0 ? [{ label: "   💊 Suplemento", value: fmtN(Math.round(sup.kg)) + " kg · $" + fmtK1(sup.pesos) }] : [];
+                return [base, ...detalle, ...supLine];
               }).filter(Boolean).flat(),
               { label: "─────────────", value: "─" },
               (() => {
