@@ -12139,11 +12139,12 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // Detalle de días: agrupa las tropas del grupo por cantidad de días devengados
         if (!g._dias) g._dias = {};
         const dk = Math.round(l.diasTotalesPeriodo || 0);
-        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde, kg: 0, pesos: 0 };
+        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde, kg: 0, pesos: 0, nombres: [] };
         g._dias[dk].cab += l.cabActual || 0;
         g._dias[dk].tropas += 1;
         g._dias[dk].kg += l.kgTotal || 0;
         g._dias[dk].pesos += l.pesos || 0;
+        if (l.origen) g._dias[dk].nombres.push({ origen: l.origen, cab: l.cabActual || 0, kg: l.kgTotal || 0 });
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
       const orden = { vacas: 0, jovenes: 1, toros: 2 };
@@ -12249,7 +12250,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
       const supDet = cobro.supDetalle;
-      const extraDias = lineas.reduce((s, l) => s + ((l.diasDetalle || []).length > 1 ? 16 + l.diasDetalle.length * 17 : 0), 0);
+      const extraDias = lineas.reduce((s, l) => s + ((l.diasDetalle || []).length > 1 ? 16 + l.diasDetalle.reduce((a, d) => a + 17 + ((d.nombres || []).length > 1 ? d.nombres.length * 14 : 0), 0) : 0), 0);
       const H = 320 + lineas.length * 72 + extraDias + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
       const SCALE = 3; // alta resolución: se comparte sin pixelarse
       canvas.width = W * SCALE; canvas.height = H * SCALE;
@@ -12348,7 +12349,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         let y = 224;
         lineas.forEach((l, i) => {
           const detD = (l.diasDetalle || []).length > 1 ? l.diasDetalle : null;
-          const rowH = 68 + (detD ? 16 + detD.length * 17 : 0);
+          const rowH = 68 + (detD ? 16 + detD.reduce((a, d) => a + 17 + ((d.nombres || []).length > 1 ? d.nombres.length * 14 : 0), 0) : 0);
           ctx.fillStyle = i % 2 === 0 ? "#F4F7F3" : "#ffffff";
           ctx.fillRect(0, y, W, rowH);
 
@@ -12407,7 +12408,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             detD.forEach(d => {
               ctx.fillStyle = "#5A6B6E";
               ctx.font = "11px system-ui, sans-serif";
-              ctx.fillText("• " + d.cab + " cab" + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : "") + " · desde " + fmtFecha(d.desde), padding + 16, yd);
+              ctx.fillText("• " + d.cab + " cab" + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? " · " + d.nombres[0].origen : "")) + " · desde " + fmtFecha(d.desde), padding + 16, yd);
               ctx.textAlign = "right";
               ctx.font = "bold 11px system-ui, sans-serif";
               ctx.fillStyle = "#1F6E33";
@@ -12416,6 +12417,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               ctx.fillText(d.dias + " días", W - padding - 8, yd);
               ctx.textAlign = "left";
               yd += 17;
+              if ((d.nombres || []).length > 1) {
+                d.nombres.forEach(nb => {
+                  ctx.fillStyle = "#A9B6B9";
+                  ctx.font = "10px system-ui, sans-serif";
+                  ctx.fillText("– " + nb.origen + " (" + nb.cab + " cab)", padding + 28, yd);
+                  ctx.textAlign = "right";
+                  ctx.fillText(fmtN(Math.round(nb.kg)) + " kg", W - padding - 120, yd);
+                  ctx.textAlign = "left";
+                  yd += 14;
+                });
+              }
             });
           }
           y += rowH;
@@ -12755,10 +12767,19 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                         <div className="mt-2 pt-2" style={{ borderTop: "1px dashed rgba(0,0,0,0.12)" }}>
                           <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: "#8A9A9E" }}>⏱ Distintos días en el período</p>
                           {l.diasDetalle.map((d, k) => (
-                            <div key={k} className="flex items-center justify-between text-[11px] gap-2" style={{ color: "#5A6B6E" }}>
-                              <span className="flex-1">{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ""} · desde {fmtFecha(d.desde)}</span>
-                              <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(d.kg)} kg</span>
-                              <span className="font-black" style={{ minWidth: 58, textAlign: "right" }}>{d.dias} días</span>
+                            <div key={k}>
+                              <div className="flex items-center justify-between text-[11px] gap-2" style={{ color: "#5A6B6E" }}>
+                                <span className="flex-1">{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? "· " + d.nombres[0].origen : "")} · desde {fmtFecha(d.desde)}</span>
+                                <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(d.kg)} kg</span>
+                                <span className="font-black" style={{ minWidth: 58, textAlign: "right" }}>{d.dias} días</span>
+                              </div>
+                              {(d.nombres || []).length > 1 && d.nombres.map((nb, j) => (
+                                <div key={j} className="flex items-center justify-between text-[10px] gap-2 pl-3" style={{ color: "#A9B6B9" }}>
+                                  <span className="flex-1 truncate">– {nb.origen} ({nb.cab} cab)</span>
+                                  <span>{fmtN(Math.round(nb.kg))} kg</span>
+                                  <span style={{ minWidth: 58 }}></span>
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
