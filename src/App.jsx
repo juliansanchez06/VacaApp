@@ -12136,10 +12136,16 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         if (l.desde && l.desde < g.desde) g.desde = l.desde;
         if (l.desde && l.desde > g.desdeMax) g.desdeMax = l.desde;
         g.nTropas += 1;
+        // Detalle de días: agrupa las tropas del grupo por cantidad de días devengados
+        if (!g._dias) g._dias = {};
+        const dk = Math.round(l.diasTotalesPeriodo || 0);
+        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde };
+        g._dias[dk].cab += l.cabActual || 0;
+        g._dias[dk].tropas += 1;
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
       const orden = { vacas: 0, jovenes: 1, toros: 2 };
-      return Object.values(map).map(g => ({ ...g, kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
+      return Object.values(map).map(g => ({ ...g, diasDetalle: Object.values(g._dias || {}).sort((a, b) => b.dias - a.dias), kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
     };
     const previewPorCat = agruparPorCat(preview);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
@@ -12241,7 +12247,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const lineas = cobro.lineas ?? [];
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
       const supDet = cobro.supDetalle;
-      const H = 320 + lineas.length * 72 + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
+      const extraDias = lineas.reduce((s, l) => s + ((l.diasDetalle || []).length > 1 ? 16 + l.diasDetalle.length * 17 : 0), 0);
+      const H = 320 + lineas.length * 72 + extraDias + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
@@ -12335,12 +12342,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // ── Filas de tropas ───────────────────────────────────────────────
         let y = 224;
         lineas.forEach((l, i) => {
+          const detD = (l.diasDetalle || []).length > 1 ? l.diasDetalle : null;
+          const rowH = 68 + (detD ? 16 + detD.length * 17 : 0);
           ctx.fillStyle = i % 2 === 0 ? "#F4F7F3" : "#ffffff";
-          ctx.fillRect(0, y, W, 68);
+          ctx.fillRect(0, y, W, rowH);
 
           // Borde izquierdo de color
           ctx.fillStyle = "#2F9D4E";
-          ctx.fillRect(0, y, 3, 68);
+          ctx.fillRect(0, y, 3, rowH);
 
           ctx.fillStyle = "#163049";
           ctx.font = "bold 15px system-ui, sans-serif";
@@ -12384,7 +12393,24 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           }
 
           ctx.textAlign = "left";
-          y += 68;
+          if (detD) {
+            let yd = y + 60;
+            ctx.fillStyle = "#8A9A9E";
+            ctx.font = "bold 10px system-ui, sans-serif";
+            ctx.fillText("DISTINTOS DÍAS EN EL PERÍODO", padding + 8, yd);
+            yd += 16;
+            detD.forEach(d => {
+              ctx.fillStyle = "#5A6B6E";
+              ctx.font = "11px system-ui, sans-serif";
+              ctx.fillText("• " + d.cab + " cab" + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : "") + " · desde " + fmtFecha(d.desde), padding + 16, yd);
+              ctx.textAlign = "right";
+              ctx.font = "bold 11px system-ui, sans-serif";
+              ctx.fillText(d.dias + " días", W - padding - 8, yd);
+              ctx.textAlign = "left";
+              yd += 17;
+            });
+          }
+          y += rowH;
         });
 
         // ── Separador ─────────────────────────────────────────────────────
@@ -12717,6 +12743,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                           {l.pesosSup > 0 && <p className="text-xs text-amber-600 font-bold">+ 💊 {fmtPesos(l.pesosSup)}</p>}
                         </div>
                       </div>
+                      {(l.diasDetalle || []).length > 1 && (
+                        <div className="mt-2 pt-2" style={{ borderTop: "1px dashed rgba(0,0,0,0.12)" }}>
+                          <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: "#8A9A9E" }}>⏱ Distintos días en el período</p>
+                          {l.diasDetalle.map((d, k) => (
+                            <div key={k} className="flex items-center justify-between text-[11px]" style={{ color: "#5A6B6E" }}>
+                              <span>{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ""} · desde {fmtFecha(d.desde)}</span>
+                              <span className="font-black">{d.dias} días</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
