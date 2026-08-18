@@ -12139,13 +12139,15 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // Detalle de días: agrupa las tropas del grupo por cantidad de días devengados
         if (!g._dias) g._dias = {};
         const dk = Math.round(l.diasTotalesPeriodo || 0);
-        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde };
+        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde, kg: 0, pesos: 0 };
         g._dias[dk].cab += l.cabActual || 0;
         g._dias[dk].tropas += 1;
+        g._dias[dk].kg += l.kgTotal || 0;
+        g._dias[dk].pesos += l.pesos || 0;
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
       const orden = { vacas: 0, jovenes: 1, toros: 2 };
-      return Object.values(map).map(g => ({ ...g, diasDetalle: Object.values(g._dias || {}).sort((a, b) => b.dias - a.dias), kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
+      return Object.values(map).map(g => ({ ...g, diasDetalle: Object.values(g._dias || {}).map(d => ({ ...d, kg: Math.round(d.kg * 10) / 10, pesos: Math.round(d.pesos) })).sort((a, b) => b.dias - a.dias), kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
     };
     const previewPorCat = agruparPorCat(preview);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
@@ -12405,6 +12407,9 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               ctx.fillText("• " + d.cab + " cab" + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : "") + " · desde " + fmtFecha(d.desde), padding + 16, yd);
               ctx.textAlign = "right";
               ctx.font = "bold 11px system-ui, sans-serif";
+              ctx.fillStyle = "#1F6E33";
+              ctx.fillText(fmtN(d.kg) + " kg", W - padding - 120, yd);
+              ctx.fillStyle = "#5A6B6E";
               ctx.fillText(d.dias + " días", W - padding - 8, yd);
               ctx.textAlign = "left";
               yd += 17;
@@ -12747,9 +12752,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                         <div className="mt-2 pt-2" style={{ borderTop: "1px dashed rgba(0,0,0,0.12)" }}>
                           <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: "#8A9A9E" }}>⏱ Distintos días en el período</p>
                           {l.diasDetalle.map((d, k) => (
-                            <div key={k} className="flex items-center justify-between text-[11px]" style={{ color: "#5A6B6E" }}>
-                              <span>{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ""} · desde {fmtFecha(d.desde)}</span>
-                              <span className="font-black">{d.dias} días</span>
+                            <div key={k} className="flex items-center justify-between text-[11px] gap-2" style={{ color: "#5A6B6E" }}>
+                              <span className="flex-1">{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ""} · desde {fmtFecha(d.desde)}</span>
+                              <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(d.kg)} kg</span>
+                              <span className="font-black" style={{ minWidth: 58, textAlign: "right" }}>{d.dias} días</span>
                             </div>
                           ))}
                         </div>
