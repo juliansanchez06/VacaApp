@@ -10933,6 +10933,11 @@ function DesteteParcialBtn({ ternerosNoDestetados, pctMachos, onDestetar, machos
     </div>
   );
 }
+// Motivo de salida de animales de pastaje → texto para el comprobante
+function etiquetaMotivo(m) {
+  const M = { venta: "Venta", traslado: "Traslado", mortandad: "Muerte", muerte: "Muerte", descarte: "Descarte", retiro: "Retiro del dueño", otro: "Salida" };
+  return M[m] || "Salida";
+}
 // Grupo de cobro del pastaje: 3 categorías generales elegibles a mano por tropa.
 const GRUPO_COBRO_LABEL = { vacas: "Vacas", jovenes: "Terneros/as", toros: "Toros" };
 const GRUPO_COBRO_EMOJI = { vacas: "🐄", jovenes: "🐃", toros: "🐂" };
@@ -11463,7 +11468,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const evento = { id: Date.now(), ...form, cab: Number(form.cab), tropaOrigen: tropaSelec?.origen || "—", cat: tropaSelec?.cat || "vacas", tipo: form.tipo, estado: "registrado" };
       setPeriodos(prev => [...prev, { ...evento, tipo: "evento" }]);
       if (form.tipo === "mortandad" && tropaSelec && Number(form.cab) > 0) {
-        setTropas(prev => prev.map(t => t.id === tropaSelec.id ? { ...t, cabActual: Math.max(0, (t.cabActual ?? t.cab) - Number(form.cab)) } : t));
+        // Igual que un egreso: se guardan los días que estuvieron, así el cobro los incluye y los lista.
+        const disp  = tropaSelec.cabActual ?? tropaSelec.cab;
+        const cabM  = Math.min(Number(form.cab), disp);
+        const ult   = tropaSelec.ultimoCobro || tropaSelec.fechaIngreso;
+        const diasM = Math.max(0, diasEntre(ult, form.fecha));
+        const kgM   = Math.round(cabM * (precios[tropaSelec.cat] ?? 6) * (diasM / 30) * 10) / 10;
+        setTropas(prev => prev.map(t => t.id === tropaSelec.id ? {
+          ...t,
+          cabActual: Math.max(0, (t.cabActual ?? t.cab) - cabM),
+          tramosEgreso: [...(t.tramosEgreso || []), { fecha: form.fecha, cab: cabM, desdeCorte: ult, dias: diasM, kgTramo: kgM, motivo: "mortandad", obs: form.obs || "" }],
+        } : t));
       }
       toast(`✅ Evento registrado: ${form.tipo} — ${tropaSelec?.origen}`, "success");
       onClose();
@@ -12088,11 +12103,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         );
         const kgTramos = tramosEnPeriodo.reduce((s, te) => s + (te.kgTramo ?? 0), 0);
 
-        // Las cabezas actuales (las que NO egresaron) cobran desde el punto correcto hasta fHasta.
-        // Si hubo egresos en el período, el punto de partida de las restantes es el último egreso
-        // (porque su tramo ya fue contado en kgTramos). Si no hubo egresos, arrancan desde `desde`.
         // Cada tramoEgreso ya cubre SOLO las cabezas que se fueron, con sus días exactos
-        // (desde el corte hasta su egreso). Las que quedan estuvieron TODO el período,
+        // (desde el corte hasta su salida). Las que quedan estuvieron TODO el período,
         // así que cobran desde `desde` hasta `fHasta`, sin descontar por los egresos.
         const diasRestantes = diasEntre(desde, fHasta);
         const kgRestantes = cabActual > 0 ? cabActual * kgMes * (diasRestantes / 30) : 0;
@@ -12147,6 +12159,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         if (l.desde && l.desde < g.desde) g.desde = l.desde;
         if (l.desde && l.desde > g.desdeMax) g.desdeMax = l.desde;
         g.nTropas += 1;
+        g.cabSalidos = (g.cabSalidos || 0) + (l.tramosEnPeriodo || []).reduce((s, te) => s + (te.cab || 0), 0);
+        g.hasta = l.hasta;
         // Detalle de días: agrupa las tropas del grupo por cantidad de días devengados
         if (!g._dias) g._dias = {};
         const addBucket = (dias, cab, kg, pesos, nombre, salio) => {
@@ -12171,6 +12185,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       return Object.values(map).map(g => ({ ...g, diasDetalle: Object.values(g._dias || {}).map(d => ({ ...d, kg: Math.round(d.kg * 10) / 10, pesos: Math.round(d.pesos) })).sort((a, b) => b.dias - a.dias), kgTotal: Math.round(g.kgTotal * 10) / 10, pesos: Math.round(g.pesos), kgSup: Math.round(g.kgSup * 10) / 10, pesosSup: Math.round(g.pesosSup), totalPesos: Math.round(g.totalPesos) })).sort((a, b) => (orden[a.cat] ?? 9) - (orden[b.cat] ?? 9));
     };
     const previewPorCat = agruparPorCat(preview);
+    // Animales que salieron dentro del período: se cobran sus días y se listan en el comprobante
+    const egresosDe = (arr) => arr.flatMap(l => (l.tramosEnPeriodo || []).map(te => ({
+      origen: l.origen, cat: l.cat, grupo: grupoCobroDe(l),
+      cab: te.cab || 0, fecha: te.fecha, desde: te.desdeCorte || l.desde, dias: te.dias || 0,
+      kg: Math.round((te.kgTramo || 0) * 10) / 10,
+      pesos: Math.round((te.kgTramo || 0) * precioNov),
+      motivo: te.motivo || "", obs: te.obs || "",
+    }))).sort((a, b) => (a.fecha > b.fecha ? 1 : -1));
+    const egresosPreview = egresosDe(preview);
+    const egCab = egresosPreview.reduce((s, e) => s + e.cab, 0);
+    const egKg  = egresosPreview.reduce((s, e) => s + e.kg, 0);
+    const egPesos = egresosPreview.reduce((s, e) => s + e.pesos, 0);
     const kgPreview     = preview.reduce((s, l) => s + l.kgTotal, 0);
     const pesosPreview  = preview.reduce((s, l) => s + l.pesos, 0);
     const supPreview    = preview.reduce((s, l) => s + l.pesosSup, 0);
@@ -12211,6 +12237,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         precioNov, pesos: pesosPreview,
         pesosSup: supPreview,
         supDetalle,
+        egresos: egresosPreview,
         totalPesos: totalPreview,
         estado: "pendiente",
         fechaCreacion: hoy,
@@ -12271,7 +12298,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
       const tieneSuplemento = (cobro.pesosSup ?? 0) > 0;
       const supDet = cobro.supDetalle;
       const extraDias = lineas.reduce((s, l) => s + ((l.diasDetalle || []).length > 1 ? 16 + l.diasDetalle.reduce((a, d) => a + 17 + ((d.nombres || []).length > 1 ? d.nombres.length * 14 : 0), 0) : 0), 0);
-      const H = 320 + lineas.length * 72 + extraDias + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0);
+      const egs = cobro.egresos || [];
+      const H = 320 + lineas.length * 72 + extraDias + (tieneSuplemento ? 160 : 120) + (supDet ? 70 + supDet.meses.length * 26 : 0) + (egs.length ? 80 + egs.length * 36 : 0);
       const SCALE = 3; // alta resolución: se comparte sin pixelarse
       canvas.width = W * SCALE; canvas.height = H * SCALE;
       canvas.style.width = W + "px"; canvas.style.height = H + "px";
@@ -12385,8 +12413,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           ctx.font = "12px system-ui, sans-serif";
           ctx.fillText(
             (l.desdeMax && l.desde && l.desdeMax !== l.desde)
-              ? `${l.cabActual} cab · ${l.nTropas} tropas · ingresos ${fmtFecha(l.desde)} a ${fmtFecha(l.desdeMax)}`
-              : `${l.cabActual} cab · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`,
+              ? `${l.cabActual} cab${l.cabSalidos ? " (+" + l.cabSalidos + " salieron)" : ""} · ${l.nTropas} tropas · ingresos ${fmtFecha(l.desde)} a ${fmtFecha(l.desdeMax)}`
+              : `${l.cabActual} cab${l.cabSalidos ? " (+" + l.cabSalidos + " salieron)" : ""} · ${l.diasTotalesPeriodo} días · desde ${fmtFecha(l.desde)}`,
             padding + 8, y + 38);
 
           if (l.tramosEnPeriodo?.length > 0) {
@@ -12458,6 +12486,50 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         y += 2;
+
+        // ── Animales que salieron en el período (a qué corresponden esos kg) ──
+        if (egs.length) {
+          const fit = (txt, maxW) => {
+            let t = String(txt);
+            if (ctx.measureText(t).width <= maxW) return t;
+            while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+            return t + "…";
+          };
+          const egBoxH = 78 + egs.length * 36;
+          const totCab = egs.reduce((s, e) => s + (e.cab || 0), 0);
+          const totKg  = egs.reduce((s, e) => s + (e.kg || 0), 0);
+          ctx.fillStyle = "#FFF4EC";
+          ctx.fillRect(0, y, W, egBoxH);
+          ctx.fillStyle = "#B45309";
+          ctx.font = "bold 13px system-ui, sans-serif";
+          ctx.fillText("🚚 ANIMALES QUE SALIERON EN EL PERÍODO", padding, y + 26);
+          ctx.textAlign = "right";
+          ctx.fillText(totCab + " cab · " + fmtN(totKg) + " kg", W - padding, y + 26);
+          ctx.textAlign = "left";
+          let ye = y + 54;
+          egs.forEach(e => {
+            ctx.fillStyle = "#163049";
+            ctx.font = "bold 13px system-ui, sans-serif";
+            ctx.fillText(fit(e.cab + " cab · " + e.origen, W - padding * 2 - 200), padding + 8, ye);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#1F6E33";
+            ctx.font = "700 13px 'Space Grotesk', system-ui, sans-serif";
+            ctx.fillText(fmtN(e.kg) + " kg", W - padding - 120, ye);
+            ctx.fillStyle = "#163049";
+            ctx.fillText(fmtPesos(e.pesos), W - padding - 8, ye);
+            ctx.textAlign = "left";
+            ctx.fillStyle = "#8A6D52";
+            ctx.font = "11px system-ui, sans-serif";
+            ctx.fillText(fit(etiquetaMotivo(e.motivo) + " el " + fmtFecha(e.fecha) + " · estuvieron " + e.dias + " días (desde " + fmtFecha(e.desde) + ")" + (e.obs ? " · " + e.obs : ""), W - padding * 2 - 16), padding + 8, ye + 16);
+            ye += 36;
+          });
+          ctx.fillStyle = "#A07850";
+          ctx.font = "italic 10px system-ui, sans-serif";
+          ctx.fillText("Estos kg ya están sumados en el total de cada categoría. Se cobran los días que estuvieron en el campo.", padding + 8, ye + 2);
+          y += egBoxH;
+          ctx.strokeStyle = "#E6EBE5"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
 
         // ── Detalle de suplemento (kg por mes + $/kg) ─────────────────────
         if (supDet) {
@@ -12551,7 +12623,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 font-bold">{MODO_LABELS[c.modo] ?? c.modo ?? "—"}</span>
                 </div>
                 <p className="text-xs text-slate-500">{fmtFecha(c.fechaDesde)} → {fmtFecha(c.fechaHasta)}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{c.lineas?.length ?? 0} tropas · nov ${fmtN(c.precioNov)}/kg</p>
+                <p className="text-xs text-slate-400 mt-0.5">{(c.lineas || []).reduce((s, l) => s + (l.nTropas || 1), 0)} tropas{(c.egresos || []).length ? " · " + c.egresos.reduce((s, e) => s + (e.cab || 0), 0) + " cab salieron" : ""} · nov ${fmtN(c.precioNov)}/kg</p>
                 {c.estado === "pagado" && c.fechaPago && <p className="text-xs text-emerald-600 mt-0.5">pagado {fmtFecha(c.fechaPago)}</p>}
               </div>
               <div className="text-right shrink-0">
@@ -12587,7 +12659,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
           {/* Detalle por tropa */}
           {expand && c.lineas && (
             <div className="px-3.5 pb-3.5 space-y-1.5">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Detalle por tropa</p>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Detalle del cobro</p>
               {c.lineas.map((l, i) => {
                 const col = CAT_COLORS[l.cat] ?? CAT_COLORS.vacas;
                 return (
@@ -12598,8 +12670,8 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                         <span className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg pastaje · {fmtPesos(l.pesos)}</span>
                       </div>
                       <div className="flex gap-3 mt-1 text-xs text-slate-500 flex-wrap">
-                        <span>{l.cabActual} cab</span>
-                        <span>{fmtFecha(l.desde)} → {fmtFecha(l.hasta)}</span>
+                        <span>{l.cabActual} cab{l.cabSalidos ? " · +" + l.cabSalidos + " salieron" : ""}</span>
+                        <span>{fmtFecha(l.desde)} → {fmtFecha(l.hasta || c.fechaHasta)}</span>
                         <span>{l.diasTotalesPeriodo} días</span>
                         {l.tramosEnPeriodo?.length > 0 && (
                           <span className="text-orange-600 font-semibold">+ {l.tramosEnPeriodo.length} egreso(s)</span>
@@ -12642,6 +12714,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                   </div>
                 );
               })}
+              {(c.egresos || []).length > 0 && (
+                <div className="rounded-xl p-2.5 mt-1" style={{ background: "#FFF4EC", border: "1px solid #F5C9A4" }}>
+                  <p className="text-xs font-black uppercase tracking-wider mb-1" style={{ color: "#B45309" }}>
+                    🚚 Salieron en el período · {c.egresos.reduce((s, e) => s + (e.cab || 0), 0)} cab · {fmtN(c.egresos.reduce((s, e) => s + (e.kg || 0), 0))} kg
+                  </p>
+                  {c.egresos.map((e, j) => (
+                    <div key={j} className="py-1" style={{ borderTop: j ? "1px dashed rgba(180,83,9,0.2)" : "none" }}>
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="flex-1 font-bold" style={{ color: "#163049" }}>{e.cab} cab · {e.origen}</span>
+                        <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(e.kg)} kg · {fmtPesos(e.pesos)}</span>
+                      </div>
+                      <p className="text-[11px]" style={{ color: "#8A6D52" }}>{etiquetaMotivo(e.motivo)} el {fmtFecha(e.fecha)} · {e.dias} días en el campo (desde {fmtFecha(e.desde)})</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -12775,7 +12863,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <p className={`font-black text-sm ${col.text}`}>{l.origen}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{l.cabActual} cab</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{l.cabActual} cab{l.cabSalidos ? <span style={{ color: "#B45309", fontWeight: 700 }}> · +{l.cabSalidos} salieron</span> : null}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className={`font-black text-sm ${col.text}`}>{fmtN(l.kgTotal)} kg nov</p>
@@ -12807,6 +12895,25 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                     </div>
                   );
                 })}
+                {egresosPreview.length > 0 && (
+                  <div className="rounded-xl p-3" style={{ background: "#FFF4EC", border: "1px solid #F5C9A4" }}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-xs font-black uppercase tracking-wider" style={{ color: "#B45309" }}>🚚 Animales que salieron en el período</p>
+                      <p className="text-xs font-black shrink-0" style={{ color: "#B45309" }}>{egCab} cab · {fmtN(egKg)} kg</p>
+                    </div>
+                    {egresosPreview.map((e, i) => (
+                      <div key={i} className="py-1.5" style={{ borderTop: i ? "1px dashed rgba(180,83,9,0.2)" : "none" }}>
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="flex-1 font-bold" style={{ color: "#163049" }}>{e.cab} cab · {e.origen}</span>
+                          <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(e.kg)} kg</span>
+                          <span className="font-bold" style={{ color: "#5A6B6E", minWidth: 86, textAlign: "right" }}>{fmtPesos(e.pesos)}</span>
+                        </div>
+                        <p className="text-[11px]" style={{ color: "#8A6D52" }}>{etiquetaMotivo(e.motivo)} el {fmtFecha(e.fecha)} · estuvieron {e.dias} días (desde {fmtFecha(e.desde)}){e.obs ? " · " + e.obs : ""}</p>
+                      </div>
+                    ))}
+                    <p className="text-[10px] mt-1.5" style={{ color: "#A07850" }}>Estos kg ya están sumados en el total de cada categoría. Se cobran los días que los animales estuvieron en el campo.</p>
+                  </div>
+                )}
                 {/* Total */}
                 <div className="bg-slate-800 text-white rounded-2xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
@@ -12968,7 +13075,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
               const tropasG = tropas.filter(t => grupoCobroDe(t) === gk);
               const cab = tropasG.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
               const kg  = tropasG.reduce((s, t) => s + kgDevengados(t, null), 0);
-              if (cab === 0) return null;
+              if (cab === 0 && kg <= 0) return null;
               const sup = tropasG.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
               const col = CAT_COLORS[gk] || CAT_COLORS.vacas;
               return (
@@ -12987,14 +13094,14 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                     </div>
                   )}
                   <div className="mt-1.5 pt-1.5" style={{ borderTop: "1px dashed rgba(0,0,0,0.10)" }}>
-                    {tropasG.filter(t => (t.cabActual ?? t.cab) > 0)
+                    {tropasG.filter(t => (t.cabActual ?? t.cab) > 0 || kgDevengados(t, null) > 0)
                       .sort((a, b) => kgDevengados(b, null) - kgDevengados(a, null))
                       .map(t => {
                         const corte = t.ultimoCobro || t.fechaIngreso;
                         const d = Math.round(diasEntre(corte, null));
                         return (
                           <div key={t.id} className="flex items-center gap-2 text-[11px] py-0.5" style={{ color: "#5A6B6E" }}>
-                            <span className="flex-1 truncate">• {t.origen} <span style={{ color: "#A9B6B9" }}>({t.cabActual ?? t.cab} cab · desde {fmtFecha(corte)})</span></span>
+                            <span className="flex-1 truncate">• {t.origen} <span style={{ color: "#A9B6B9" }}>({t.cabActual ?? t.cab} cab{((t.tramosEgreso || []).filter(te => te.fecha >= (t.ultimoCobro || t.fechaIngreso || "")).reduce((s, te) => s + (te.cab || 0), 0)) > 0 ? " +" + ((t.tramosEgreso || []).filter(te => te.fecha >= (t.ultimoCobro || t.fechaIngreso || "")).reduce((s, te) => s + (te.cab || 0), 0)) + " salieron" : ""} · desde {fmtFecha(corte)})</span></span>
                             <span className="font-bold shrink-0" style={{ color: "#8A9A9E" }}>{d} días</span>
                             <span className={`font-black shrink-0 ${col.text}`} style={{ minWidth: 62, textAlign: "right" }}>{fmtN(Math.round(kgDevengados(t, null)))} kg</span>
                           </div>
@@ -13099,18 +13206,18 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                 const tropasG = tropas.filter(t => grupoCobroDe(t) === gk);
                 const cab = tropasG.reduce((s, t) => s + (t.cabActual ?? t.cab), 0);
                 const kg  = tropasG.reduce((s, t) => s + kgDevengados(t, null), 0);
-                if (!cab) return null;
+                if (!cab && kg <= 0) return null;
                 const sup = tropasG.reduce((a, t) => { const s = calcSuplemento(t, t.ultimoCobro || t.fechaIngreso, null); return { kg: a.kg + s.kgSup, pesos: a.pesos + s.pesosSup }; }, { kg: 0, pesos: 0 });
                 const base = { label: GRUPO_COBRO_EMOJI[gk] + " " + GRUPO_COBRO_LABEL[gk], value: cab + " cab · " + fmtN(Math.round(kg)) + " kg nov · $" + fmtK1(kg * precioNov) };
                 // Detalle de cada tropa del grupo: nombre, desde cuándo devenga, días y kg
                 const detalle = tropasG
-                  .filter(t => (t.cabActual ?? t.cab) > 0)
+                  .filter(t => (t.cabActual ?? t.cab) > 0 || kgDevengados(t, null) > 0)
                   .sort((a, b) => kgDevengados(b, null) - kgDevengados(a, null))
                   .map(t => {
                     const corte = t.ultimoCobro || t.fechaIngreso;
                     const d = Math.round(diasEntre(corte, null));
                     const k = kgDevengados(t, null);
-                    return { label: "   • " + String(t.origen || "Tropa") + " (" + (t.cabActual ?? t.cab) + " cab)", value: fmtN(Math.round(k)) + " kg · " + d + " días · desde " + fmtFecha(corte) };
+                    return { label: "   • " + String(t.origen || "Tropa") + " (" + (t.cabActual ?? t.cab) + " cab" + (((t.tramosEgreso || []).filter(te => te.fecha >= (t.ultimoCobro || t.fechaIngreso || "")).reduce((s, te) => s + (te.cab || 0), 0)) > 0 ? " +" + ((t.tramosEgreso || []).filter(te => te.fecha >= (t.ultimoCobro || t.fechaIngreso || "")).reduce((s, te) => s + (te.cab || 0), 0)) + " salieron" : "") + ")", value: fmtN(Math.round(k)) + " kg · " + d + " días · desde " + fmtFecha(corte) };
                   });
                 const supLine = sup.kg > 0 ? [{ label: "   💊 Suplemento", value: fmtN(Math.round(sup.kg)) + " kg · $" + fmtK1(sup.pesos) }] : [];
                 return [base, ...detalle, ...supLine];
