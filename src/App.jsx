@@ -7048,8 +7048,13 @@ function MiCampo({ onVolver, onSincronizar, cria, setCria, recria, setRecria, te
   const kgDevengadosPastaje = (campoPastaje?.tropas ?? []).reduce((s, t) => {
     const cab  = t.cabActual ?? t.cab ?? 0;
     const kgM  = (campoPastaje?.precios ?? {})[t.cat] ?? 6;
-    const dias = diasEntrePast2(t.ultimoCobro || t.fechaIngreso, hoyPast);
-    return s + cab * kgM * (dias / 30);
+    const desde = t.ultimoCobro || t.fechaIngreso;
+    const dias = diasEntrePast2(desde, hoyPast);
+    // Los que ya salieron en este período cobran sus días (tramos de egreso)
+    const kgSalidos = (t.tramosEgreso || [])
+      .filter(te => te.fecha >= desde && te.fecha <= hoyPast)
+      .reduce((a, te) => a + (te.kgTramo ?? 0), 0);
+    return s + cab * kgM * (dias / 30) + kgSalidos;
   }, 0);
   const devengadoPastajeHoy = kgDevengadosPastaje * precioNovPastaje;
   // Kg de pastaje devengados del año (cobrados + por cobrar) — para el rendimiento del campo
@@ -11131,11 +11136,17 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
     return Math.max(0, Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)));
   };
   const kgDevengados = (tropa, hasta) => {
-    const cab = tropa.cabActual ?? tropa.cab;
-    if (cab <= 0) return 0;
     const kgMes = precios[tropa.cat] ?? 6;
-    // Sincronizado con la liquidación: se devenga desde el último cobro (o el ingreso si nunca se cobró).
-    return cab * kgMes * (diasEntre(tropa.ultimoCobro || tropa.fechaIngreso, hasta) / 30);
+    const desde = tropa.ultimoCobro || tropa.fechaIngreso;
+    const hastaEf = hasta || HOY_FIJO;
+    const cab = tropa.cabActual ?? tropa.cab;
+    // Los que siguen en el campo: todo el período desde el corte.
+    const kgQuedan = cab > 0 ? cab * kgMes * (diasEntre(desde, hasta) / 30) : 0;
+    // Los que salieron dentro del período: sus días exactos (tramo guardado al egresar).
+    const kgSalidos = (tropa.tramosEgreso || [])
+      .filter(te => te.fecha >= desde && te.fecha <= hastaEf)
+      .reduce((s, te) => s + (te.kgTramo ?? 0), 0);
+    return kgQuedan + kgSalidos;
   };
   const kgTotalesHoy = tropas.reduce((s, t) => s + kgDevengados(t, null), 0);
   const kgPendientes = periodos.filter(p => p.estado === "pendiente").reduce((s, p) => s + (p.kgTotal ?? 0), 0);
@@ -12080,10 +12091,10 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         // Las cabezas actuales (las que NO egresaron) cobran desde el punto correcto hasta fHasta.
         // Si hubo egresos en el período, el punto de partida de las restantes es el último egreso
         // (porque su tramo ya fue contado en kgTramos). Si no hubo egresos, arrancan desde `desde`.
-        const ultimoEgresoEnPeriodo = tramosEnPeriodo.length > 0
-          ? tramosEnPeriodo.slice().sort((a, b) => a.fecha > b.fecha ? 1 : -1).at(-1).fecha
-          : desde;
-        const diasRestantes = diasEntre(ultimoEgresoEnPeriodo, fHasta);
+        // Cada tramoEgreso ya cubre SOLO las cabezas que se fueron, con sus días exactos
+        // (desde el corte hasta su egreso). Las que quedan estuvieron TODO el período,
+        // así que cobran desde `desde` hasta `fHasta`, sin descontar por los egresos.
+        const diasRestantes = diasEntre(desde, fHasta);
         const kgRestantes = cabActual > 0 ? cabActual * kgMes * (diasRestantes / 30) : 0;
 
         const kgTotal = Math.round((kgTramos + kgRestantes) * 10) / 10;
@@ -12138,13 +12149,22 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
         g.nTropas += 1;
         // Detalle de días: agrupa las tropas del grupo por cantidad de días devengados
         if (!g._dias) g._dias = {};
-        const dk = Math.round(l.diasTotalesPeriodo || 0);
-        if (!g._dias[dk]) g._dias[dk] = { dias: dk, cab: 0, tropas: 0, desde: l.desde, kg: 0, pesos: 0, nombres: [] };
-        g._dias[dk].cab += l.cabActual || 0;
-        g._dias[dk].tropas += 1;
-        g._dias[dk].kg += l.kgTotal || 0;
-        g._dias[dk].pesos += l.pesos || 0;
-        if (l.origen) g._dias[dk].nombres.push({ origen: l.origen, cab: l.cabActual || 0, kg: l.kgTotal || 0 });
+        const addBucket = (dias, cab, kg, pesos, nombre, salio) => {
+          if (!cab && !kg) return;
+          const key = (salio ? "s" : "q") + Math.round(dias || 0);
+          if (!g._dias[key]) g._dias[key] = { dias: Math.round(dias || 0), cab: 0, tropas: 0, desde: l.desde, kg: 0, pesos: 0, nombres: [], salio: !!salio };
+          g._dias[key].cab += cab || 0;
+          g._dias[key].tropas += 1;
+          g._dias[key].kg += kg || 0;
+          g._dias[key].pesos += pesos || 0;
+          if (nombre) g._dias[key].nombres.push({ origen: nombre, cab: cab || 0, kg: kg || 0, salio: !!salio });
+        };
+        // Los que siguen en el campo
+        addBucket(l.diasTotalesPeriodo, l.cabActual, l.kgRestantes, Math.round((l.kgRestantes || 0) * precioNov), l.origen, false);
+        // Los que salieron dentro del período: su propio tramo de días
+        (l.tramosEnPeriodo || []).forEach(te => {
+          addBucket(te.dias, te.cab, te.kgTramo, Math.round((te.kgTramo || 0) * precioNov), l.origen, true);
+        });
         g.diasTotalesPeriodo = Math.max(g.diasTotalesPeriodo, l.diasTotalesPeriodo || 0);
       });
       const orden = { vacas: 0, jovenes: 1, toros: 2 };
@@ -12408,7 +12428,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
             detD.forEach(d => {
               ctx.fillStyle = "#5A6B6E";
               ctx.font = "11px system-ui, sans-serif";
-              ctx.fillText("• " + d.cab + " cab" + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? " · " + d.nombres[0].origen : "")) + " · desde " + fmtFecha(d.desde), padding + 16, yd);
+              ctx.fillText("• " + d.cab + " cab" + (d.salio ? " (salieron)" : "") + (d.tropas > 1 ? " (" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? " · " + d.nombres[0].origen : "")) + " · desde " + fmtFecha(d.desde), padding + 16, yd);
               ctx.textAlign = "right";
               ctx.font = "bold 11px system-ui, sans-serif";
               ctx.fillStyle = "#1F6E33";
@@ -12769,7 +12789,7 @@ function PastajeCampo({ pastaje, setPastaje, precioNovillo = 2800, stockPropio, 
                           {l.diasDetalle.map((d, k) => (
                             <div key={k}>
                               <div className="flex items-center justify-between text-[11px] gap-2" style={{ color: "#5A6B6E" }}>
-                                <span className="flex-1">{d.cab} cab {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? "· " + d.nombres[0].origen : "")} · desde {fmtFecha(d.desde)}</span>
+                                <span className="flex-1">{d.cab} cab {d.salio ? <span style={{ color: "#B45309", fontWeight: 800 }}>(salieron)</span> : null} {d.tropas > 1 ? "(" + d.tropas + " tropas)" : ((d.nombres || [])[0] ? "· " + d.nombres[0].origen : "")} · desde {fmtFecha(d.desde)}</span>
                                 <span className="font-black" style={{ color: "#1F7A3D" }}>{fmtN(d.kg)} kg</span>
                                 <span className="font-black" style={{ minWidth: 58, textAlign: "right" }}>{d.dias} días</span>
                               </div>
